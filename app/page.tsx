@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
 import {
   Monitor,
   Tv,
@@ -129,9 +130,12 @@ export default function Home() {
                   <Button
                     size="lg"
                     className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-xl text-white font-semibold"
+                    asChild
                   >
-                    立即体验
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <Link href="/login">
+                      立即体验
+                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Link>
                   </Button>
                   
                   <Button
@@ -448,8 +452,9 @@ export default function Home() {
               <Button
                 size="lg"
                 className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 border-0"
+                asChild
               >
-                免费试用
+                <Link href="/login">免费试用</Link>
               </Button>
               <Button
                 size="lg"
