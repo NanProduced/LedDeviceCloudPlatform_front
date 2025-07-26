@@ -6,7 +6,7 @@
  */
 import { getDefaultSite, getSiteById, SITE_STORAGE_KEY } from './sites';
 
-// 获取当前选择的网关URL
+// 获取当前选择的网关URL - 不再直接用于API调用
 export const getCurrentGatewayUrl = (): string => {
   // 检查是否在浏览器环境
   if (typeof window !== 'undefined') {
@@ -21,28 +21,24 @@ export const getCurrentGatewayUrl = (): string => {
   return getDefaultSite().gatewayUrl;
 };
 
-// 动态获取网关地址
-export const GATEWAY_URL = getCurrentGatewayUrl();
-
 // 认证相关端点
-export const getAuthEndpoints = (gatewayUrl = GATEWAY_URL) => ({
-  // OAuth2授权端点
-  authorize: `${gatewayUrl}/oauth2/authorization/gateway-server`,
+export const getAuthEndpoints = () => ({
+  // OAuth2授权端点 - 使用相对路径
+  authorize: `/oauth2/authorization/gateway-server`,
   
   // 用户信息端点
-  userInfo: `${gatewayUrl}/api/user/info`,
+  userInfo: `/api/user/info`,
   
   // 登出端点
-  logout: `${gatewayUrl}/logout`
+  logout: `/logout`
 });
 
 // 登录功能
 export const login = (redirectUri: string = "/dashboard") => {
-  // 获取最新的网关URL
-  const gatewayUrl = getCurrentGatewayUrl();
-  const endpoints = getAuthEndpoints(gatewayUrl);
+  // 获取认证端点
+  const endpoints = getAuthEndpoints();
   
-  // 默认重定向到仪表盘，除非指定其他地址
+  // 构建完整的重定向URI，不再需要替换域名
   const fullRedirectUri = window.location.origin + redirectUri;
   
   // 构建完整的认证URL
@@ -54,9 +50,8 @@ export const login = (redirectUri: string = "/dashboard") => {
 
 // 登出功能
 export const logout = () => {
-  // 获取最新的网关URL
-  const gatewayUrl = getCurrentGatewayUrl();
-  const endpoints = getAuthEndpoints(gatewayUrl);
+  // 获取认证端点
+  const endpoints = getAuthEndpoints();
   
   // 重定向到登出端点
   window.location.href = endpoints.logout;

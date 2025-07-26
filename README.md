@@ -1,36 +1,279 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LED云平台
 
-## Getting Started
+## 项目概述
 
-First, run the development server:
+LED云平台是一个专业的物联网设备管理平台，专门为LED显示设备的集中管控而设计。平台采用现代化的云原生架构，为企业和组织提供全面的LED设备远程管理、监控和运维解决方案。
+
+## 产品特色
+
+### 🌟 核心优势
+- **简单易用**: 像使用微信一样简单，无需复杂培训即可上手
+- **高效便捷**: 快速部署，批量管理，效率提升10倍
+- **安全可靠**: 企业级安全防护，数据传输全程加密
+- **智能运营**: 数据驱动决策，预测性维护
+
+### 🎯 核心功能
+- **设备集中管理**: 支持大规模LED设备的自动注册和安全认证
+- **多租户权限管理**: 基于RBAC的细粒度权限控制
+- **实时通信与消息**: 设备异常、任务完成等重要事件实时推送
+- **数据统计与分析**: 设备运行时长、故障率等关键指标统计
+
+### 🏢 适用场景
+
+#### 企业展示
+- 办公楼宇LED屏幕集中管理
+- 企业文化和通知信息发布  
+- 会议室显示设备统一控制
+
+#### 商业零售
+- 连锁店铺LED广告屏管理
+- 促销信息实时推送
+- 门店营业状态显示
+
+#### 公共服务
+- 政务大厅信息发布
+- 交通指示屏管理
+- 公共场所信息展示
+
+#### 教育机构
+- 校园LED屏幕管理
+- 教学信息发布
+- 活动通知推送
+
+## 技术架构
+
+### 前端技术栈
+- **前端框架**: [Next.js](https://nextjs.org) (App Router) - React框架，支持SSR/SSG
+- **编程语言**: [TypeScript](https://www.typescriptlang.org) - 类型安全的JavaScript超集
+- **样式解决方案**: [Tailwind CSS](https://tailwindcss.com) - 实用优先的CSS框架
+- **UI组件库**: [shadcn/ui](https://ui.shadcn.com) - 基于Radix UI的可定制组件库
+- **图标**: [Lucide React](https://lucide.dev) - 美观简洁的SVG图标集
+- **国际化**: 内置的多语言支持（中文/英文）
+
+### 后端架构
+- **微服务架构**: 基于Spring Cloud Gateway的统一API网关
+- **认证授权**: OAuth2 + JWT无状态认证
+- **权限管理**: 基于Casbin的RBAC权限模型
+- **实时通信**: WebSocket消息推送服务
+- **数据存储**: 关系型数据库 + Redis缓存
+- **容器化部署**: 支持Docker和Kubernetes部署
+
+### 核心服务
+- **Gateway**: 统一网关服务，OAuth2客户端
+- **Auth-Server**: 认证授权服务
+- **Core-Service**: 核心业务服务
+- **Message-Service**: 实时消息服务
+
+## 功能模块
+
+### 📊 主控制台
+- **运营概览**: 关键指标一览，设备状态统计
+- **实时监控**: 系统状态监控，在线设备监控
+- **告警中心**: 异常情况处理，实时告警推送
+
+### 👥 用户管理
+- **用户列表**: 用户组树形结构，用户CRUD操作
+- **角色权限**: 基于RBAC的角色分配和权限配置
+- **终端组分配**: 终端组权限分配给用户组
+- **用户分析**: 用户行为统计，操作日志
+
+### 🏢 组织管理
+- **组织架构**: 多级组织架构树形图
+- **组织配置**: 组织参数设置
+- **组织统计**: 组织运营数据分析
+
+### 📱 设备管理
+- **设备列表**: 终端组树形结构，设备状态和控制
+- **设备监控**: 实时状态监控，设备性能监控
+- **设备配置**: 设备参数管理
+- **设备统计**: 使用率和性能分析
+
+### 💬 消息中心
+- **实时消息**: 即时通讯面板，WebSocket推送
+- **广播通知**: 批量消息发送
+- **任务列表**: 任务执行状态跟踪
+- **消息统计**: 发送和接收统计
+
+### 📁 素材管理
+- **文件上传**: 拖拽式上传，批量上传
+- **文件浏览**: 文件夹树形结构
+- **转码管理**: 视频转码任务
+- **存储统计**: 存储使用情况
+
+### 🎬 节目管理
+- **节目列表**: 查看和管理节目
+- **节目发布**: 发布节目到指定终端
+- **节目制作**: 使用素材创建节目
+- **排程管理**: 创建和应用播放排程
+
+### ⚙️ 系统管理
+- **权限策略**: Casbin策略配置
+- **系统配置**: 全局参数设置
+- **审计日志**: 操作记录查询
+- **系统维护**: 数据库和缓存管理
+
+## 目录结构
+
+```
+cloudplatform/
+├── app/                    # 页面路由和组件
+│   ├── dashboard/          # 仪表盘页面
+│   ├── login/              # 登录页面
+│   ├── user-management/    # 用户管理页面
+│   ├── file-management/    # 文件管理页面
+│   ├── program-management/ # 节目管理页面
+│   └── layout.tsx          # 根布局组件
+├── components/             # 可复用组件
+│   ├── ui/                 # shadcn UI组件
+│   └── ...                 # 业务组件
+├── config/                 # 配置文件
+│   ├── auth.ts             # 认证相关配置
+│   └── sites.ts            # 站点配置
+├── hooks/                  # 自定义React钩子
+├── lib/                    # 工具库和辅助函数
+├── public/                 # 静态资源
+└── ...
+```
+
+## 开发指南
+
+### 环境要求
+
+- Node.js 18.0.0 或更高版本
+- npm 9.0.0 或更高版本
+
+### 安装依赖
+
+```bash
+npm install
+```
+
+### 启动开发服务器
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+访问 [http://localhost:3000](http://localhost:3000) 查看应用。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 构建生产版本
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+### 启动生产服务
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API接口规范
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 微服务架构
+项目采用微服务架构，所有API请求通过统一网关转发:
 
-## Deploy on Vercel
+- **网关地址**: `http://192.168.1.222:8082` (开发环境)
+- **认证服务**: Auth-Server (OAuth2授权服务器)
+- **核心业务服务**: Core-Service (用户、组织、权限管理)
+- **消息服务**: Message-Service (WebSocket实时通信)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 认证流程
+采用Gateway代理OAuth2 Client的架构:
+1. 前端重定向到Gateway的OAuth2端点
+2. Gateway重定向到Auth-Server登录页
+3. 用户登录后，Gateway建立会话
+4. 后续API请求自动携带Cookie进行认证
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 核心API
+- **用户管理**: `/user/*` - 用户CRUD操作
+- **组织管理**: `/organization/*` - 组织架构管理
+- **权限管理**: `/permission/*` - RBAC权限控制
+- **设备管理**: `/terminal-group/*` - 终端组管理
+- **消息服务**: WebSocket连接用于实时通信
+
+详细API文档请参考 `.doc/core-service-api-doc.json`。
+
+## UI/UX设计规范
+
+### 设计原则
+- **简单易用**: 像使用微信一样简单，无需复杂培训
+- **直观界面**: 清晰的可视化界面，设备状态一目了然
+- **移动友好**: 支持手机端的基本操作
+- **权限明确**: 用户清楚地知道自己能做什么，不能做什么
+
+### 视觉设计
+- **配色方案**: 深蓝色系 (#0f172a, #1e293b) 搭配亮蓝色 (#3b82f6) 强调
+- **卡片组件**: 半透明背景，轻微模糊效果，柔和的边框
+- **按钮风格**: 渐变背景，悬停时增加阴影效果
+- **字体层次**: 清晰的标题和正文区分，强调重要信息
+- **图标**: 使用Lucide React图标库，保持一致的线条风格
+
+### 用户角色设计
+- **组织管理员**: 团队管理、设备控制、内容管理、运营数据
+- **普通用户**: 简化上传、权限明确、操作便捷、移动友好
+- **设备实体**: 状态可视化、设备监控、远程控制
+
+### 导航架构
+采用三级导航结构：主控制台、用户管理、组织管理、设备管理、消息中心、素材管理、节目管理、系统管理
+
+## 多站点支持
+
+### 全球化部署
+平台支持全球不同地区的服务站点配置，每个站点包含:
+- **区域代码**: 站点唯一标识
+- **站点名称**: 显示名称
+- **国旗图标**: 区域标识
+- **网关URL**: 独立的网关地址
+
+### 默认站点配置
+- **深圳站点** (默认): `http://192.168.1.222:8082`
+- **香港站点**: 待配置
+- **伦敦站点**: 待配置
+- **旧金山站点**: 待配置
+- **新加坡站点**: 待配置
+
+### 语言支持
+- **中文** (默认): 提供完整的简体中文界面
+- **英文**: 支持英文界面切换
+- **多语言**: 可扩展其他语言支持
+
+## 用户价值
+
+### 💰 降本增效
+- 人工成本减少80%: 远程管理替代现场维护
+- 时间成本降低90%: 批量操作提升工作效率
+- 维护成本节省70%: 预防性维护减少故障损失
+
+### 📈 效率提升
+- 内容更新速度提升10倍: 一键发布到所有设备
+- 设备部署时间缩短90%: 标准化快速部署流程
+- 管理效率提升5倍: 集中管理替代分散操作
+
+### 🎯 效果提升
+- 信息传达更及时: 实时发布，无延迟
+- 展示效果更专业: 智能适配，显示更清晰
+- 管理更加规范: 权限管理，操作有序
+
+## 贡献指南
+
+1. 遵循项目的代码风格和目录结构
+2. 新功能开发请创建特性分支
+3. 提交代码前运行 `npm run lint` 检查代码
+4. 提交信息请遵循约定式提交规范
+5. 参考 `.cursor/rules/` 中的开发规范
+
+## 技术支持
+
+我们提供完善的技术支持服务：
+- 7×24小时技术支持热线
+- 专业的实施和培训服务
+- 定期的系统更新和升级
+- 丰富的API接口和开发文档
+
+## 许可证
+
+[MIT](LICENSE)
+
+---
+LED云平台 - 让LED设备管理更简单、更智能、更安全！
