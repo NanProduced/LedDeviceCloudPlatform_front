@@ -1,0 +1,20 @@
+---
+description: shadcn组件使用规则
+globs:
+alwaysApply: false
+---
+Usage Rule
+9 When asked to use shadcn components, use the MCP server. 10 Planning Rule
+e
+11 12
+When asked to plan using anything related to shadcn:
+13 Use the MCP server during planning
+smo
+14 15 16 17 18 19
+Apply components wherever components are applicable
+Use whole blocks where possible (e.g., login page, calendar)
+Implementation Rule
+When implementing:
+20 First call the demo tool to see how it is used
+mpone
+21 Then implement it so that it is implemented correctly

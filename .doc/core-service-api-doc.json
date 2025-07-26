@@ -1,0 +1,2050 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "Core-Service-ApiDocs",
+        "contact": {
+            "name": "Nan",
+            "email": "nanproduced@gamil.com"
+        },
+        "version": "1.0"
+    },
+    "servers": [
+        {
+            "url": "http://192.168.1.222:8083"
+        }
+    ],
+    "security": [
+        {
+            "Null": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "Role(角色控制器)",
+            "description": "角色相关的所有操作"
+        },
+        {
+            "name": "UserGroup(用户组控制器)",
+            "description": "用户组相关的操作"
+        },
+        {
+            "name": "TerminalGroup(终端组控制器)",
+            "description": "终端组相关的操作"
+        },
+        {
+            "name": "PermissionDeny(权限拒绝管理)",
+            "description": "权限拒绝相关操作"
+        },
+        {
+            "name": "User(用户控制器)",
+            "description": "用户相关的所有操作"
+        },
+        {
+            "name": "Organization(组织控制器)",
+            "description": "组织相关的所有操作"
+        },
+        {
+            "name": "Permission(权限控制器)",
+            "description": "权限相关操作"
+        }
+    ],
+    "paths": {
+        "/user/move": {
+            "post": {
+                "tags": [
+                    "用户管理",
+                    "User(用户控制器)"
+                ],
+                "summary": "移动用户",
+                "description": "将用户从一个组移动至另一个组",
+                "operationId": "moveUser",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveUserRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user/modify/pwd": {
+            "post": {
+                "tags": [
+                    "用户信息",
+                    "通用接口",
+                    "User(用户控制器)"
+                ],
+                "summary": "修改密码",
+                "description": "当前登录用户修改自己的密码",
+                "operationId": "modifyPassword",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ModifyUserPasswordRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user/inactive": {
+            "post": {
+                "tags": [
+                    "用户管理",
+                    "User(用户控制器)"
+                ],
+                "summary": "封禁用户",
+                "description": "封禁指定用户",
+                "operationId": "inactiveUser",
+                "parameters": [
+                    {
+                        "name": "uid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user/delete": {
+            "post": {
+                "tags": [
+                    "用户管理",
+                    "User(用户控制器)"
+                ],
+                "summary": "删除用户",
+                "description": "删除用户",
+                "operationId": "deleteUser",
+                "parameters": [
+                    {
+                        "name": "uid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user/create": {
+            "post": {
+                "tags": [
+                    "用户管理",
+                    "User(用户控制器)"
+                ],
+                "summary": "创建用户",
+                "description": "在指定用户组下创建用户",
+                "operationId": "createUser",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateUserRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user/assign-roles": {
+            "post": {
+                "tags": [
+                    "用户管理",
+                    "User(用户控制器)"
+                ],
+                "summary": "给用户分配角色",
+                "description": "给指定用户分配角色，注意：该操作为覆盖操作，将传入的角色列表覆盖用户角色",
+                "operationId": "assignRolesToUser",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AssignRolesRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user/active": {
+            "post": {
+                "tags": [
+                    "用户管理",
+                    "User(用户控制器)"
+                ],
+                "summary": "解封用户",
+                "description": "解封指定用户",
+                "operationId": "activeUser",
+                "parameters": [
+                    {
+                        "name": "uid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user-group/list": {
+            "post": {
+                "tags": [
+                    "用户组管理",
+                    "UserGroup(用户组控制器)"
+                ],
+                "summary": "获取用户列表",
+                "description": "根据用户组Id获取用户列表",
+                "operationId": "listUser",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PageRequestDTOQueryUserListRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageVOUserListResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user-group/delete": {
+            "post": {
+                "tags": [
+                    "用户组管理",
+                    "UserGroup(用户组控制器)"
+                ],
+                "summary": "删除用户组",
+                "description": "删除指定用户组及其根组，需要组下没有用户",
+                "operationId": "deleteUserGroup",
+                "parameters": [
+                    {
+                        "name": "ugid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/user-group/create": {
+            "post": {
+                "tags": [
+                    "用户组管理",
+                    "UserGroup(用户组控制器)"
+                ],
+                "summary": "创建用户组",
+                "description": "在指定组下创建用户组",
+                "operationId": "createUserGroup",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateUserGroupRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/terminal-group/update": {
+            "post": {
+                "tags": [
+                    "终端组管理",
+                    "TerminalGroup(终端组控制器)"
+                ],
+                "summary": "更新终端组",
+                "description": "更新终端组信息",
+                "operationId": "updateTerminalGroup",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTerminalGroupRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/terminal-group/permission/expression/update": {
+            "post": {
+                "tags": [
+                    "权限管理",
+                    "TerminalGroup(终端组控制器)"
+                ],
+                "summary": "更新权限表达式",
+                "description": "全量替换用户组的权限绑定，支持INCLUDE/EXCLUDE权限类型和智能冗余清理",
+                "operationId": "updatePermissionExpression",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PermissionExpressionRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PermissionExpressionResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/terminal-group/delete": {
+            "post": {
+                "tags": [
+                    "终端组管理",
+                    "TerminalGroup(终端组控制器)"
+                ],
+                "summary": "删除终端组",
+                "description": "删除指定终端组及其子组，需要组下没有设备",
+                "operationId": "deleteTerminalGroup",
+                "parameters": [
+                    {
+                        "name": "tgid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/terminal-group/create": {
+            "post": {
+                "tags": [
+                    "终端组管理",
+                    "TerminalGroup(终端组控制器)"
+                ],
+                "summary": "创建终端组",
+                "description": "在指定组下创建终端组",
+                "operationId": "createTerminalGroup",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTerminalGroupRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/role/update": {
+            "post": {
+                "tags": [
+                    "Role(角色控制器)",
+                    "角色管理"
+                ],
+                "summary": "更新指定角色",
+                "description": "更新指定角色信息或重置权限",
+                "operationId": "updateRoles",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateRolesRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/role/delete": {
+            "post": {
+                "tags": [
+                    "Role(角色控制器)",
+                    "角色管理"
+                ],
+                "summary": "删除指定角色",
+                "description": "删除指定角色",
+                "operationId": "deleteRole",
+                "parameters": [
+                    {
+                        "name": "rid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/role/create": {
+            "post": {
+                "tags": [
+                    "Role(角色控制器)",
+                    "角色管理"
+                ],
+                "summary": "创建角色",
+                "description": "组织内创建角色，用于分配权限",
+                "operationId": "createRole",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateRoleRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/permission-deny/remove": {
+            "post": {
+                "tags": [
+                    "PermissionDeny(权限拒绝管理)"
+                ],
+                "summary": "移除拒绝权限",
+                "description": "移除指定用户或角色的拒绝权限",
+                "operationId": "removeDenyPermission",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PermissionDenyRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/permission-deny/remove-all": {
+            "post": {
+                "tags": [
+                    "PermissionDeny(权限拒绝管理)"
+                ],
+                "summary": "移除用户所有拒绝权限",
+                "description": "移除用户在指定组织的所有拒绝权限",
+                "operationId": "removeAllUserDenyPermissions",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "orgId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/permission-deny/add": {
+            "post": {
+                "tags": [
+                    "PermissionDeny(权限拒绝管理)"
+                ],
+                "summary": "添加拒绝权限",
+                "description": "为指定用户或角色添加拒绝权限",
+                "operationId": "addDenyPermission",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PermissionDenyRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/org/create": {
+            "post": {
+                "tags": [
+                    "",
+                    "组织管理",
+                    "Organization(组织控制器)"
+                ],
+                "summary": "创建组织",
+                "description": "超级管理员/系统管理员创建组织",
+                "operationId": "createOrg",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrgRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CreateOrgResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user/current": {
+            "get": {
+                "tags": [
+                    "用户信息",
+                    "通用接口",
+                    "User(用户控制器)"
+                ],
+                "summary": "返回当前登录用户信息",
+                "description": "返回当前登录用户信息",
+                "operationId": "getCurrentUserInfo",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserInfoResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user-group/tree/init": {
+            "get": {
+                "tags": [
+                    "用户组管理",
+                    "UserGroup(用户组控制器)"
+                ],
+                "summary": "获取用户组树",
+                "description": "加载当前登录用户的用户组树",
+                "operationId": "getUserGroupTree",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserGroupTreeResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/terminal-group/tree/init": {
+            "get": {
+                "tags": [
+                    "终端组管理",
+                    "TerminalGroup(终端组控制器)"
+                ],
+                "summary": "获取终端组树",
+                "description": "加载当前登录用户的终端组树",
+                "operationId": "getTerminalGroupTree",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TerminalGroupTreeResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/terminal-group/permission/status": {
+            "get": {
+                "tags": [
+                    "权限管理",
+                    "TerminalGroup(终端组控制器)"
+                ],
+                "summary": "获取用户组权限状态",
+                "description": "获取用户组当前的权限绑定状态和统计信息，用于前端权限树展示",
+                "operationId": "getUserGroupPermissionStatus",
+                "parameters": [
+                    {
+                        "name": "ugid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserGroupPermissionStatusResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/terminal-group/detail": {
+            "get": {
+                "tags": [
+                    "终端组管理",
+                    "TerminalGroup(终端组控制器)"
+                ],
+                "summary": "获取终端组详情",
+                "description": "根据终端组ID获取详细信息",
+                "operationId": "getTerminalGroupDetail",
+                "parameters": [
+                    {
+                        "name": "tgid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TerminalGroupDetailResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/role/get/visible": {
+            "get": {
+                "tags": [
+                    "用户信息",
+                    "Role(角色控制器)",
+                    "通用接口"
+                ],
+                "summary": "获取当前用户有权限的角色",
+                "description": "查询当前用户有权限的组织内角色，用于分配",
+                "operationId": "getVisibleRoles",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VisibleRolesResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/permission/get": {
+            "get": {
+                "tags": [
+                    "权限管理",
+                    "通用接口",
+                    "Permission(权限控制器)"
+                ],
+                "summary": "获取当前用户可用权限",
+                "description": "根据当前用户角色获取用户可用的全部权限",
+                "operationId": "getCurUserPermissions",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/PermissionResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/permission-deny/check": {
+            "get": {
+                "tags": [
+                    "PermissionDeny(权限拒绝管理)"
+                ],
+                "summary": "检查用户是否被拒绝",
+                "description": "检查用户是否被拒绝访问特定接口",
+                "operationId": "checkUserDenied",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "orgId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "url",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "method",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "boolean"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "MoveUserRequest": {
+                "required": [
+                    "sourceUgid",
+                    "targetUgid",
+                    "uid"
+                ],
+                "type": "object",
+                "properties": {
+                    "uid": {
+                        "type": "integer",
+                        "description": "用户Id",
+                        "format": "int64"
+                    },
+                    "sourceUgid": {
+                        "type": "integer",
+                        "description": "源用户组Id",
+                        "format": "int64"
+                    },
+                    "targetUgid": {
+                        "type": "integer",
+                        "description": "目标用户组Id",
+                        "format": "int64"
+                    }
+                },
+                "description": "移动用户请求DTO"
+            },
+            "ModifyUserPasswordRequest": {
+                "required": [
+                    "newPassword",
+                    "oldPassword"
+                ],
+                "type": "object",
+                "properties": {
+                    "oldPassword": {
+                        "type": "string",
+                        "description": "旧密码"
+                    },
+                    "newPassword": {
+                        "type": "string",
+                        "description": "新密码"
+                    }
+                },
+                "description": "修改用户密码请求"
+            },
+            "CreateUserRequest": {
+                "required": [
+                    "email",
+                    "password",
+                    "phone",
+                    "roles",
+                    "ugid",
+                    "username"
+                ],
+                "type": "object",
+                "properties": {
+                    "ugid": {
+                        "type": "integer",
+                        "description": "用户组Id",
+                        "format": "int64"
+                    },
+                    "roles": {
+                        "type": "array",
+                        "description": "角色Id列表",
+                        "items": {
+                            "type": "integer",
+                            "description": "角色Id列表",
+                            "format": "int64"
+                        }
+                    },
+                    "username": {
+                        "type": "string",
+                        "description": "用户名"
+                    },
+                    "password": {
+                        "type": "string",
+                        "description": "密码"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "邮箱"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "手机号"
+                    }
+                },
+                "description": "创建用户请求DTO"
+            },
+            "AssignRolesRequest": {
+                "type": "object",
+                "properties": {
+                    "targetUid": {
+                        "type": "integer",
+                        "description": "目标用户Id",
+                        "format": "int64"
+                    },
+                    "rids": {
+                        "type": "array",
+                        "description": "角色Id",
+                        "items": {
+                            "type": "integer",
+                            "description": "角色Id",
+                            "format": "int64"
+                        }
+                    }
+                },
+                "description": "给指定用户分配角色DTO"
+            },
+            "PageRequestDTOQueryUserListRequest": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "sortField": {
+                        "type": "string"
+                    },
+                    "sortOrder": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "$ref": "#/components/schemas/QueryUserListRequest"
+                    }
+                }
+            },
+            "QueryUserListRequest": {
+                "required": [
+                    "ugid"
+                ],
+                "type": "object",
+                "properties": {
+                    "ugid": {
+                        "type": "integer",
+                        "description": "查询的用户组Id",
+                        "format": "int64"
+                    },
+                    "includeSubGroups": {
+                        "type": "boolean",
+                        "description": "查询是否包含子组",
+                        "default": false
+                    },
+                    "userNameKeyword": {
+                        "type": "string",
+                        "description": "用户名关键字"
+                    },
+                    "emailKeyword": {
+                        "type": "string",
+                        "description": "邮箱关键字"
+                    },
+                    "status": {
+                        "type": "integer",
+                        "description": "状态筛选, 0:正常;1:封禁",
+                        "format": "int32"
+                    }
+                },
+                "description": "查询用户列表请求"
+            },
+            "PageVOUserListResponse": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "records": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserListResponse"
+                        }
+                    },
+                    "hasNext": {
+                        "type": "boolean"
+                    },
+                    "hasPrevious": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "RoleDTO": {
+                "type": "object",
+                "properties": {
+                    "rid": {
+                        "type": "integer",
+                        "description": "角色Id",
+                        "format": "int64"
+                    },
+                    "oid": {
+                        "type": "integer",
+                        "description": "组织Id",
+                        "format": "int64"
+                    },
+                    "roleName": {
+                        "type": "string",
+                        "description": "角色名称"
+                    },
+                    "displayName": {
+                        "type": "string",
+                        "description": "前端展示名称"
+                    }
+                },
+                "description": "角色"
+            },
+            "UserListResponse": {
+                "type": "object",
+                "properties": {
+                    "uid": {
+                        "type": "integer",
+                        "description": "用户Id",
+                        "format": "int64"
+                    },
+                    "username": {
+                        "type": "string",
+                        "description": "用户名"
+                    },
+                    "ugid": {
+                        "type": "integer",
+                        "description": "用户组Id",
+                        "format": "int64"
+                    },
+                    "ugName": {
+                        "type": "string",
+                        "description": "用户组名称"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "邮箱"
+                    },
+                    "active": {
+                        "type": "integer",
+                        "description": "状态",
+                        "format": "int32"
+                    },
+                    "roles": {
+                        "uniqueItems": true,
+                        "type": "array",
+                        "description": "用户角色",
+                        "items": {
+                            "$ref": "#/components/schemas/RoleDTO"
+                        }
+                    },
+                    "updateTime": {
+                        "type": "string",
+                        "description": "更新时间",
+                        "format": "date-time"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "用户列表查询结果"
+            },
+            "CreateUserGroupRequest": {
+                "required": [
+                    "parentUgid",
+                    "userGroupName"
+                ],
+                "type": "object",
+                "properties": {
+                    "parentUgid": {
+                        "type": "integer",
+                        "description": "父级组Id",
+                        "format": "int64"
+                    },
+                    "userGroupName": {
+                        "type": "string",
+                        "description": "用户组名称"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "用户组描述"
+                    }
+                },
+                "description": "创建用户组请求DTO"
+            },
+            "UpdateTerminalGroupRequest": {
+                "required": [
+                    "tgid"
+                ],
+                "type": "object",
+                "properties": {
+                    "tgid": {
+                        "type": "integer",
+                        "description": "终端组ID",
+                        "format": "int64"
+                    },
+                    "terminalGroupName": {
+                        "type": "string",
+                        "description": "终端组名称"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "终端组描述"
+                    }
+                },
+                "description": "更新终端组请求DTO"
+            },
+            "PermissionBinding": {
+                "required": [
+                    "bindingType",
+                    "includeChildren",
+                    "tgid"
+                ],
+                "type": "object",
+                "properties": {
+                    "tgid": {
+                        "type": "integer",
+                        "description": "终端组ID",
+                        "format": "int64",
+                        "example": 2001
+                    },
+                    "bindingType": {
+                        "type": "string",
+                        "description": "绑定类型",
+                        "example": "INCLUDE",
+                        "enum": [
+                            "INCLUDE",
+                            "EXCLUDE",
+                            "INCLUDE",
+                            "EXCLUDE"
+                        ]
+                    },
+                    "includeChildren": {
+                        "type": "boolean",
+                        "description": "是否包含子终端组",
+                        "example": true
+                    },
+                    "remarks": {
+                        "type": "string",
+                        "description": "备注说明"
+                    }
+                },
+                "description": "权限绑定项"
+            },
+            "PermissionExpressionRequest": {
+                "required": [
+                    "permissionBindings",
+                    "ugid"
+                ],
+                "type": "object",
+                "properties": {
+                    "ugid": {
+                        "type": "integer",
+                        "description": "用户组ID",
+                        "format": "int64",
+                        "example": 1001
+                    },
+                    "permissionBindings": {
+                        "type": "array",
+                        "description": "权限绑定表达式列表",
+                        "items": {
+                            "$ref": "#/components/schemas/PermissionBinding"
+                        }
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "操作说明"
+                    },
+                    "enableRedundancyOptimization": {
+                        "type": "boolean",
+                        "description": "是否执行智能冗余清理",
+                        "example": true
+                    }
+                },
+                "description": "权限表达式请求DTO"
+            },
+            "OperationDetail": {
+                "type": "object",
+                "properties": {
+                    "tgid": {
+                        "type": "integer",
+                        "description": "终端组ID",
+                        "format": "int64"
+                    },
+                    "terminalGroupName": {
+                        "type": "string",
+                        "description": "终端组名称"
+                    },
+                    "operationType": {
+                        "type": "string",
+                        "description": "操作类型",
+                        "enum": [
+                            "CREATE",
+                            "UPDATE",
+                            "DELETE",
+                            "REDUNDANCY_REMOVED"
+                        ]
+                    },
+                    "oldBinding": {
+                        "type": "string",
+                        "description": "原绑定状态"
+                    },
+                    "newBinding": {
+                        "type": "string",
+                        "description": "新绑定状态"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "操作原因"
+                    },
+                    "success": {
+                        "type": "boolean",
+                        "description": "是否成功"
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "description": "错误信息"
+                    }
+                },
+                "description": "操作详情"
+            },
+            "OperationStatistics": {
+                "type": "object",
+                "properties": {
+                    "originalCount": {
+                        "type": "integer",
+                        "description": "原始绑定数量",
+                        "format": "int32",
+                        "example": 15
+                    },
+                    "optimizedCount": {
+                        "type": "integer",
+                        "description": "优化后绑定数量",
+                        "format": "int32",
+                        "example": 8
+                    },
+                    "redundancyRemoved": {
+                        "type": "integer",
+                        "description": "减少的冗余绑定数量",
+                        "format": "int32",
+                        "example": 7
+                    },
+                    "addedCount": {
+                        "type": "integer",
+                        "description": "新增绑定数量",
+                        "format": "int32",
+                        "example": 3
+                    },
+                    "updatedCount": {
+                        "type": "integer",
+                        "description": "更新绑定数量",
+                        "format": "int32",
+                        "example": 2
+                    },
+                    "deletedCount": {
+                        "type": "integer",
+                        "description": "删除绑定数量",
+                        "format": "int32",
+                        "example": 5
+                    },
+                    "optimizationRatio": {
+                        "type": "number",
+                        "description": "优化率百分比",
+                        "format": "double",
+                        "example": 46.67
+                    }
+                },
+                "description": "操作统计信息"
+            },
+            "OptimizedBinding": {
+                "type": "object",
+                "properties": {
+                    "tgid": {
+                        "type": "integer",
+                        "description": "终端组ID",
+                        "format": "int64"
+                    },
+                    "terminalGroupName": {
+                        "type": "string",
+                        "description": "终端组名称"
+                    },
+                    "bindingType": {
+                        "type": "string",
+                        "description": "绑定类型",
+                        "enum": [
+                            "INCLUDE",
+                            "EXCLUDE"
+                        ]
+                    },
+                    "includeChildren": {
+                        "type": "boolean",
+                        "description": "是否包含子组"
+                    },
+                    "depth": {
+                        "type": "integer",
+                        "description": "层级深度",
+                        "format": "int32"
+                    },
+                    "parentTgid": {
+                        "type": "integer",
+                        "description": "父终端组ID",
+                        "format": "int64"
+                    },
+                    "optimized": {
+                        "type": "boolean",
+                        "description": "是否为智能优化的结果"
+                    }
+                },
+                "description": "优化后的绑定项"
+            },
+            "PermissionExpressionResponse": {
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "description": "操作是否成功",
+                        "example": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "操作消息",
+                        "example": "权限表达式更新成功"
+                    },
+                    "ugid": {
+                        "type": "integer",
+                        "description": "用户组ID",
+                        "format": "int64"
+                    },
+                    "statistics": {
+                        "$ref": "#/components/schemas/OperationStatistics"
+                    },
+                    "optimizedBindings": {
+                        "type": "array",
+                        "description": "优化后的权限绑定列表",
+                        "items": {
+                            "$ref": "#/components/schemas/OptimizedBinding"
+                        }
+                    },
+                    "operationDetails": {
+                        "type": "array",
+                        "description": "操作详情列表",
+                        "items": {
+                            "$ref": "#/components/schemas/OperationDetail"
+                        }
+                    },
+                    "operationTime": {
+                        "type": "string",
+                        "description": "操作时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "权限表达式操作响应DTO"
+            },
+            "CreateTerminalGroupRequest": {
+                "required": [
+                    "parentTgid",
+                    "terminalGroupName"
+                ],
+                "type": "object",
+                "properties": {
+                    "parentTgid": {
+                        "type": "integer",
+                        "description": "父级终端组Id",
+                        "format": "int64"
+                    },
+                    "terminalGroupName": {
+                        "type": "string",
+                        "description": "终端组名称"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "终端组描述"
+                    }
+                },
+                "description": "创建终端组请求DTO"
+            },
+            "UpdateRolesRequest": {
+                "required": [
+                    "rid"
+                ],
+                "type": "object",
+                "properties": {
+                    "rid": {
+                        "type": "integer",
+                        "description": "角色Id",
+                        "format": "int64"
+                    },
+                    "permissionIds": {
+                        "type": "array",
+                        "description": "更新权限Id(为覆盖操作，如果不更新权限只更新角色信息则传null)",
+                        "items": {
+                            "type": "integer",
+                            "description": "更新权限Id(为覆盖操作，如果不更新权限只更新角色信息则传null)",
+                            "format": "int64"
+                        }
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "更新角色名称"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "更新角色描述"
+                    }
+                },
+                "description": "更新角色请求"
+            },
+            "CreateRoleRequest": {
+                "type": "object",
+                "properties": {
+                    "roleName": {
+                        "type": "string",
+                        "description": "角色名称"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "角色描述"
+                    },
+                    "permissions": {
+                        "type": "array",
+                        "description": "角色权限,多选",
+                        "items": {
+                            "type": "integer",
+                            "description": "角色权限,多选",
+                            "format": "int64"
+                        }
+                    }
+                },
+                "description": "创建角色请求DTO"
+            },
+            "PermissionDenyRequest": {
+                "required": [
+                    "method",
+                    "orgId",
+                    "targetId",
+                    "targetType",
+                    "url"
+                ],
+                "type": "object",
+                "properties": {
+                    "targetType": {
+                        "type": "string",
+                        "description": "目标类型",
+                        "example": "USER",
+                        "enum": [
+                            "USER",
+                            "ROLE"
+                        ]
+                    },
+                    "targetId": {
+                        "type": "integer",
+                        "description": "目标ID（用户ID或角色ID）",
+                        "format": "int64",
+                        "example": 123
+                    },
+                    "orgId": {
+                        "type": "integer",
+                        "description": "组织ID",
+                        "format": "int64",
+                        "example": 456
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "接口URL",
+                        "example": "/core/api/user/create"
+                    },
+                    "method": {
+                        "type": "string",
+                        "description": "HTTP方法",
+                        "example": "POST",
+                        "enum": [
+                            "GET",
+                            "POST",
+                            "PUT",
+                            "DELETE"
+                        ]
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "拒绝原因",
+                        "example": "违反公司政策"
+                    },
+                    "durationHours": {
+                        "type": "integer",
+                        "description": "临时禁用时长（小时），如果不填则为永久禁用",
+                        "format": "int32",
+                        "example": 24
+                    }
+                },
+                "description": "权限拒绝请求DTO"
+            },
+            "CreateOrgRequest": {
+                "type": "object",
+                "properties": {
+                    "orgName": {
+                        "type": "string",
+                        "description": "组织名称"
+                    },
+                    "remark": {
+                        "type": "string",
+                        "description": "组织备注"
+                    },
+                    "managerName": {
+                        "type": "string",
+                        "description": "组织管理员用户名"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "组织管理员邮箱"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "组织管理员电话"
+                    }
+                },
+                "description": "创建组织请求DTO"
+            },
+            "CreateOrgResponse": {
+                "type": "object",
+                "properties": {
+                    "oid": {
+                        "type": "integer",
+                        "description": "组织ID",
+                        "format": "int64"
+                    },
+                    "orgName": {
+                        "type": "string",
+                        "description": "组织名称"
+                    },
+                    "suffix": {
+                        "type": "integer",
+                        "description": "组织后缀（用于登录时区分组织,组织内不可重名）",
+                        "format": "int32"
+                    },
+                    "uid": {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "format": "int64"
+                    },
+                    "username": {
+                        "type": "string",
+                        "description": "组织管理员用户名"
+                    },
+                    "password": {
+                        "type": "string",
+                        "description": "组织管理员密码"
+                    }
+                },
+                "description": "创建组织响应DTO"
+            },
+            "UserInfoResponse": {
+                "type": "object",
+                "properties": {
+                    "uid": {
+                        "type": "integer",
+                        "description": "用户Id",
+                        "format": "int64"
+                    },
+                    "username": {
+                        "type": "string",
+                        "description": "用户名称"
+                    },
+                    "oid": {
+                        "type": "integer",
+                        "description": "组织Id",
+                        "format": "int64"
+                    },
+                    "orgName": {
+                        "type": "string",
+                        "description": "组织名称"
+                    },
+                    "roles": {
+                        "type": "array",
+                        "description": "用户角色",
+                        "items": {
+                            "$ref": "#/components/schemas/RoleDTO"
+                        }
+                    },
+                    "ugid": {
+                        "type": "integer",
+                        "description": "用户组Id",
+                        "format": "int64"
+                    },
+                    "ugName": {
+                        "type": "string",
+                        "description": "用户组名称"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "用户邮箱"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "用户电话号码"
+                    },
+                    "active": {
+                        "type": "integer",
+                        "description": "账号状态, 0:正常;1:封禁",
+                        "format": "int32"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "description": "更新时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "用户信息响应DTO"
+            },
+            "OrganizationDTO": {
+                "type": "object",
+                "properties": {
+                    "oid": {
+                        "type": "integer",
+                        "description": "组织Id",
+                        "format": "int64"
+                    },
+                    "orgName": {
+                        "type": "string",
+                        "description": "组织名称"
+                    },
+                    "suffix": {
+                        "type": "integer",
+                        "description": "组织后缀",
+                        "format": "int32"
+                    }
+                },
+                "description": "组织信息DTO"
+            },
+            "UserGroupTreeNode": {
+                "type": "object",
+                "properties": {
+                    "ugid": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "ugName": {
+                        "type": "string"
+                    },
+                    "parent": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "pathMap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "children": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserGroupTreeNode"
+                        }
+                    }
+                },
+                "description": "用户组树节点"
+            },
+            "UserGroupTreeResponse": {
+                "type": "object",
+                "properties": {
+                    "organization": {
+                        "$ref": "#/components/schemas/OrganizationDTO"
+                    },
+                    "root": {
+                        "$ref": "#/components/schemas/UserGroupTreeNode"
+                    }
+                },
+                "description": "用户组树响应体"
+            },
+            "TerminalGroupTreeNode": {
+                "type": "object",
+                "properties": {
+                    "tgid": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tgName": {
+                        "type": "string"
+                    },
+                    "parent": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "pathMap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "children": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TerminalGroupTreeNode"
+                        }
+                    },
+                    "childrenCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "hasPermission": {
+                        "type": "boolean",
+                        "description": "用户是否有权限"
+                    }
+                },
+                "description": "终端组树节点"
+            },
+            "TerminalGroupTreeResponse": {
+                "type": "object",
+                "properties": {
+                    "organization": {
+                        "$ref": "#/components/schemas/OrganizationDTO"
+                    },
+                    "accessibleTrees": {
+                        "type": "array",
+                        "description": "用户可访问的终端组树列表",
+                        "items": {
+                            "$ref": "#/components/schemas/TerminalGroupTreeNode"
+                        }
+                    }
+                },
+                "description": "终端组树响应体"
+            },
+            "BindingStatistics": {
+                "type": "object",
+                "properties": {
+                    "totalBindings": {
+                        "type": "integer",
+                        "description": "总绑定数量",
+                        "format": "int32"
+                    },
+                    "includeBindings": {
+                        "type": "integer",
+                        "description": "INCLUDE类型绑定数量",
+                        "format": "int32"
+                    },
+                    "excludeBindings": {
+                        "type": "integer",
+                        "description": "EXCLUDE类型绑定数量",
+                        "format": "int32"
+                    },
+                    "includeChildrenBindings": {
+                        "type": "integer",
+                        "description": "包含子组的绑定数量",
+                        "format": "int32"
+                    },
+                    "totalCoveredTerminalGroups": {
+                        "type": "integer",
+                        "description": "覆盖的终端组总数",
+                        "format": "int32"
+                    },
+                    "maxDepth": {
+                        "type": "integer",
+                        "description": "最大层级深度",
+                        "format": "int32"
+                    }
+                },
+                "description": "绑定统计信息"
+            },
+            "PermissionBindingStatus": {
+                "type": "object",
+                "properties": {
+                    "bindingId": {
+                        "type": "integer",
+                        "description": "绑定ID",
+                        "format": "int64"
+                    },
+                    "tgid": {
+                        "type": "integer",
+                        "description": "终端组ID",
+                        "format": "int64"
+                    },
+                    "terminalGroupName": {
+                        "type": "string",
+                        "description": "终端组名称"
+                    },
+                    "terminalGroupPath": {
+                        "type": "string",
+                        "description": "终端组路径",
+                        "example": "/root/device/led"
+                    },
+                    "bindingType": {
+                        "type": "string",
+                        "description": "绑定类型",
+                        "enum": [
+                            "INCLUDE",
+                            "EXCLUDE"
+                        ]
+                    },
+                    "includeChildren": {
+                        "type": "boolean",
+                        "description": "是否包含子组"
+                    },
+                    "depth": {
+                        "type": "integer",
+                        "description": "层级深度",
+                        "format": "int32"
+                    },
+                    "parentTgid": {
+                        "type": "integer",
+                        "description": "父终端组ID",
+                        "format": "int64"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    },
+                    "updateTime": {
+                        "type": "string",
+                        "description": "更新时间",
+                        "format": "date-time"
+                    },
+                    "remarks": {
+                        "type": "string",
+                        "description": "备注"
+                    }
+                },
+                "description": "权限绑定状态"
+            },
+            "UserGroupPermissionStatusResponse": {
+                "type": "object",
+                "properties": {
+                    "ugid": {
+                        "type": "integer",
+                        "description": "用户组ID",
+                        "format": "int64"
+                    },
+                    "userGroupName": {
+                        "type": "string",
+                        "description": "用户组名称"
+                    },
+                    "permissionBindings": {
+                        "type": "array",
+                        "description": "权限绑定列表",
+                        "items": {
+                            "$ref": "#/components/schemas/PermissionBindingStatus"
+                        }
+                    },
+                    "statistics": {
+                        "$ref": "#/components/schemas/BindingStatistics"
+                    },
+                    "lastUpdateTime": {
+                        "type": "string",
+                        "description": "最后更新时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "用户组权限状态响应DTO"
+            },
+            "TerminalGroupDetailResponse": {
+                "type": "object",
+                "properties": {
+                    "tgid": {
+                        "type": "integer",
+                        "description": "终端组ID",
+                        "format": "int64"
+                    },
+                    "terminalGroupName": {
+                        "type": "string",
+                        "description": "终端组名称"
+                    },
+                    "oid": {
+                        "type": "integer",
+                        "description": "组织ID",
+                        "format": "int64"
+                    },
+                    "parent": {
+                        "type": "integer",
+                        "description": "父级终端组ID",
+                        "format": "int64"
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "路径"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "描述"
+                    },
+                    "creatorId": {
+                        "type": "integer",
+                        "description": "创建者ID",
+                        "format": "int64"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    },
+                    "updaterId": {
+                        "type": "integer",
+                        "description": "更新者ID",
+                        "format": "int64"
+                    },
+                    "updateTime": {
+                        "type": "string",
+                        "description": "更新时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "终端组详情响应体"
+            },
+            "VisibleRolesResponse": {
+                "type": "object",
+                "properties": {
+                    "uid": {
+                        "type": "integer",
+                        "description": "用户Id",
+                        "format": "int64"
+                    },
+                    "visibleRoles": {
+                        "type": "array",
+                        "description": "可分配角色（有权限角色）",
+                        "items": {
+                            "$ref": "#/components/schemas/RoleDTO"
+                        }
+                    }
+                },
+                "description": "获取用户可分配角色"
+            },
+            "PermissionResponse": {
+                "type": "object",
+                "properties": {
+                    "permissionId": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "permissionName": {
+                        "type": "string"
+                    },
+                    "permissionDescription": {
+                        "type": "string"
+                    },
+                    "permissionType": {
+                        "type": "string"
+                    }
+                },
+                "description": "权限查询响应DTO"
+            }
+        }
+    }
+}

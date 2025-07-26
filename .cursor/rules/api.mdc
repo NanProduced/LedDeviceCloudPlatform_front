@@ -1,0 +1,82 @@
+---
+description: 后端项目的API调用规范
+globs:
+alwaysApply: true
+---
+
+ 根据我们的微服务架构，在没有特殊说明的情况下，前端所有API请求都应该通过网关(Gateway)统一入口，不同服务需要添加对应的路径前缀：
+
+  API调用规范
+
+  统一网关入口
+
+  - 网关地址: http://192.168.1.222:8082 (开发环境)
+  - 所有API请求都必须通过网关转发
+
+  服务路径前缀规则
+
+  1. 认证服务 (auth-server)
+
+  前缀: /auth/api/
+  示例: GET /auth/rsa/publicKey
+        GET /auth/login
+
+  2. 核心业务服务 (core-service)
+
+  前缀: /core/api/
+  示例: GET /core/user/current
+        GET /core/permission/get
+        GET /core/role/get/visible
+        GET /core/user-group/tree/init
+        GET /core/terminal-group/tree/init
+        POST /core/user/create
+
+  3. 消息服务 (message-service)
+
+  前缀: /message-service/
+  示例: GET /message/api/v1/user-online-status/platform/stats
+        GET /message/api/v1/messages/statistics
+        POST /message/api/v1/messages/send/{userId}
+        GET /message/api/v1/user-online-status/status/{userId}
+
+  前端调用示例
+
+  // 获取当前用户信息
+  fetch('/core/api/user/current', {
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    }
+  })
+
+  // 获取用户权限
+  fetch('/core/permission/get')
+
+  // 获取平台在线统计
+  fetch('/message/api/v1/user-online-status/platform/stats')
+
+  // 发送消息
+  fetch('/message/api/v1/messages/send/user123', {
+    method: 'POST',
+    body: JSON.stringify(messageData)
+  })
+
+  认证方式
+
+  网关支持两种认证方式：
+  1. Cookie认证 (推荐用于Web应用),前端SPA使用这种方式即可
+  2. Bearer Token认证 (推荐用于API调用)
+
+  重要说明
+
+  - 网关会自动处理OAuth2认证流程
+  - 所有请求都会经过权限验证(基于Casbin)
+  - 网关会自动转发请求到对应的后端服务
+  - 响应会统一通过网关返回给前端
+  - 支持跨域请求和安全头设置
+
+  这样的架构确保了：
+  - 统一的认证授权管理
+  - 服务间的解耦
+  - 统一的API入口
+  - 便于监控和日志管理
