@@ -4,57 +4,53 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { login } from "@/config/auth";
-import SiteSelector from "@/components/SiteSelector";
 import { SiteConfig, getDefaultSite, SITES } from "@/config/sites";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Cloud, Globe, Server, Wifi } from "lucide-react";
 
-// 创建一个客户端专用的装饰组件
-const BackgroundDecoration = () => {
-  const [particles, setParticles] = useState([]);
-  
-  useEffect(() => {
-    // 只在客户端生成随机粒子
-    const newParticles = Array.from({ length: 20 }).map((_, i) => ({
-      id: i,
-      width: Math.random() * 3 + 1,
-      height: Math.random() * 3 + 1,
-      top: Math.random() * 100,
-      left: Math.random() * 100,
-      opacity: Math.random() * 0.5 + 0.3,
-      animationDuration: Math.random() * 5 + 3
-    }));
-    setParticles(newParticles);
-  }, []);
-  
-  return (
-    <div className="absolute inset-0">
-      {particles.map(particle => (
-        <div
-          key={particle.id}
-          className="absolute rounded-full bg-blue-500/20"
-          style={{
-            width: `${particle.width}px`,
-            height: `${particle.height}px`,
-            top: `${particle.top}%`,
-            left: `${particle.left}%`,
-            opacity: particle.opacity,
-            animationDuration: `${particle.animationDuration}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
+// 文本国际化配置
+const translations = {
+  zh: {
+    welcome: "欢迎回到",
+    platform: "云平台",
+    loginDesc: "登录您的账户以访问完整的设备管理功能和数据分析",
+    loginBtn: "登录",
+    loginLoading: "登录中...",
+    comingSoon: "该站点即将上线",
+    needHelp: "需要帮助？",
+    contactAdmin: "联系管理员获取账号信息",
+    globalService: "全球服务，一键接入",
+    serviceDesc: "云平台为您提供覆盖全球的设备管理、内容发布和数据统计分析的一站式解决方案",
+    globalNodes: "全球节点状态",
+    online: "在线"
+  },
+  en: {
+    welcome: "Welcome back to",
+    platform: "Cloud Platform",
+    loginDesc: "Login to your account to access complete device management and data analysis",
+    loginBtn: "Login",
+    loginLoading: "Loading...",
+    comingSoon: "Coming Soon",
+    needHelp: "Need help?",
+    contactAdmin: "Contact admin for account information",
+    globalService: "Global Service, One-click Access",
+    serviceDesc: "The cloud platform provides one-stop solutions for global device management, content delivery, and data analytics",
+    globalNodes: "Global Node Status",
+    online: "Online"
+  }
 };
 
 const Login = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSite, setSelectedSite] = useState<SiteConfig>(getDefaultSite());
-  const [isClient, setIsClient] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState("CN");
+  const [language, setLanguage] = useState<"zh" | "en">("zh"); // 添加语言状态
+  const t = translations[language]; // 获取当前语言的文本
 
   useEffect(() => {
-    // 标记为客户端渲染
-    setIsClient(true);
-
     // 检查是否有认证相关的Cookie
     const checkCookies = () => {
       if (document.cookie) {
@@ -80,10 +76,7 @@ const Login = () => {
     checkCookies();
   }, [router]);
 
-  // 处理站点变化
-  const handleSiteChange = (site: SiteConfig) => {
-    setSelectedSite(site);
-  };
+  // 删除未使用的函数 handleSiteChange
 
   const handleLogin = () => {
     setIsLoading(true);
@@ -91,103 +84,145 @@ const Login = () => {
     login("/dashboard");
   };
 
+  // 格式化站点数据为区域显示数据
+  const regions = SITES.map(site => ({
+    code: site.region,
+    name: language === "zh" ? site.name : site.id.toUpperCase(),
+    status: site.gatewayUrl !== '#' ? "online" : "offline",
+    ping: site.gatewayUrl !== '#' ? `${Math.floor(Math.random() * 100) + 20}ms` : "-"
+  }));
+
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* 左侧信息面板 */}
-      <div className="w-full md:w-1/2 bg-gradient-to-br from-[#050b1f] to-[#0f172a] p-8 md:p-16 flex flex-col justify-center">
-        <div className="flex items-center justify-between mb-16">
-          <Link href="/" className="text-2xl font-bold text-white">
-            LED云平台
-          </Link>
-          <SiteSelector onChange={handleSiteChange} />
-        </div>
-
-        <h1 className="text-4xl font-bold mb-6 text-white">
-          欢迎回到 <span className="text-blue-400">云平台</span>
-        </h1>
-        <p className="text-gray-300 mb-8">
-          登录您的账户以访问完整的设备管理功能和数据分析
-        </p>
-        
-        <div className="mb-8">
-          <button
-            onClick={handleLogin}
-            disabled={isLoading || selectedSite.gatewayUrl === '#'}
-            className={`
-              w-full py-3 rounded-md font-medium transition-all duration-300 flex justify-center items-center
-              ${selectedSite.gatewayUrl === '#' 
-                ? 'bg-gray-600 cursor-not-allowed text-gray-300' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'}
-            `}
-          >
-            {isLoading ? (
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : selectedSite.gatewayUrl === '#' ? "该站点即将上线" : `登录${selectedSite.name}站点`}
-          </button>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <p className="text-gray-400 text-sm">
-            首次使用? <Link href="/register" className="text-blue-400 hover:underline">联系管理员创建账号</Link>
-          </p>
-        </div>
-
-        {/* 当前选择的站点信息 */}
-        {selectedSite.id !== 'cn-shenzhen' && selectedSite.gatewayUrl !== '#' && (
-          <div className="mt-8 p-3 bg-blue-900/20 rounded-md border border-blue-800">
-            <div className="flex items-center text-sm text-blue-300">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              您当前选择的是{selectedSite.name}站点
-            </div>
-          </div>
-        )}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl"></div>
       </div>
 
-      {/* 右侧装饰图形 */}
-      <div className="hidden md:flex w-1/2 bg-[#050b1f] items-center justify-center relative overflow-hidden">
-        {isClient && <BackgroundDecoration />}
-        
-        <div className="relative z-10 p-12 flex flex-col items-center">
-          <div className="w-56 h-56 relative mb-8 animate-float">
-            <div className="absolute w-full h-full rounded-full bg-blue-500/5"></div>
-            <div className="absolute w-full h-full flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-32 w-32 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-              </svg>
-            </div>
-          </div>
-          
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-3">全球服务，一键操控</h2>
-            <p className="text-gray-400 max-w-md mb-6">
-              云平台为您提供覆盖全球的设备管理、内容发布和数据分析的一站式解决方案
-            </p>
-            
-            {/* 简洁的节点状态展示 */}
-            <div className="mt-4 p-4 bg-blue-900/10 rounded-lg border border-blue-900/30">
-              <h3 className="text-sm font-medium text-gray-400 mb-3">全球节点状态</h3>
-              <div className="grid grid-cols-4 gap-2">
-                {SITES.map((site) => (
-                  <div 
-                    key={site.id} 
-                    className="flex flex-col items-center p-2 rounded-md"
-                    title={site.name}
-                  >
-                    <div className="flex items-center justify-center">
-                      <span className="text-xs font-medium text-gray-300 mr-1.5">{site.region}</span>
-                      <span 
-                        className={`w-2 h-2 rounded-full ${site.gatewayUrl !== '#' ? 'bg-green-500' : 'bg-gray-600'}`} 
-                        title={site.gatewayUrl !== '#' ? '可用' : '即将上线'}
-                      ></span>
-                    </div>
-                  </div>
-                ))}
+      <div className="relative w-full max-w-6xl grid lg:grid-cols-2 gap-8 items-center">
+        {/* Left Section */}
+        <div className="space-y-8 text-white">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                <Server className="w-6 h-6 text-white" />
               </div>
+              <Link href="/" className="text-2xl font-bold">LED{language === "zh" ? "云平台" : " Cloud"}</Link>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                {t.welcome}
+              </h2>
+              <h2 className="text-4xl font-bold text-blue-400">{t.platform}</h2>
+            </div>
+
+            <p className="text-slate-300 text-lg leading-relaxed max-w-md">
+              {t.loginDesc}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <Button
+              size="lg"
+              className={`w-full max-w-sm bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-blue-500/25 ${isLoading || selectedSite.gatewayUrl === '#' ? 'opacity-70 cursor-not-allowed' : ''}`}
+              onClick={handleLogin}
+              disabled={isLoading || selectedSite.gatewayUrl === '#'}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {t.loginLoading}
+                </>
+              ) : selectedSite.gatewayUrl === '#' ? t.comingSoon : `${t.loginBtn} ${language === "zh" ? selectedSite.name : selectedSite.id.toUpperCase()}`}
+            </Button>
+
+            <p className="text-sm text-slate-400">
+              {t.needHelp}
+              <Link href="/register" className="text-blue-400 hover:text-blue-300 ml-1 underline underline-offset-2">
+                {t.contactAdmin}
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Right Section */}
+        <div className="space-y-6">
+          <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm">
+            <CardContent className="p-6 space-y-6">
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto">
+                  <Cloud className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-white">{t.globalService}</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  {t.serviceDesc}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-white font-medium flex items-center gap-2">
+                    <Globe className="w-4 h-4" />
+                    {t.globalNodes}
+                  </h4>
+                  <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
+                    <Wifi className="w-3 h-3 mr-1" />
+                    {SITES.filter(site => site.gatewayUrl !== '#').length}/{SITES.length} {t.online}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {regions.map((region) => (
+                    <button
+                      key={region.code}
+                      onClick={() => {
+                        setSelectedRegion(region.code);
+                        const site = SITES.find(s => s.region === region.code);
+                        if (site) setSelectedSite(site);
+                      }}
+                      className={`p-3 rounded-lg border transition-all duration-200 text-left ${
+                        selectedRegion === region.code
+                          ? "bg-blue-500/20 border-blue-500/50 text-blue-400"
+                          : "bg-slate-700/30 border-slate-600/50 text-slate-300 hover:bg-slate-700/50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-sm">{region.code}</span>
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            region.status === "online" ? "bg-green-400" : "bg-red-400"
+                          }`}
+                        ></div>
+                      </div>
+                      <div className="text-xs text-slate-400">{region.name}</div>
+                      <div className="text-xs text-slate-500 mt-1">{region.ping}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Language Selector */}
+          <div className="flex justify-center">
+            <div className="flex items-center space-x-2 bg-slate-800/30 rounded-lg p-1">
+              <button 
+                className={`px-3 py-1 text-sm ${language === "zh" ? "text-blue-400 bg-blue-500/20" : "text-slate-400 hover:text-white"} rounded-md transition-colors`}
+                onClick={() => setLanguage("zh")}
+              >
+                CN 简体
+              </button>
+              <button 
+                className={`px-3 py-1 text-sm ${language === "en" ? "text-blue-400 bg-blue-500/20" : "text-slate-400 hover:text-white"} rounded-md transition-colors`}
+                onClick={() => setLanguage("en")}
+              >
+                EN
+              </button>
             </div>
           </div>
         </div>
