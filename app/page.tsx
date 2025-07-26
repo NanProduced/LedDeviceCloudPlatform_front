@@ -1,536 +1,548 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Progress } from "@/components/ui/progress"
-import { Input } from "@/components/ui/input"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
-  Bell,
-  Search,
-  Settings,
-  Users,
   Monitor,
-  Building2,
-  MessageSquare,
-  BarChart3,
-  Zap,
-  Wifi,
-  WifiOff,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Home,
+  Tv,
   Shield,
+  Zap,
+  Cloud,
+  BarChart3,
+  Settings,
+  ArrowRight,
+  Play,
+  Cpu,
   Database,
-  FileText,
-  FileVideo,
-  Folder,
-  Upload,
-  RotateCcw,
-  HardDrive,
-  Plus,
-  Send,
-  Calendar,
-} from "lucide-react"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Lock,
+} from "lucide-react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
-// Import components for different pages
-import UserManagementContent from "@/components/user-management-content"
-import FileManagementContent from "@/components/file-management-content"
-import FileUploadContent from "@/components/file-upload-content"
-import TranscodeManagementContent from "@/components/transcode-management-content"
-import StorageStatisticsContent from "@/components/storage-statistics-content"
-import ProgramManagementContent from "@/components/program-management-content"
-import CreateProgramContent from "@/components/create-program-content"
-import PublishProgramContent from "@/components/publish-program-content"
-import ScheduleManagementContent from "@/components/schedule-management-content"
+export default function Home() {
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [mounted, setMounted] = useState(false);
 
-const navigationItems = [
-  {
-    title: "主控制台",
-    icon: Home,
-    items: [
-      { title: "运营概览", key: "overview", icon: BarChart3 },
-      { title: "实时监控", key: "monitor", icon: Monitor },
-      { title: "告警中心", key: "alerts", icon: AlertTriangle },
-    ],
-  },
-  {
-    title: "用户管理",
-    icon: Users,
-    items: [
-      { title: "用户列表", key: "user-management", icon: Users },
-      { title: "角色权限", key: "roles", icon: Shield },
-      { title: "终端组分配", key: "groups", icon: Settings },
-    ],
-  },
-  {
-    title: "组织管理",
-    icon: Building2,
-    items: [
-      { title: "组织架构", key: "organization", icon: Building2 },
-      { title: "组织配置", key: "org-config", icon: Settings },
-      { title: "组织统计", key: "org-stats", icon: BarChart3 },
-    ],
-  },
-  {
-    title: "设备管理",
-    icon: Monitor,
-    items: [
-      { title: "设备列表", key: "devices", icon: Monitor },
-      { title: "设备监控", key: "device-monitor", icon: Zap },
-      { title: "设备配置", key: "device-config", icon: Settings },
-    ],
-  },
-  {
-    title: "素材管理",
-    icon: FileText,
-    items: [
-      { title: "文件浏览", key: "file-management", icon: Folder },
-      { title: "文件上传", key: "file-upload", icon: Upload },
-      { title: "转码管理", key: "transcode", icon: RotateCcw },
-      { title: "存储统计", key: "storage", icon: HardDrive },
-    ],
-  },
-  {
-    title: "节目管理",
-    icon: FileVideo,
-    items: [
-      { title: "节目列表", key: "program-management", icon: FileVideo },
-      { title: "创建节目", key: "create-program", icon: Plus },
-      { title: "节目发布", key: "publish-program", icon: Send },
-      { title: "排程管理", key: "schedule", icon: Calendar },
-    ],
-  },
-  {
-    title: "消息中心",
-    icon: MessageSquare,
-    items: [
-      { title: "实时消息", key: "messages", icon: MessageSquare },
-      { title: "广播通知", key: "notifications", icon: Bell },
-      { title: "任务列表", key: "tasks", icon: CheckCircle },
-    ],
-  },
-  {
-    title: "系统管理",
-    icon: Database,
-    items: [
-      { title: "权限策略", key: "permissions", icon: Shield },
-      { title: "系统配置", key: "system-config", icon: Settings },
-      { title: "审计日志", key: "audit-logs", icon: FileText },
-    ],
-  },
-]
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    setMounted(true);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
 
-const deviceStats = [
-  { name: "总设备数", value: "1,247", change: "+12%", icon: Monitor, color: "text-blue-600" },
-  { name: "在线设备", value: "1,156", change: "+5%", icon: Wifi, color: "text-green-600" },
-  { name: "离线设备", value: "91", change: "-8%", icon: WifiOff, color: "text-red-600" },
-  { name: "告警数量", value: "23", change: "+3%", icon: AlertTriangle, color: "text-yellow-600" },
-]
+  const features = [
+    { icon: Monitor, title: "实时监控", desc: "设备实时状态监控" },
+    { icon: BarChart3, title: "远程控制", desc: "移动端远程管理" },
+    { icon: Cloud, title: "云端管理", desc: "云端数据存储" },
+    { icon: Zap, title: "多端支持", desc: "支持多种终端设备" },
+  ];
 
-const recentActivities = [
-  { user: "张三", action: "创建了新用户", target: "李四", time: "2分钟前", type: "user" },
-  { user: "王五", action: "更新了设备配置", target: "LED-001", time: "5分钟前", type: "device" },
-  { user: "赵六", action: "发布了广播消息", target: "全体用户", time: "10分钟前", type: "message" },
-  { user: "系统", action: "检测到设备离线", target: "LED-025", time: "15分钟前", type: "alert" },
-]
+  const products = [
+    { icon: Tv, name: "内容管理", desc: "高效的内容管理系统" },
+    { icon: Settings, name: "设备控制", desc: "智能设备控制中心" },
+    { icon: Database, name: "云存储", desc: "安全可靠的云端存储" },
+    { icon: BarChart3, name: "数据分析", desc: "全方位数据分析平台" },
+    { icon: Lock, name: "安全管理", desc: "企业级安全管理方案" },
+  ];
 
-// Dashboard Overview Component
-const DashboardOverview = () => (
-  <div className="space-y-6">
-    {/* Welcome Section */}
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">欢迎回来，管理员</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
-          今天是{" "}
-          {new Date().toLocaleDateString("zh-CN", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            weekday: "long",
-          })}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-        <span className="text-sm text-slate-600 dark:text-slate-400">系统运行正常</span>
-      </div>
-    </div>
-
-    {/* Stats Cards */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {deviceStats.map((stat) => (
-        <Card
-          key={stat.name}
-          className="border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm"
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{stat.name}</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{stat.value}</p>
-                <p className={`text-sm mt-1 ${stat.change.startsWith("+") ? "text-green-600" : "text-red-600"}`}>
-                  {stat.change} 较昨日
-                </p>
-              </div>
-              <div className={`p-3 rounded-lg bg-slate-100 dark:bg-slate-800 ${stat.color}`}>
-                <stat.icon className="w-6 h-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-
-    {/* Main Dashboard */}
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Device Status Chart */}
-      <Card className="lg:col-span-2 border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
-            设备状态趋势
-          </CardTitle>
-          <CardDescription>过去24小时的设备在线状态变化</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600 dark:text-slate-400">在线率</span>
-              <span className="text-sm font-medium">92.7%</span>
-            </div>
-            <Progress value={92.7} className="h-2" />
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600 dark:text-slate-400">响应率</span>
-              <span className="text-sm font-medium">98.3%</span>
-            </div>
-            <Progress value={98.3} className="h-2" />
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600 dark:text-slate-400">健康度</span>
-              <span className="text-sm font-medium">95.1%</span>
-            </div>
-            <Progress value={95.1} className="h-2" />
-          </div>
-
-          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-slate-900 dark:text-slate-100">系统运行稳定</span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">所有核心服务正常运行，设备连接稳定</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Activities */}
-      <Card className="border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-purple-600" />
-            最近活动
-          </CardTitle>
-          <CardDescription>系统最新操作记录</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentActivities.map((activity, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
-                <div
-                  className={`w-2 h-2 rounded-full mt-2 ${
-                    activity.type === "user"
-                      ? "bg-blue-500"
-                      : activity.type === "device"
-                        ? "bg-green-500"
-                        : activity.type === "message"
-                          ? "bg-purple-500"
-                          : "bg-red-500"
-                  }`}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-900 dark:text-slate-100">
-                    <span className="font-medium">{activity.user}</span> {activity.action}{" "}
-                    <span className="font-medium">{activity.target}</span>
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Button variant="ghost" className="w-full mt-4 text-sm">
-            查看全部活动
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-
-    {/* Quick Actions */}
-    <Card className="border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle>快速操作</CardTitle>
-        <CardDescription>常用功能快捷入口</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {[
-            { name: "添加用户", icon: Users, color: "bg-blue-500" },
-            { name: "设备监控", icon: Monitor, color: "bg-green-500" },
-            { name: "发送通知", icon: Bell, color: "bg-purple-500" },
-            { name: "系统配置", icon: Settings, color: "bg-orange-500" },
-            { name: "查看日志", icon: FileText, color: "bg-red-500" },
-            { name: "数据统计", icon: BarChart3, color: "bg-indigo-500" },
-          ].map((action) => (
-            <Button
-              key={action.name}
-              variant="ghost"
-              className="h-20 flex-col gap-2 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              <div className={`w-8 h-8 rounded-lg ${action.color} flex items-center justify-center`}>
-                <action.icon className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xs">{action.name}</span>
-            </Button>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-)
-
-// Placeholder component for unimplemented pages
-const PlaceholderContent = ({ title }: { title: string }) => (
-  <div className="flex items-center justify-center h-96">
-    <Card className="border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm p-8">
-      <div className="text-center space-y-4">
-        <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mx-auto">
-          <Settings className="w-8 h-8 text-white" />
-        </div>
-        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-        <p className="text-slate-600 dark:text-slate-400">此功能正在开发中，敬请期待...</p>
-      </div>
-    </Card>
-  </div>
-)
-
-export default function LEDCloudPlatform() {
-  const [activeContent, setActiveContent] = useState("overview")
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
-
-  const renderContent = () => {
-    switch (activeContent) {
-      case "overview":
-        return <DashboardOverview />
-      case "user-management":
-        return <UserManagementContent />
-      case "file-management":
-        return <FileManagementContent />
-      case "file-upload":
-        return <FileUploadContent />
-      case "transcode":
-        return <TranscodeManagementContent />
-      case "storage":
-        return <StorageStatisticsContent />
-      case "program-management":
-        return <ProgramManagementContent />
-      case "create-program":
-        return <CreateProgramContent />
-      case "publish-program":
-        return <PublishProgramContent />
-      case "schedule":
-        return <ScheduleManagementContent />
-      default:
-        return (
-          <PlaceholderContent
-            title={
-              navigationItems.flatMap((section) => section.items).find((item) => item.key === activeContent)?.title ||
-              "未知页面"
-            }
-          />
-        )
-    }
-  }
+  const solutions = [
+    { title: "智能化管理", desc: "基于AI的智能管理系统，提供自动化运维解决方案" },
+    { title: "数据驱动决策", desc: "通过大数据分析，为业务决策提供科学依据" },
+    { title: "设备全生命周期管理", desc: "从设备部署到维护的全流程管理方案" },
+    { title: "内容智能分发", desc: "智能内容分发网络，确保内容高效传输" },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-      <SidebarProvider>
-        <Sidebar className="border-r border-slate-200 dark:border-slate-800">
-          <SidebarHeader className="border-b border-slate-200 dark:border-slate-800 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-slate-900 dark:text-slate-100">LED云平台</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">设备管理系统</p>
-              </div>
+    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white overflow-hidden">
+      {/* 动态背景 */}
+      <div className="fixed inset-0 opacity-30">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.1),transparent_50%)]" />
+        <div
+          className="absolute w-96 h-96 bg-blue-500/10 rounded-full blur-3xl transition-all duration-1000 ease-out"
+          style={{
+            left: mousePosition.x - 192,
+            top: mousePosition.y - 192,
+          }}
+        />
+      </div>
+
+      <Navbar />
+
+      {/* Hero Section */}
+      <section className="relative z-10 min-h-screen flex items-center justify-center overflow-hidden">
+        <div className="container mx-auto px-6 lg:px-8 z-10">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              {/* 左侧内容 */}
+              <div className="space-y-8">
+                {/* 标签 */}
+                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 px-3 py-1">
+                  <Zap className="h-4 w-4 mr-1" />
+                  LED云端智能管理平台
+                </Badge>
+
+                {/* 主标题 */}
+                <div className="space-y-4">
+                  <h1 className="text-5xl lg:text-7xl font-bold tracking-tight">
+                    <span className="block text-white">智能管控</span>
+                    <span className="block bg-gradient-to-r from-blue-400 via-blue-500 to-cyan-400 bg-clip-text text-transparent">
+                      LED显示设备
+                    </span>
+                  </h1>
+                  <div className="w-20 h-1 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" />
+                </div>
+
+                {/* 描述文字 */}
+                <p className="text-xl lg:text-2xl text-slate-300 leading-relaxed max-w-2xl">
+                  专业的LED显示设备云管理平台，提供
+                  <span className="text-blue-400 font-semibold"> 实时监控</span>、
+                  <span className="text-blue-400 font-semibold"> 远程控制</span>、
+                  <span className="text-blue-400 font-semibold"> 内容管理</span> 
+                  一站式解决方案
+                </p>
+
+                {/* 特性列表 */}
+                <div className="grid grid-cols-2 gap-4">
+              {features.slice(0, 4).map((feature, index) => (
+                <div
+                  key={index}
+                  className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
+                    <feature.icon className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">{feature.title}</div>
+                    <div className="text-xs text-gray-400">{feature.desc}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </SidebarHeader>
 
-          <SidebarContent>
-            {navigationItems.map((section) => (
-              <SidebarGroup key={section.title}>
-                <SidebarGroupLabel className="text-slate-600 dark:text-slate-400 font-medium">
-                  {section.title}
-                </SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {section.items.map((item) => (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild>
-                          <button
-                            onClick={() => setActiveContent(item.key)}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left ${
-                              activeContent === item.key
-                                ? "bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400"
-                                : ""
-                            }`}
-                          >
-                            <item.icon className="w-4 h-4" />
-                            <span>{item.title}</span>
-                          </button>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            ))}
-          </SidebarContent>
-          <SidebarRail />
-        </Sidebar>
+                {/* 操作按钮 */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button
+                    size="lg"
+                    className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-xl text-white font-semibold"
+                  >
+                    立即体验
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="border-white/20 text-white hover:bg-white/10 rounded-xl bg-transparent"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    观看演示
+                  </Button>
+                </div>
 
-        <SidebarInset>
-          {/* Header */}
-          <header className="sticky top-0 z-40 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-            <div className="flex h-16 items-center gap-4 px-6">
-              <SidebarTrigger className="-ml-1" />
-              <div className="flex-1 flex items-center gap-4">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <Input
-                    placeholder="搜索设备、用户或组织..."
-                    className="pl-10 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                  />
+                {/* 统计数据 */}
+                <div className="flex items-center gap-8 pt-8 border-t border-slate-700/50">
+                  {[
+                    { number: '10K+', label: '设备接入' },
+                    { number: '99.9%', label: '系统稳定性' },
+                    { number: '24/7', label: '技术支持' }
+                  ].map((stat, index) => (
+                    <div key={index} className="text-center">
+                      <div className="text-2xl font-bold text-blue-400">{stat.number}</div>
+                      <div className="text-sm text-slate-400">{stat.label}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                {/* Notifications Dropdown */}
-                <DropdownMenu open={isNotificationOpen} onOpenChange={setIsNotificationOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative">
-                      <Bell className="w-4 h-4" />
-                      <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
-                        3
-                      </Badge>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-80">
-                    <DropdownMenuLabel>通知中心</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="flex items-start gap-3 p-3">
-                      <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">设备离线告警</p>
-                        <p className="text-xs text-slate-500">LED-025 设备检测离线</p>
-                        <p className="text-xs text-slate-400">15分钟前</p>
+              
+              {/* 右侧视觉效果 - 保留原有LED屏幕可视化 */}
+              <div className="relative flex justify-center lg:justify-end">
+                <div className="relative w-96 h-96 lg:w-[500px] lg:h-[500px]">
+                  {/* 主要图形 - LED屏幕效果 */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="relative">
+                      {/* 外圈光环 */}
+                      <div className="absolute -inset-8 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 animate-spin" style={{ animationDuration: '20s' }} />
+                      <div className="absolute -inset-4 rounded-full bg-gradient-to-r from-cyan-500/30 to-blue-500/30 animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }} />
+                      
+                      {/* LED屏幕模拟 */}
+                      <div className="relative w-64 h-64 lg:w-80 lg:h-80 bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
+                        {/* 屏幕边框 */}
+                        <div className="absolute inset-2 bg-black rounded-xl overflow-hidden">
+                          {/* LED点阵效果 */}
+                          <div className="absolute inset-0 grid grid-cols-16 gap-px p-2">
+                            {mounted && [...Array(256)].map((_, i) => (
+                              <div 
+                                key={i}
+                                className="rounded-full transition-all duration-1000"
+                                style={{
+                                  backgroundColor: Math.random() > 0.7 ? '#3b82f6' : Math.random() > 0.9 ? '#06b6d4' : '#1e293b',
+                                  animationDelay: Math.random() * 2 + 's'
+                                }}
+                              />
+                            ))}
+                          </div>
+                          
+                          {/* 屏幕内容 */}
+                          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-900/50 to-transparent">
+                            <div className="text-center space-y-2">
+                              <div className="text-blue-400 text-lg font-bold">LED DISPLAY</div>
+                              <div className="text-cyan-300 text-sm">ONLINE</div>
+                              <div className="flex justify-center gap-1">
+                                {[...Array(3)].map((_, i) => (
+                                  <div key={i} className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: i * 0.2 + 's' }} />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* 控制按钮 */}
+                        <div className="absolute bottom-4 left-4 right-4 flex justify-between">
+                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                          <div className="w-3 h-3 bg-green-500 rounded-full" />
+                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
+                        </div>
                       </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-start gap-3 p-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">新用户注册</p>
-                        <p className="text-xs text-slate-500">用户"李四"已成功注册</p>
-                        <p className="text-xs text-slate-400">2分钟前</p>
+                    </div>
+                  </div>
+                  
+                  {/* 浮动元素 */}
+                  {mounted && (
+                    <>
+                      <div className="absolute top-10 -left-10 p-4 bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-600 animate-float">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
+                          <span className="text-sm text-slate-300">设备在线</span>
+                        </div>
                       </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-start gap-3 p-3">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">系统更新</p>
-                        <p className="text-xs text-slate-500">系统已成功更新至最新版本</p>
-                        <p className="text-xs text-slate-400">1小时前</p>
+                      
+                      <div className="absolute bottom-10 -right-10 p-4 bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-600 animate-float" style={{ animationDelay: '1s' }}>
+                        <div className="text-center">
+                          <div className="text-blue-400 font-bold">1,234</div>
+                          <div className="text-xs text-slate-400">活跃设备</div>
+                        </div>
                       </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-center text-blue-600 font-medium">查看所有通知</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* User Avatar Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src="/placeholder.svg?height=32&width=32" alt="管理员" />
-                        <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                          管理
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">管理员</p>
-                        <p className="text-xs leading-none text-muted-foreground">admin@led-platform.com</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Users className="mr-2 h-4 w-4" />
-                      <span>个人资料</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>账户设置</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Shield className="mr-2 h-4 w-4" />
-                      <span>安全设置</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <span>退出登录</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          </header>
+          </div>
+        </div>
 
-          {/* Main Content */}
-          <main className="flex-1 p-6">{renderContent()}</main>
-        </SidebarInset>
-      </SidebarProvider>
-    </div>
-  )
+        {/* 底部滚动指示器 */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-xs text-slate-400">探索更多</span>
+            <Button 
+              variant="ghost" 
+              className="rounded-full p-2 bg-blue-500/10 hover:bg-blue-500/20 animate-bounce"
+              style={{ animationDuration: '2s' }}
+              onClick={() => {
+                window.scrollTo({
+                  top: window.innerHeight,
+                  behavior: 'smooth'
+                });
+              }}
+            >
+              <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Products Section */}
+      <section className="relative z-10 py-20 bg-gradient-to-r from-slate-900/50 to-blue-900/20 backdrop-blur-sm">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30 px-3 py-1 mb-4">
+              核心功能
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+              全方位LED屏幕管理解决方案
+            </h2>
+            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+              我们提供全方位的LED显示设备管理产品，满足不同场景的需求
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {products.map((product, index) => (
+              <Card
+                key={index}
+                className="group bg-white/5 border-white/10 hover:bg-white/10 hover:border-blue-500/30 transition-all duration-300 backdrop-blur-sm"
+              >
+                <CardContent className="p-6 text-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <product.icon className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold mb-2 text-white">{product.name}</h3>
+                  <p className="text-sm text-gray-400">{product.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Solutions Section */}
+      <section className="relative z-10 py-20">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30 px-3 py-1 mb-4">
+              解决方案
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+              量身定制的行业应用方案
+            </h2>
+            <p className="text-gray-300 text-lg max-w-2xl mx-auto">数字化转型时代的智能显示设备管理解决方案</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {solutions.map((solution, index) => (
+              <Card
+                key={index}
+                className="group bg-gradient-to-br from-blue-900/20 to-slate-900/20 border-blue-500/20 hover:border-blue-400/40 transition-all duration-300 backdrop-blur-sm"
+              >
+                <CardContent className="p-8">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full mt-2 flex-shrink-0" />
+                    <div>
+                      <h3 className="text-xl font-semibold mb-3 text-white group-hover:text-blue-300 transition-colors">
+                        {solution.title}
+                      </h3>
+                      <p className="text-gray-300 leading-relaxed">{solution.desc}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <Separator className="my-8 bg-blue-500/20" />
+      
+      {/* 适用场景部分 */}
+      <section className="relative z-10 py-20">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30 px-3 py-1 mb-4">
+              适用场景
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+              满足多样化应用需求
+            </h2>
+            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+              我们的平台适用于各种行业和场景，为您提供专业的LED屏幕管理解决方案
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="group bg-gradient-to-br from-blue-900/20 to-slate-900/20 border-blue-500/20 hover:border-blue-400/40 transition-all duration-300 backdrop-blur-sm">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Monitor className="w-6 h-6 text-white" />
+                </div>
+                <h4 className="font-semibold mb-2 text-white">零售连锁</h4>
+                <p className="text-sm text-gray-400">&ldquo;让每家门店展示同步更新&rdquo;</p>
+              </CardContent>
+            </Card>
+
+            <Card className="group bg-gradient-to-br from-blue-900/20 to-slate-900/20 border-blue-500/20 hover:border-blue-400/40 transition-all duration-300 backdrop-blur-sm">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Cpu className="w-6 h-6 text-white" />
+                </div>
+                <h4 className="font-semibold mb-2 text-white">企业办公</h4>
+                <p className="text-sm text-gray-400">&ldquo;打造智慧办公环境&rdquo;</p>
+              </CardContent>
+            </Card>
+
+            <Card className="group bg-gradient-to-br from-blue-900/20 to-slate-900/20 border-blue-500/20 hover:border-blue-400/40 transition-all duration-300 backdrop-blur-sm">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <BarChart3 className="w-6 h-6 text-white" />
+                </div>
+                <h4 className="font-semibold mb-2 text-white">教育机构</h4>
+                <p className="text-sm text-gray-400">&ldquo;构建数字化校园&rdquo;</p>
+              </CardContent>
+            </Card>
+
+            <Card className="group bg-gradient-to-br from-blue-900/20 to-slate-900/20 border-blue-500/20 hover:border-blue-400/40 transition-all duration-300 backdrop-blur-sm">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Shield className="w-6 h-6 text-white" />
+                </div>
+                <h4 className="font-semibold mb-2 text-white">医疗机构</h4>
+                <p className="text-sm text-gray-400">&ldquo;提升就医体验&rdquo;</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* 客户收益 */}
+      <section className="relative z-10 py-20 bg-gradient-to-r from-slate-900/50 to-blue-900/20 backdrop-blur-sm">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30 px-3 py-1 mb-4">
+              客户收益
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+              实现价值最大化
+            </h2>
+            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+              使用我们的平台帮助企业降低成本、提升效率和增强效果
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <Card className="bg-gradient-to-br from-green-900/20 to-slate-900/20 border-green-500/20 backdrop-blur-sm">
+              <CardContent className="p-8 text-center">
+                <div className="text-3xl font-bold text-green-400 mb-2">80%</div>
+                <h4 className="text-lg font-semibold text-white mb-2">成本节约</h4>
+                <p className="text-gray-300 text-sm">人工成本减少，远程管理替代现场维护</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-blue-900/20 to-slate-900/20 border-blue-500/20 backdrop-blur-sm">
+              <CardContent className="p-8 text-center">
+                <div className="text-3xl font-bold text-blue-400 mb-2">10倍</div>
+                <h4 className="text-lg font-semibold text-white mb-2">效率提升</h4>
+                <p className="text-gray-300 text-sm">内容更新速度提升，一键发布到所有设备</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-900/20 to-slate-900/20 border-purple-500/20 backdrop-blur-sm">
+              <CardContent className="p-8 text-center">
+                <div className="text-3xl font-bold text-purple-400 mb-2">300%</div>
+                <h4 className="text-lg font-semibold text-white mb-2">效果提升</h4>
+                <p className="text-gray-300 text-sm">营销活动转化率大幅提升</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA部分 */}
+      <section className="relative z-10 py-20">
+        <div className="container mx-auto px-6 text-center">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-4xl font-bold mb-6">
+              准备开始您的
+              <span className="bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                智能化之旅
+              </span>
+              了吗？
+            </h2>
+            <p className="text-xl text-gray-300 mb-8">立即体验我们的LED云平台，开启智能显示设备管理新时代</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 border-0"
+              >
+                免费试用
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white/20 text-white hover:bg-white/10 bg-transparent"
+              >
+                联系销售
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <footer className="relative z-10 border-t border-white/10 bg-slate-950/50 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-12">
+          <div className="grid md:grid-cols-4 gap-8">
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
+                  <Cpu className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                  LED云平台
+                </span>
+              </div>
+              <p className="text-gray-400 text-sm">专业的LED显示设备云管理平台</p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4 text-white">产品</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    内容管理
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    设备控制
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    数据分析
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4 text-white">解决方案</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    智能化管理
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    数据驱动
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    全生命周期
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4 text-white">支持</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    帮助中心
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    技术支持
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white transition-colors">
+                    联系我们
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-white/10 mt-8 pt-8 text-center text-sm text-gray-400">
+            <p>&copy; 2025 LED云平台. 保留所有权利.</p>
+          </div>
+        </div>
+      </footer>
+      <Footer />
+    </main>
+  );
 }

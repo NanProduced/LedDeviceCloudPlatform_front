@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const HeroSection: React.FC = () => {
   const [mounted, setMounted] = useState(false);
@@ -50,10 +53,14 @@ const HeroSection: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* 左侧内容 */}
             <div className="space-y-8">
-              {/* 标签 */}
+              {/* 标签 - 使用shadcn Badge组件替换Emoji */}
               <div className="flex items-center gap-4">
                 <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30 px-3 py-1">
-                  🚀 LED设备云管理平台
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  LED设备云管理平台
                 </Badge>
                 <div className="h-px flex-1 bg-gradient-to-r from-blue-500/50 to-transparent" />
               </div>
@@ -78,42 +85,72 @@ const HeroSection: React.FC = () => {
                 一站式解决方案
               </p>
 
-              {/* 特性列表 */}
+              {/* 特性列表 - 使用shadcn Card和Avatar组件替换Emoji */}
               <div className="grid sm:grid-cols-2 gap-4">
                 {[
-                  { icon: '📊', title: '实时监控', desc: '设备状态一目了然' },
-                  { icon: '🎛️', title: '远程控制', desc: '随时随地管理设备' },
-                  { icon: '☁️', title: '云端管理', desc: '数据安全可靠' },
-                  { icon: '📱', title: '多端支持', desc: '手机电脑都能用' }
+                  { icon: 'chart-bar', title: '实时监控', desc: '设备状态一目了然' },
+                  { icon: 'sliders', title: '远程控制', desc: '随时随地管理设备' },
+                  { icon: 'cloud', title: '云端管理', desc: '数据安全可靠' },
+                  { icon: 'smartphone', title: '多端支持', desc: '手机电脑都能用' }
                 ].map((feature, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                    <span className="text-2xl">{feature.icon}</span>
+                  <Card key={index} className="flex items-center gap-3 p-3 bg-slate-800/30 border border-slate-700/50">
+                    <Avatar className="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400">
+                      <AvatarFallback className="bg-transparent">
+                        {feature.icon === 'chart-bar' && (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="18" y="3" width="4" height="18"></rect>
+                            <rect x="10" y="8" width="4" height="13"></rect>
+                            <rect x="2" y="13" width="4" height="8"></rect>
+                          </svg>
+                        )}
+                        {feature.icon === 'sliders' && (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="4" y1="21" x2="4" y2="14"></line>
+                            <line x1="4" y1="10" x2="4" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12" y2="3"></line>
+                            <line x1="20" y1="21" x2="20" y2="16"></line>
+                            <line x1="20" y1="12" x2="20" y2="3"></line>
+                            <line x1="1" y1="14" x2="7" y2="14"></line>
+                            <line x1="9" y1="8" x2="15" y2="8"></line>
+                            <line x1="17" y1="16" x2="23" y2="16"></line>
+                          </svg>
+                        )}
+                        {feature.icon === 'cloud' && (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+                          </svg>
+                        )}
+                        {feature.icon === 'smartphone' && (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                          </svg>
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
                     <div>
                       <h3 className="font-semibold text-white">{feature.title}</h3>
                       <p className="text-sm text-slate-400">{feature.desc}</p>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
 
               {/* 操作按钮 */}
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link 
-                  href="/login" 
-                  className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-xl hover:shadow-blue-500/25"
-                >
-                  <span className="relative z-10 flex items-center justify-center gap-2">
+                <Button asChild className="px-8 py-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-xl text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-xl hover:shadow-blue-500/25">
+                  <Link href="/login" className="flex items-center gap-2">
                     立即登录
                     <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
-                  </span>
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 to-cyan-400 opacity-0 group-hover:opacity-20 transition-opacity" />
-                </Link>
+                  </Link>
+                </Button>
                 
-                <button className="px-8 py-4 border border-slate-600 hover:border-blue-500 rounded-xl text-slate-300 hover:text-white font-semibold transition-all duration-300 hover:bg-slate-800/50">
+                <Button variant="outline" className="px-8 py-6 border border-slate-600 hover:border-blue-500 rounded-xl text-slate-300 hover:text-white font-semibold transition-all duration-300 hover:bg-slate-800/50">
                   了解更多
-                </button>
+                </Button>
               </div>
 
               {/* 统计数据 */}
@@ -207,13 +244,25 @@ const HeroSection: React.FC = () => {
         </div>
       </div>
 
-      {/* 底部滚动指示器 */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+      {/* 底部滚动指示器 - 优化为更明显的按钮 */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
         <div className="flex flex-col items-center gap-2">
           <span className="text-xs text-slate-400">探索更多</span>
-          <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
+          <Button 
+            variant="ghost" 
+            className="rounded-full p-2 bg-blue-500/10 hover:bg-blue-500/20 animate-bounce"
+            style={{ animationDuration: '2s' }}
+            onClick={() => {
+              window.scrollTo({
+                top: window.innerHeight,
+                behavior: 'smooth'
+              });
+            }}
+          >
+            <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+          </Button>
         </div>
       </div>
     </section>
