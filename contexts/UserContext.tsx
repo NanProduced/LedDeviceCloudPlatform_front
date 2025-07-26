@@ -29,14 +29,33 @@ export function UserProvider({ children }: UserProviderProps) {
 
   // 获取用户信息
   const fetchUserInfo = async () => {
+    console.log('开始获取用户信息...');
     try {
       setLoading(true);
       setError(null);
       const userData = await userApi.getCurrentUser();
-      setUser(userData);
+      console.log('用户API返回的原始数据:', userData);
+      console.log('用户数据类型:', typeof userData);
+      console.log('用户数据键:', userData ? Object.keys(userData) : 'null');
+      
+      // 验证用户数据结构
+      if (userData && typeof userData === 'object' && 'uid' in userData) {
+        console.log('用户信息验证成功，设置用户状态');
+        setUser(userData);
+      } else {
+        console.error('用户数据格式不正确:', userData);
+        setError('用户数据格式错误');
+      }
     } catch (err) {
       console.error('获取用户信息失败:', err);
-      setError('获取用户信息失败');
+      // 检查是否是认证失败（401或403），如果是则需要重新登录
+      if (err instanceof Error && err.message.includes('401')) {
+        setError('认证失败，请重新登录');
+      } else if (err instanceof Error && err.message.includes('403')) {
+        setError('权限不足');
+      } else {
+        setError('获取用户信息失败');
+      }
       // 不要在这里清除用户信息，因为可能是临时网络错误
     } finally {
       setLoading(false);

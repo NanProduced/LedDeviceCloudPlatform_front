@@ -15,10 +15,17 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { logout } from '@/config/auth';
 import { UserIcon, Settings, LogOut, Globe } from 'lucide-react';
 
-export function UserAvatar() {
+interface UserAvatarProps {
+  onContentChange?: (contentKey: string) => void;
+}
+
+export function UserAvatar({ onContentChange }: UserAvatarProps) {
   const router = useRouter();
   const { user, loading } = useUser();
   const { t, language, setLanguage } = useLanguage();
+
+  console.log('UserAvatar渲染 - 用户数据:', user);
+  console.log('UserAvatar渲染 - 加载状态:', loading);
 
   // 获取用户名首字母作为头像回退显示
   const getInitials = (name?: string): string => {
@@ -26,14 +33,18 @@ export function UserAvatar() {
     return name.charAt(0).toUpperCase();
   };
 
-  // 处理导航到个人资料页面
+  // 处理导航到个人资料页面 - 通过props传递回调函数
   const handleProfileClick = () => {
-    router.push('/profile');
+    if (onContentChange) {
+      onContentChange('user-profile');
+    }
   };
   
   // 处理导航到设置页面
   const handleSettingsClick = () => {
-    router.push('/settings');
+    if (onContentChange) {
+      onContentChange('settings');
+    }
   };
 
   // 处理语言切换

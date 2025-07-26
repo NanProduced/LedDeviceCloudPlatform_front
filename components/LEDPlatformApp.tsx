@@ -74,6 +74,8 @@ import ProgramManagementContent from '@/components/program-management-content';
 import CreateProgramContent from '@/components/create-program-content';
 import PublishProgramContent from '@/components/publish-program-content';
 import ScheduleManagementContent from '@/components/schedule-management-content';
+import UserProfileContent from '@/components/user-profile-content';
+import SettingsContent from '@/components/settings-content';
 
 const navigationItems = [
   {
@@ -168,11 +170,59 @@ const recentActivities = [
 
 // Dashboard Overview Component
 const DashboardOverview = () => {
-  const { user } = useUser();
+  const { user, loading, error } = useUser();
   const { t } = useLanguage();
+  
+  console.log('DashboardOverview渲染 - 用户数据:', user);
+  console.log('DashboardOverview渲染 - 加载状态:', loading);
+  console.log('DashboardOverview渲染 - 错误状态:', error);
   
   // 使用用户数据来个性化欢迎消息
   const welcomeMessage = user ? `欢迎回来，${user.username}` : '欢迎回来';
+  
+  // 如果正在加载用户信息，显示加载状态
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+            <div className="h-4 w-64 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-2"></div>
+          </div>
+        </div>
+        <div className="text-center text-slate-600">
+          正在加载用户信息...
+        </div>
+      </div>
+    );
+  }
+  
+  // 如果有错误，显示错误信息和调试按钮
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">LED云平台</h1>
+            <p className="text-red-600 dark:text-red-400 mt-1">
+              错误: {error}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => {
+                console.log('手动重新获取用户信息');
+                window.location.reload();
+              }}
+              variant="outline"
+            >
+              刷新页面
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -189,6 +239,27 @@ const DashboardOverview = () => {
               weekday: "long",
             })}
           </p>
+          {/* 调试信息 */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded text-xs">
+              <p><strong>调试信息:</strong></p>
+              <p>用户对象: {user ? 'true' : 'false'}</p>
+              <p>用户名: {user?.username || 'undefined'}</p>
+              <p>用户ID: {user?.uid || 'undefined'}</p>
+              <p>组织: {user?.orgName || 'undefined'}</p>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="mt-2"
+                onClick={() => {
+                  console.log('手动重新获取用户信息');
+                  fetchUserInfo();
+                }}
+              >
+                重新获取用户信息
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -356,16 +427,24 @@ const PlaceholderContent = ({ title }: { title: string }) => (
 export default function LEDPlatformApp() {
   const [activeContent, setActiveContent] = useState("overview");
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const { user, loading, error } = useUser();
+  const { user, loading, error, fetchUserInfo } = useUser();
   const router = useRouter();
   
   // 检查认证状态，如果未认证则重定向到登录页
   useEffect(() => {
-    if (!loading && !user && !error) {
-      // 无用户数据且非加载状态，可能是未认证
-      router.push('/login');
+    if (!loading && !user) {
+      // 无用户数据且非加载状态，可能是未认证 - 延迟一点时间以避免闪烁
+      const timeout = setTimeout(() => {
+        if (!user) {
+          // 重定向到OAuth2登录端点
+          window.location.href = '/oauth2/authorization/gateway-server?redirect_uri=' + 
+            encodeURIComponent(window.location.origin + '/dashboard');
+        }
+      }, 500);
+      
+      return () => clearTimeout(timeout);
     }
-  }, [user, loading, error, router]);
+  }, [user, loading, router]);
   
   // 加载中状态
   if (loading) {
@@ -418,6 +497,10 @@ export default function LEDPlatformApp() {
         return <PublishProgramContent />;
       case "schedule":
         return <ScheduleManagementContent />;
+      case "user-profile":
+        return <UserProfileContent />;
+      case "settings":
+        return <SettingsContent />;
       default:
         return (
           <PlaceholderContent
@@ -537,7 +620,7 @@ export default function LEDPlatformApp() {
                 </DropdownMenu>
 
                 {/* 使用UserAvatar组件显示用户信息和菜单 */}
-                <UserAvatar />
+                <UserAvatar onContentChange={setActiveContent} />
               </div>
             </div>
           </header>

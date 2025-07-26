@@ -25,7 +25,24 @@ export async function fetchApi(path: string, options: RequestInit = {}) {
       throw new Error(`API请求失败: ${response.status}`);
     }
     
-    return await response.json();
+    const responseData = await response.json();
+    console.log('API响应数据:', responseData);
+    
+    // 检查响应数据结构，可能需要提取data字段
+    if (responseData && typeof responseData === 'object') {
+      // 如果有data字段，返回data内容
+      if ('data' in responseData) {
+        console.log('提取data字段:', responseData.data);
+        return responseData.data;
+      }
+      // 如果有result字段，返回result内容
+      if ('result' in responseData) {
+        console.log('提取result字段:', responseData.result);
+        return responseData.result;
+      }
+    }
+    
+    return responseData;
   } catch (error) {
     console.error('API请求错误:', error);
     throw error;
