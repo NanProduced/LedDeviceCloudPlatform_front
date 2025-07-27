@@ -1,7 +1,7 @@
 "use client";
 
-import LEDPlatformApp from "@/components/LEDPlatformApp";
+import { DashboardOverview } from "@/components/LEDPlatformApp";
 
 export default function DashboardPage() {
-  return <LEDPlatformApp />;
+  return <DashboardOverview />;
 }

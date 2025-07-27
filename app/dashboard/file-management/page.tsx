@@ -333,36 +333,35 @@ export default function FileManagement() {
   const filteredFiles = mockFiles.filter((file) => file.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">素材管理</h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">管理和组织您的媒体文件资源</p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">素材管理</h1>
+        <p className="text-slate-600 dark:text-slate-400 mt-1">管理和组织您的媒体文件资源</p>
+      </div>
 
-        <div className="flex items-center gap-4 mb-6">
-          <Link href="/file-management">
-            <Button variant="default" size="sm">
-              文件浏览
-            </Button>
-          </Link>
-          <Link href="/file-management/upload">
-            <Button variant="outline" size="sm">
-              文件上传
-            </Button>
-          </Link>
-          <Link href="/file-management/transcode">
-            <Button variant="outline" size="sm">
-              转码管理
-            </Button>
-          </Link>
-          <Link href="/file-management/storage">
-            <Button variant="outline" size="sm">
-              存储统计
-            </Button>
-          </Link>
-        </div>
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/dashboard/file-management">
+          <Button variant="default" size="sm">
+            文件浏览
+          </Button>
+        </Link>
+        <Link href="/dashboard/file-management/upload">
+          <Button variant="outline" size="sm">
+            文件上传
+          </Button>
+        </Link>
+        <Link href="/dashboard/file-management/transcode">
+          <Button variant="outline" size="sm">
+            转码管理
+          </Button>
+        </Link>
+        <Link href="/dashboard/file-management/storage">
+          <Button variant="outline" size="sm">
+            存储统计
+          </Button>
+        </Link>
+      </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* 文件夹树 */}
@@ -621,7 +620,6 @@ export default function FileManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   )
 }

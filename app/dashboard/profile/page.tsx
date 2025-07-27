@@ -101,7 +101,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl space-y-8 p-4">
+    <div className="max-w-4xl space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
           {t('profile')}

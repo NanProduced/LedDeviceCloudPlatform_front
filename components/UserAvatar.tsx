@@ -15,11 +15,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { logout } from '@/config/auth';
 import { UserIcon, Settings, LogOut, Globe } from 'lucide-react';
 
-interface UserAvatarProps {
-  onContentChange?: (contentKey: string) => void;
-}
+interface UserAvatarProps {}
 
-export function UserAvatar({ onContentChange }: UserAvatarProps) {
+export function UserAvatar({}: UserAvatarProps = {}) {
   const router = useRouter();
   const { user, loading } = useUser();
   const { t, language, setLanguage } = useLanguage();
@@ -33,18 +31,14 @@ export function UserAvatar({ onContentChange }: UserAvatarProps) {
     return name.charAt(0).toUpperCase();
   };
 
-  // 处理导航到个人资料页面 - 通过props传递回调函数
+  // 处理导航到个人资料页面
   const handleProfileClick = () => {
-    if (onContentChange) {
-      onContentChange('user-profile');
-    }
+    router.push('/dashboard/profile');
   };
   
   // 处理导航到设置页面
   const handleSettingsClick = () => {
-    if (onContentChange) {
-      onContentChange('settings');
-    }
+    router.push('/dashboard/settings');
   };
 
   // 处理语言切换

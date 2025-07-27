@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -82,74 +82,74 @@ const navigationItems = [
     title: "主控制台",
     icon: Home,
     items: [
-      { title: "运营概览", key: "overview", icon: BarChart3 },
-      { title: "实时监控", key: "monitor", icon: Monitor },
-      { title: "告警中心", key: "alerts", icon: AlertTriangle },
+      { title: "运营概览", path: "/dashboard", icon: BarChart3 },
+      { title: "实时监控", path: "/dashboard/monitor", icon: Monitor },
+      { title: "告警中心", path: "/dashboard/alerts", icon: AlertTriangle },
     ],
   },
   {
     title: "用户管理",
     icon: Users,
     items: [
-      { title: "用户列表", key: "user-management", icon: Users },
-      { title: "角色权限", key: "roles", icon: Shield },
-      { title: "终端组分配", key: "groups", icon: Settings },
+      { title: "用户列表", path: "/dashboard/user-management", icon: Users },
+      { title: "角色权限", path: "/dashboard/roles", icon: Shield },
+      { title: "终端组分配", path: "/dashboard/groups", icon: Settings },
     ],
   },
   {
     title: "组织管理",
     icon: Building2,
     items: [
-      { title: "组织架构", key: "organization", icon: Building2 },
-      { title: "组织配置", key: "org-config", icon: Settings },
-      { title: "组织统计", key: "org-stats", icon: BarChart3 },
+      { title: "组织架构", path: "/dashboard/organization", icon: Building2 },
+      { title: "组织配置", path: "/dashboard/org-config", icon: Settings },
+      { title: "组织统计", path: "/dashboard/org-stats", icon: BarChart3 },
     ],
   },
   {
     title: "设备管理",
     icon: Monitor,
     items: [
-      { title: "设备列表", key: "devices", icon: Monitor },
-      { title: "设备监控", key: "device-monitor", icon: Zap },
-      { title: "设备配置", key: "device-config", icon: Settings },
+      { title: "设备列表", path: "/dashboard/devices", icon: Monitor },
+      { title: "设备监控", path: "/dashboard/device-monitor", icon: Zap },
+      { title: "设备配置", path: "/dashboard/device-config", icon: Settings },
     ],
   },
   {
     title: "素材管理",
     icon: FileText,
     items: [
-      { title: "文件浏览", key: "file-management", icon: Folder },
-      { title: "文件上传", key: "file-upload", icon: Upload },
-      { title: "转码管理", key: "transcode", icon: RotateCcw },
-      { title: "存储统计", key: "storage", icon: HardDrive },
+      { title: "文件浏览", path: "/dashboard/file-management", icon: Folder },
+      { title: "文件上传", path: "/dashboard/file-management/upload", icon: Upload },
+      { title: "转码管理", path: "/dashboard/file-management/transcode", icon: RotateCcw },
+      { title: "存储统计", path: "/dashboard/file-management/storage", icon: HardDrive },
     ],
   },
   {
     title: "节目管理",
     icon: FileVideo,
     items: [
-      { title: "节目列表", key: "program-management", icon: FileVideo },
-      { title: "创建节目", key: "create-program", icon: Plus },
-      { title: "节目发布", key: "publish-program", icon: Send },
-      { title: "排程管理", key: "schedule", icon: Calendar },
+      { title: "节目列表", path: "/dashboard/program-management", icon: FileVideo },
+      { title: "创建节目", path: "/dashboard/program-management/create", icon: Plus },
+      { title: "节目发布", path: "/dashboard/program-management/publish", icon: Send },
+      { title: "排程管理", path: "/dashboard/program-management/schedule", icon: Calendar },
     ],
   },
   {
     title: "消息中心",
     icon: MessageSquare,
     items: [
-      { title: "实时消息", key: "messages", icon: MessageSquare },
-      { title: "广播通知", key: "notifications", icon: Bell },
-      { title: "任务列表", key: "tasks", icon: CheckCircle },
+      { title: "实时消息", path: "/dashboard/messages", icon: MessageSquare },
+      { title: "广播通知", path: "/dashboard/notifications", icon: Bell },
+      { title: "任务列表", path: "/dashboard/tasks", icon: CheckCircle },
     ],
   },
   {
     title: "系统管理",
     icon: Database,
     items: [
-      { title: "权限策略", key: "permissions", icon: Shield },
-      { title: "系统配置", key: "system-config", icon: Settings },
-      { title: "审计日志", key: "audit-logs", icon: FileText },
+      { title: "权限策略", path: "/dashboard/permissions", icon: Shield },
+      { title: "系统配置", path: "/dashboard/system-config", icon: Settings },
+      { title: "审计日志", path: "/dashboard/audit-logs", icon: FileText },
     ],
   },
 ];
@@ -169,7 +169,7 @@ const recentActivities = [
 ];
 
 // Dashboard Overview Component
-const DashboardOverview = () => {
+export const DashboardOverview = () => {
   const { user, loading, error } = useUser();
   const { t } = useLanguage();
   
@@ -424,11 +424,15 @@ const PlaceholderContent = ({ title }: { title: string }) => (
   </div>
 );
 
-export default function LEDPlatformApp() {
-  const [activeContent, setActiveContent] = useState("overview");
+interface LEDPlatformAppProps {
+  children?: React.ReactNode;
+}
+
+export default function LEDPlatformApp({ children }: LEDPlatformAppProps) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const { user, loading, error, fetchUserInfo } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
   
   // 检查认证状态，如果未认证则重定向到登录页
   useEffect(() => {
@@ -475,43 +479,6 @@ export default function LEDPlatformApp() {
     );
   }
 
-  const renderContent = () => {
-    switch (activeContent) {
-      case "overview":
-        return <DashboardOverview />;
-      case "user-management":
-        return <UserManagementContent />;
-      case "file-management":
-        return <FileManagementContent />;
-      case "file-upload":
-        return <FileUploadContent />;
-      case "transcode":
-        return <TranscodeManagementContent />;
-      case "storage":
-        return <StorageStatisticsContent />;
-      case "program-management":
-        return <ProgramManagementContent />;
-      case "create-program":
-        return <CreateProgramContent />;
-      case "publish-program":
-        return <PublishProgramContent />;
-      case "schedule":
-        return <ScheduleManagementContent />;
-      case "user-profile":
-        return <UserProfileContent />;
-      case "settings":
-        return <SettingsContent />;
-      default:
-        return (
-          <PlaceholderContent
-            title={
-              navigationItems.flatMap((section) => section.items).find((item) => item.key === activeContent)?.title ||
-              "未知页面"
-            }
-          />
-        );
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -541,9 +508,9 @@ export default function LEDPlatformApp() {
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton asChild>
                           <button
-                            onClick={() => setActiveContent(item.key)}
+                            onClick={() => router.push(item.path)}
                             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left ${
-                              activeContent === item.key
+                              pathname === item.path
                                 ? "bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400"
                                 : ""
                             }`}
@@ -620,13 +587,13 @@ export default function LEDPlatformApp() {
                 </DropdownMenu>
 
                 {/* 使用UserAvatar组件显示用户信息和菜单 */}
-                <UserAvatar onContentChange={setActiveContent} />
+                <UserAvatar />
               </div>
             </div>
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-6">{renderContent()}</main>
+          <main className="flex-1 p-6">{children}</main>
         </SidebarInset>
       </SidebarProvider>
     </div>
