@@ -92,7 +92,7 @@ const navigationItems = [
     icon: Users,
     items: [
       { title: "用户列表", path: "/dashboard/user-management", icon: Users },
-      { title: "角色权限", path: "/dashboard/roles", icon: Shield },
+      { title: "角色权限", path: "/dashboard/role-management", icon: Shield },
       { title: "终端组分配", path: "/dashboard/groups", icon: Settings },
     ],
   },

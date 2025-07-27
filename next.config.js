@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // 允许从任意主机访问
-  server: {
-    host: '0.0.0.0',
-  },
   // 配置代理，解决CORS问题
   async rewrites() {
     return [

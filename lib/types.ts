@@ -4,6 +4,43 @@ export interface Role {
   oid: number;
   roleName: string;
   displayName: string;
+  description?: string;
+  permissions?: number[];
+}
+
+// 权限响应类型定义
+export interface PermissionResponse {
+  permissionId: number;
+  permissionName: string;
+  permissionDescription: string;
+  permissionType: string;
+}
+
+// 权限绑定类型
+export interface PermissionBinding {
+  tgid: number;
+  bindingType: 'INCLUDE' | 'EXCLUDE';
+  includeChildren: boolean;
+  remarks?: string;
+}
+
+// 权限表达式请求
+export interface PermissionExpressionRequest {
+  ugid: number;
+  permissionBindings: PermissionBinding[];
+  description?: string;
+  enableRedundancyOptimization?: boolean;
+}
+
+// 权限拒绝请求
+export interface PermissionDenyRequest {
+  targetType: 'USER' | 'ROLE';
+  targetId: number;
+  orgId: number;
+  url: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  reason?: string;
+  durationHours?: number;
 }
 
 // 用户信息类型定义
