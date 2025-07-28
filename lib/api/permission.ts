@@ -1,6 +1,7 @@
 import { fetchApi, CORE_API_PREFIX } from "../api";
 import { 
   PermissionResponse, 
+  OperationPermissionResponse,
   PermissionExpressionRequest, 
   PermissionDenyRequest 
 } from "../types";
@@ -8,13 +9,13 @@ import {
 // 权限管理相关API
 export const permissionApi = {
   // 获取当前用户可用权限
-  getCurrentUserPermissions: async (): Promise<Record<string, PermissionResponse[]>> => {
+  getCurrentUserPermissions: async (): Promise<Record<string, OperationPermissionResponse[]>> => {
     try {
-      const rawResponse = await fetchApi(`${CORE_API_PREFIX}/permission/get`);
-      console.log("获取权限原始响应:", rawResponse);
+      const rawResponse = await fetchApi(`${CORE_API_PREFIX}/operation_permission/get`);
+      console.log("获取操作权限原始响应:", rawResponse);
       
       // 统一处理各种可能的响应格式
-      let processedResponse: Record<string, PermissionResponse[]> = {};
+      let processedResponse: Record<string, OperationPermissionResponse[]> = {};
       
       // 处理不同的响应格式
       if (rawResponse && typeof rawResponse === 'object') {
@@ -34,9 +35,9 @@ export const permissionApi = {
         
         // 是一个权限数组，需要分类
         if (Array.isArray(rawResponse)) {
-          const groupedPermissions: Record<string, PermissionResponse[]> = {};
-          rawResponse.forEach((permission: PermissionResponse) => {
-            const category = permission.permissionType || '未分类';
+          const groupedPermissions: Record<string, OperationPermissionResponse[]> = {};
+          rawResponse.forEach((permission: OperationPermissionResponse) => {
+            const category = permission.operationType || '未分类';
             if (!groupedPermissions[category]) {
               groupedPermissions[category] = [];
             }
@@ -49,14 +50,14 @@ export const permissionApi = {
       // 如果没有有效数据，使用模拟数据
       if (Object.keys(processedResponse).length === 0) {
         console.warn("API未返回有效权限数据，使用模拟数据");
-        return getMockPermissions();
+        return getMockOperationPermissions();
       }
       
       return processedResponse;
     } catch (error) {
-      console.error("获取用户权限失败", error);
+      console.error("获取用户操作权限失败", error);
       // 返回模拟数据
-      return getMockPermissions();
+      return getMockOperationPermissions();
     }
   },
 
@@ -124,7 +125,7 @@ export const permissionApi = {
   },
 };
 
-// 模拟数据
+// 模拟数据 - 为了保持代码兼容性保留旧的函数
 function getMockPermissions(): Record<string, PermissionResponse[]> {
   return {
     系统管理: [
@@ -141,6 +142,31 @@ function getMockPermissions(): Record<string, PermissionResponse[]> {
       { permissionId: 7, permissionName: "节目管理", permissionDescription: "管理播放节目", permissionType: "CONTENT" },
       { permissionId: 8, permissionName: "素材管理", permissionDescription: "管理素材库", permissionType: "CONTENT" },
       { permissionId: 9, permissionName: "排期管理", permissionDescription: "管理播放排期", permissionType: "CONTENT" },
+    ],
+  };
+}
+
+// 新的模拟操作权限数据
+function getMockOperationPermissions(): Record<string, OperationPermissionResponse[]> {
+  return {
+    系统管理: [
+      { operationPermissionId: 1, operationName: "用户管理", operationDescription: "管理系统用户", operationType: "SYSTEM" },
+      { operationPermissionId: 2, operationName: "角色管理", operationDescription: "管理系统角色", operationType: "SYSTEM" },
+      { operationPermissionId: 3, operationName: "组织架构", operationDescription: "管理组织架构", operationType: "SYSTEM" },
+    ],
+    设备管理: [
+      { operationPermissionId: 4, operationName: "设备查看", operationDescription: "查看设备信息", operationType: "DEVICE" },
+      { operationPermissionId: 5, operationName: "设备控制", operationDescription: "控制设备", operationType: "DEVICE" },
+      { operationPermissionId: 6, operationName: "设备配置", operationDescription: "配置设备参数", operationType: "DEVICE" },
+    ],
+    内容管理: [
+      { operationPermissionId: 7, operationName: "节目管理", operationDescription: "管理播放节目", operationType: "CONTENT" },
+      { operationPermissionId: 8, operationName: "素材管理", operationDescription: "管理素材库", operationType: "CONTENT" },
+      { operationPermissionId: 9, operationName: "排期管理", operationDescription: "管理播放排期", operationType: "CONTENT" },
+    ],
+    数据分析: [
+      { operationPermissionId: 10, operationName: "数据报表", operationDescription: "查看数据报表", operationType: "ANALYTICS" },
+      { operationPermissionId: 11, operationName: "数据导出", operationDescription: "导出数据分析", operationType: "ANALYTICS" },
     ],
   };
 }

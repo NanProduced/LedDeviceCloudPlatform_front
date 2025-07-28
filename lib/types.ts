@@ -16,6 +16,14 @@ export interface PermissionResponse {
   permissionType: string;
 }
 
+// 操作权限响应类型定义
+export interface OperationPermissionResponse {
+  operationPermissionId: number;
+  operationName: string;
+  operationDescription: string;
+  operationType: string;
+}
+
 // 权限绑定类型
 export interface PermissionBinding {
   tgid: number;

@@ -64,7 +64,7 @@ export const roleApi = {
         body: JSON.stringify({
           roleName,
           description,
-          permissions,
+          operationPermissions: permissions, // 更新为operationPermissions
         }),
       });
     } catch (error) {
@@ -78,7 +78,7 @@ export const roleApi = {
     rid: number,
     name?: string,
     description?: string,
-    permissionIds?: number[]
+    permissions?: number[]
   ): Promise<void> => {
     try {
       return await fetchApi(`${CORE_API_PREFIX}/role/update`, {
@@ -87,7 +87,7 @@ export const roleApi = {
           rid,
           name,
           description,
-          permissionIds,
+          operationPermissionIds: permissions, // 更新为operationPermissionIds
         }),
       });
     } catch (error) {
