@@ -44,6 +44,10 @@
             "description": "组织相关的所有操作"
         },
         {
+            "name": "Terminal(终端控制器)",
+            "description": "终端相关的所以操作"
+        },
+        {
             "name": "Permission(权限控制器)",
             "description": "权限相关操作"
         }
@@ -309,6 +313,65 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/CreateUserGroupRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/terminal/list": {
+            "post": {
+                "tags": [
+                    "终端管理",
+                    "Terminal(终端控制器)"
+                ],
+                "summary": "查询终端列表",
+                "description": "根据终端组ID分页查询终端列表，支持关键字搜索和终端型号筛选",
+                "operationId": "listTerminals",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PageRequestDTOQueryTerminalListRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageVOTerminalListResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/terminal/create": {
+            "post": {
+                "tags": [
+                    "终端管理",
+                    "Terminal(终端控制器)"
+                ],
+                "summary": "创建终端",
+                "description": "创建新的终端账号",
+                "operationId": "createTerminal",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTerminalRequest"
                             }
                         }
                     },
@@ -793,36 +856,6 @@
                 }
             }
         },
-        "/permission/get": {
-            "get": {
-                "tags": [
-                    "权限管理",
-                    "通用接口",
-                    "Permission(权限控制器)"
-                ],
-                "summary": "获取当前用户可用权限",
-                "description": "根据当前用户角色获取用户可用的全部权限",
-                "operationId": "getCurUserPermissions",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "*/*": {
-                                "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "type": "array",
-                                        "items": {
-                                            "$ref": "#/components/schemas/PermissionResponse"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/permission-deny/check": {
             "get": {
                 "tags": [
@@ -874,6 +907,36 @@
                             "*/*": {
                                 "schema": {
                                     "type": "boolean"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/operation_permission/get": {
+            "get": {
+                "tags": [
+                    "权限管理",
+                    "通用接口",
+                    "Permission(权限控制器)"
+                ],
+                "summary": "获取当前用户可用操作权限",
+                "description": "根据当前用户角色获取用户可用的全部操作权限",
+                "operationId": "getCurUserPermissions",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/OperationPermissionResponse"
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1177,6 +1240,180 @@
                 },
                 "description": "创建用户组请求DTO"
             },
+            "PageRequestDTOQueryTerminalListRequest": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "sortField": {
+                        "type": "string"
+                    },
+                    "sortOrder": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "$ref": "#/components/schemas/QueryTerminalListRequest"
+                    }
+                }
+            },
+            "QueryTerminalListRequest": {
+                "required": [
+                    "tgid"
+                ],
+                "type": "object",
+                "properties": {
+                    "tgid": {
+                        "type": "integer",
+                        "description": "查询的终端组Id",
+                        "format": "int64"
+                    },
+                    "includeSubGroups": {
+                        "type": "boolean",
+                        "description": "查询是否包含子组",
+                        "default": false
+                    },
+                    "keyword": {
+                        "type": "string",
+                        "description": "终端名称或描述关键字"
+                    },
+                    "terminalModel": {
+                        "type": "string",
+                        "description": "终端型号筛选"
+                    },
+                    "onlineStatus": {
+                        "type": "integer",
+                        "description": "终端在线状态筛选, 0:离线;1:在线",
+                        "format": "int32"
+                    }
+                },
+                "description": "查询终端列表请求"
+            },
+            "PageVOTerminalListResponse": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "records": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TerminalListResponse"
+                        }
+                    },
+                    "hasNext": {
+                        "type": "boolean"
+                    },
+                    "hasPrevious": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "TerminalListResponse": {
+                "type": "object",
+                "properties": {
+                    "tid": {
+                        "type": "integer",
+                        "description": "终端Id",
+                        "format": "int64"
+                    },
+                    "terminalName": {
+                        "type": "string",
+                        "description": "终端名称"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "终端描述"
+                    },
+                    "terminalModel": {
+                        "type": "string",
+                        "description": "终端型号"
+                    },
+                    "tgid": {
+                        "type": "integer",
+                        "description": "终端组Id",
+                        "format": "int64"
+                    },
+                    "tgName": {
+                        "type": "string",
+                        "description": "终端组名称"
+                    },
+                    "firmwareVersion": {
+                        "type": "string",
+                        "description": "固件版本"
+                    },
+                    "serialNumber": {
+                        "type": "string",
+                        "description": "序列号"
+                    },
+                    "onlineStatus": {
+                        "type": "integer",
+                        "description": "在线状态, 0:离线;1:在线",
+                        "format": "int32"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "description": "更新时间",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "type": "integer",
+                        "description": "创建者",
+                        "format": "int64"
+                    }
+                },
+                "description": "终端列表查询结果"
+            },
+            "CreateTerminalRequest": {
+                "required": [
+                    "terminalAccount",
+                    "terminalName",
+                    "terminalPassword",
+                    "tgid"
+                ],
+                "type": "object",
+                "properties": {
+                    "terminalName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "terminalAccount": {
+                        "type": "string"
+                    },
+                    "terminalPassword": {
+                        "type": "string"
+                    },
+                    "tgid": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
             "UpdateTerminalGroupRequest": {
                 "required": [
                     "tgid"
@@ -1479,12 +1716,12 @@
                         "description": "角色Id",
                         "format": "int64"
                     },
-                    "permissionIds": {
+                    "operationPermissionIds": {
                         "type": "array",
-                        "description": "更新权限Id(为覆盖操作，如果不更新权限只更新角色信息则传null)",
+                        "description": "更新操作权限Id(为覆盖操作，如果不更新权限只更新角色信息则传null)",
                         "items": {
                             "type": "integer",
-                            "description": "更新权限Id(为覆盖操作，如果不更新权限只更新角色信息则传null)",
+                            "description": "更新操作权限Id(为覆盖操作，如果不更新权限只更新角色信息则传null)",
                             "format": "int64"
                         }
                     },
@@ -1510,12 +1747,12 @@
                         "type": "string",
                         "description": "角色描述"
                     },
-                    "permissions": {
+                    "operationPermissions": {
                         "type": "array",
-                        "description": "角色权限,多选",
+                        "description": "角色操作权限,多选",
                         "items": {
                             "type": "integer",
-                            "description": "角色权限,多选",
+                            "description": "角色操作权限,多选",
                             "format": "int64"
                         }
                     }
@@ -2026,24 +2263,24 @@
                 },
                 "description": "获取用户可分配角色"
             },
-            "PermissionResponse": {
+            "OperationPermissionResponse": {
                 "type": "object",
                 "properties": {
-                    "permissionId": {
+                    "operationPermissionId": {
                         "type": "integer",
                         "format": "int64"
                     },
-                    "permissionName": {
+                    "operationName": {
                         "type": "string"
                     },
-                    "permissionDescription": {
+                    "operationDescription": {
                         "type": "string"
                     },
-                    "permissionType": {
+                    "operationType": {
                         "type": "string"
                     }
                 },
-                "description": "权限查询响应DTO"
+                "description": "用户可用功能响应DTO"
             }
         }
     }

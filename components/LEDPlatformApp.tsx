@@ -173,10 +173,6 @@ export const DashboardOverview = () => {
   const { user, loading, error } = useUser();
   const { t } = useLanguage();
   
-  console.log('DashboardOverview渲染 - 用户数据:', user);
-  console.log('DashboardOverview渲染 - 加载状态:', loading);
-  console.log('DashboardOverview渲染 - 错误状态:', error);
-  
   // 使用用户数据来个性化欢迎消息
   const welcomeMessage = user ? `欢迎回来，${user.username}` : '欢迎回来';
   
@@ -239,27 +235,6 @@ export const DashboardOverview = () => {
               weekday: "long",
             })}
           </p>
-          {/* 调试信息 */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded text-xs">
-              <p><strong>调试信息:</strong></p>
-              <p>用户对象: {user ? 'true' : 'false'}</p>
-              <p>用户名: {user?.username || 'undefined'}</p>
-              <p>用户ID: {user?.uid || 'undefined'}</p>
-              <p>组织: {user?.orgName || 'undefined'}</p>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="mt-2"
-                onClick={() => {
-                  console.log('手动重新获取用户信息');
-                  fetchUserInfo();
-                }}
-              >
-                重新获取用户信息
-              </Button>
-            </div>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
