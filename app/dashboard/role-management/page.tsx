@@ -45,7 +45,6 @@ import {
   Edit,
   Loader2,
   Check,
-  X
 } from "lucide-react"
 
 // 导入API服务
@@ -53,7 +52,7 @@ import { roleApi } from "@/lib/api/role"
 import { permissionApi } from "@/lib/api/permission"
 
 // 导入类型
-import { Role, PermissionResponse, OperationPermissionResponse } from "@/lib/types"
+import { Role, RoleDetailResponse, PermissionResponse, OperationPermissionResponse } from "@/lib/types"
 
 // 操作权限类型对应的颜色映射
 const operationTypeColorMap: Record<string, string> = {
@@ -68,23 +67,13 @@ const getOperationTypeColor = (type: string): string => {
   return operationTypeColorMap[type] || "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700";
 }
 
-// 获取操作权限类型对应的Badge变体
-const getOperationTypeBadgeVariant = (type: string, isSelected: boolean): "default" | "outline" | "secondary" | "destructive" => {
-  if (!isSelected) return "outline";
-  
-  switch (type) {
-    case "SYSTEM": return "default"; // 蓝色
-    case "DEVICE": return "secondary"; // 默认secondary是中性颜色
-    case "CONTENT": return "default"; // 会使用自定义颜色覆盖
-    case "ANALYTICS": return "default"; // 会使用自定义颜色覆盖
-    default: return "outline";
-  }
-}
+
 
 export default function RoleManagement() {
   // 状态管理
   const [roles, setRoles] = useState<Role[]>([])
   const [selectedRole, setSelectedRole] = useState<Role | null>(null)
+  const [roleDetail, setRoleDetail] = useState<RoleDetailResponse | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false)
   const [isEditRoleOpen, setIsEditRoleOpen] = useState(false)
@@ -129,7 +118,8 @@ export default function RoleManagement() {
         if (response && response.visibleRoles) {
           setRoles(response.visibleRoles || [])
           if (response.visibleRoles && response.visibleRoles.length > 0) {
-            setSelectedRole(response.visibleRoles[0])
+            // 默认选择第一个角色并获取其详情
+            await handleSelectRole(response.visibleRoles[0])
           }
         } else {
           throw new Error('API返回数据格式不符合预期')
@@ -147,41 +137,40 @@ export default function RoleManagement() {
     fetchRoles()
   }, [mounted])
   
-  // 获取权限列表
-  useEffect(() => {
-    if (!mounted) return;
-    
-    const fetchPermissions = async () => {
-      setLoadingPermissions(true)
-      setErrorPermissions(null)
-      try {
-        console.log('获取操作权限列表...')
-        const response = await permissionApi.getCurrentUserPermissions()
-        console.log('操作权限列表响应:', response)
-        setPermissions(response || {})
-      } catch (error) {
-        console.error("获取操作权限列表失败", error)
-        setErrorPermissions(error instanceof Error ? error.message : "未知错误")
-        // 使用模拟数据保证UI可用
-        setPermissions(getMockOperationPermissions())
-      } finally {
-        setLoadingPermissions(false)
-      }
+  // 获取权限列表 - 只在创建或编辑角色时调用
+  const fetchPermissions = async () => {
+    setLoadingPermissions(true)
+    setErrorPermissions(null)
+    try {
+      console.log('获取操作权限列表...')
+      const response = await permissionApi.getCurrentUserPermissions()
+      console.log('操作权限列表响应:', response)
+      setPermissions(response || {})
+    } catch (error) {
+      console.error("获取操作权限列表失败", error)
+      setErrorPermissions(error instanceof Error ? error.message : "未知错误")
+      // 使用模拟数据保证UI可用
+      setPermissions(getMockOperationPermissions())
+    } finally {
+      setLoadingPermissions(false)
     }
-    
-    fetchPermissions()
-  }, [mounted])
+  }
   
   // 当选中角色改变时，加载该角色的权限
   useEffect(() => {
     if (selectedRole) {
-      // 这里假设角色对象中包含其权限ID列表
-      // 实际情况可能需要额外的API调用获取角色的权限
-      setSelectedPermissions(new Set(selectedRole.permissions || []))
+      // 优先使用roleDetail中的operationPermissions，否则使用角色的基础permissions
+      if (roleDetail && roleDetail.operationPermissions) {
+        const permissionIds = roleDetail.operationPermissions.map(p => p.operationPermissionId);
+        setSelectedPermissions(new Set(permissionIds));
+      } else {
+        setSelectedPermissions(new Set(selectedRole.permissions || []));
+      }
     } else {
-      setSelectedPermissions(new Set())
+      setSelectedPermissions(new Set());
+      setRoleDetail(null);
     }
-  }, [selectedRole])
+  }, [selectedRole, roleDetail])
   
   // 过滤角色列表
   const filteredRoles = roles.filter(role => 
@@ -266,8 +255,21 @@ export default function RoleManagement() {
   }
   
   // 选中角色
-  const handleSelectRole = (role: Role) => {
+  const handleSelectRole = async (role: Role) => {
     setSelectedRole(role)
+    // 获取角色详情
+    try {
+      const detail = await roleApi.getRoleDetail(role.rid)
+      setRoleDetail(detail)
+      // 基于角色详情的操作权限更新已选权限
+      const permissionIds = detail.operationPermissions.map(p => p.operationPermissionId)
+      setSelectedPermissions(new Set(permissionIds))
+    } catch (error) {
+      console.error("获取角色详情失败", error)
+      // 如果获取详情失败，使用基础角色信息
+      setRoleDetail(null)
+      setSelectedPermissions(new Set(role.permissions || []))
+    }
   }
   
   // 创建新角色
@@ -389,43 +391,53 @@ export default function RoleManagement() {
     });
   };
   
-  // 检查某个类别的权限是否部分选中
-  const isCategoryPartiallySelected = (perms: OperationPermissionResponse[] | PermissionResponse[]): boolean => {
-    if (perms.length === 0) return false;
-    const selected = perms.some(p => {
-      const id = 'operationPermissionId' in p ? p.operationPermissionId : (p as any).permissionId;
-      return selectedPermissions.has(id);
-    });
-    return selected && !isCategoryAllSelected(perms);
-  };
+
   
   // 打开编辑对话框，并填充表单数据
-  const openEditDialog = (role: Role) => {
+  const openEditDialog = async (role: Role) => {
     console.log("编辑角色:", role);
-    // 确保加载完权限数据后再打开对话框
-    if (loadingPermissions) {
-      alert("正在加载权限数据，请稍候...");
-      return;
+    
+    // 先获取权限列表
+    await fetchPermissions();
+    
+    try {
+      // 获取角色详情
+      const detail = await roleApi.getRoleDetail(role.rid);
+      
+      // 设置基本表单数据，使用角色详情中的信息
+      setRoleForm({
+        roleName: detail.displayName || "",
+        description: detail.description || "",
+        permissions: detail.operationPermissions.map(p => p.operationPermissionId)
+      });
+      
+      // 基于角色详情的操作权限设置已选权限
+      const permissionIds = detail.operationPermissions.map(p => p.operationPermissionId);
+      console.log("角色详情权限ID列表:", permissionIds);
+      
+      // 创建新的Set实例并立即设置
+      setSelectedPermissions(new Set(permissionIds));
+      
+      // 延迟打开对话框，确保状态更新完成
+      setTimeout(() => {
+        setIsEditRoleOpen(true);
+      }, 10);
+    } catch (error) {
+      console.error("获取角色详情失败，使用基础信息", error);
+      
+      // 如果获取详情失败，使用基础角色信息
+      setRoleForm({
+        roleName: role.displayName || "",
+        description: role.description || "",
+        permissions: role.permissions || []
+      });
+      
+      setSelectedPermissions(new Set(role.permissions || []));
+      
+      setTimeout(() => {
+        setIsEditRoleOpen(true);
+      }, 10);
     }
-    
-    // 设置基本表单数据
-    setRoleForm({
-      roleName: role.displayName || "",  // 使用displayName代替roleName
-      description: role.description || "",
-      permissions: role.permissions || []
-    });
-    
-    // 重新构建权限Set，确保使用新的引用
-    const rolePermissions = role.permissions || [];
-    console.log("角色原有权限ID列表:", rolePermissions);
-    
-    // 创建新的Set实例并立即设置
-    setSelectedPermissions(new Set(rolePermissions));
-    
-    // 延迟打开对话框，确保状态更新完成
-    setTimeout(() => {
-      setIsEditRoleOpen(true);
-    }, 10);
   }
   
   // 重置表单数据
@@ -565,7 +577,13 @@ export default function RoleManagement() {
             
             <Dialog open={isCreateRoleOpen} onOpenChange={setIsCreateRoleOpen}>
               <DialogTrigger asChild>
-                <Button className="w-full gap-2 mt-4">
+                <Button 
+                  className="w-full gap-2 mt-4"
+                  onClick={() => {
+                    fetchPermissions()
+                    setIsCreateRoleOpen(true)
+                  }}
+                >
                   <Plus className="w-4 h-4" />
                   创建角色
                 </Button>
@@ -798,13 +816,25 @@ export default function RoleManagement() {
                   <div>
                     <CardTitle className="text-xl flex items-center gap-2">
                       <ShieldCheck className="w-5 h-5 text-blue-600" />
-                      {selectedRole.displayName}
+                      {roleDetail?.displayName || selectedRole.displayName}
                     </CardTitle>
-                    {/* 根据用户要求，不再显示roleName */}
-                    {selectedRole.description && (
+                    {(roleDetail?.description || selectedRole.description) && (
                       <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                        {selectedRole.description}
+                        {roleDetail?.description || selectedRole.description}
                       </p>
+                    )}
+                    {/* 显示角色的创建和更新信息 */}
+                    {roleDetail && (
+                      <div className="flex flex-wrap gap-4 mt-3 text-xs text-slate-500 dark:text-slate-400">
+                        <span>创建者: {roleDetail.creatorName}</span>
+                        <span>创建时间: {new Date(roleDetail.createTime).toLocaleString('zh-CN')}</span>
+                        {roleDetail.updaterName && (
+                          <>
+                            <span>更新者: {roleDetail.updaterName}</span>
+                            <span>更新时间: {new Date(roleDetail.updateTime).toLocaleString('zh-CN')}</span>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -827,78 +857,70 @@ export default function RoleManagement() {
                     <TabsTrigger value="users">拥有该角色的用户</TabsTrigger>
                   </TabsList>
                   <TabsContent value="permissions">
-                    {loadingPermissions ? (
+                    {!roleDetail ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                        <span className="ml-2 text-slate-600">加载角色权限...</span>
+                      </div>
+                    ) : roleDetail.operationPermissions.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500">
+                        该角色暂无权限
                       </div>
                     ) : (
                       <div className="space-y-6">
-                        {Object.entries(permissions).map(([category, perms]) => (
+                        {/* 按权限类型分组显示 */}
+                        {Object.entries(
+                          roleDetail.operationPermissions.reduce((groups, permission) => {
+                            const category = permission.operationType === 'SYSTEM' ? '系统管理'
+                              : permission.operationType === 'DEVICE' ? '设备管理'
+                              : permission.operationType === 'CONTENT' ? '内容管理'
+                              : permission.operationType === 'ANALYTICS' ? '数据分析'
+                              : '其他';
+                            
+                            if (!groups[category]) {
+                              groups[category] = [];
+                            }
+                            groups[category].push(permission);
+                            return groups;
+                          }, {} as Record<string, typeof roleDetail.operationPermissions>)
+                        ).map(([category, categoryPermissions]) => (
                           <div key={category} className="space-y-3">
                             <h3 className="font-medium text-lg text-slate-800 dark:text-slate-200">{category}</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              {perms.map((permission) => {
-                                // 使用operationPermissionId而不是permissionId
-                                const permissionId = 'operationPermissionId' in permission 
-                                  ? permission.operationPermissionId 
-                                  : (permission as any).permissionId;
-                                  
-                                const hasPermission = selectedPermissions.has(permissionId);
-                                
-                                // 获取操作类型
-                                const operationType = 'operationType' in permission 
-                                  ? permission.operationType 
-                                  : (permission as any).permissionType;
-                                  
+                              {categoryPermissions.map((permission) => {
                                 // 确定卡片的边框和背景颜色，根据操作类型
-                                const typeColorClass = hasPermission
-                                  ? getOperationTypeColor(operationType)
-                                  : 'border-slate-200 dark:border-slate-700';
-                                
-                                // 准备Badge的样式
-                                const badgeClass = hasPermission
-                                  ? `bg-${operationType.toLowerCase()}-100 text-${operationType.toLowerCase()}-600`
-                                  : '';
+                                const typeColorClass = getOperationTypeColor(permission.operationType);
                                 
                                 return (
                                   <div 
-                                    key={permissionId} 
-                                    className={`p-3 rounded-md border ${typeColorClass} ${
-                                      hasPermission ? 'shadow-sm' : ''
-                                    }`}
-                                    onClick={() => togglePermission(permissionId)}
+                                    key={permission.operationPermissionId} 
+                                    className={`p-3 rounded-md border ${typeColorClass} shadow-sm`}
                                   >
                                     <div className="flex justify-between items-start">
                                       <div>
                                         <p className="font-medium text-slate-800 dark:text-slate-200">
-                                          {'operationName' in permission ? permission.operationName : (permission as any).permissionName}
+                                          {permission.operationName}
                                         </p>
                                         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                                          {'operationDescription' in permission ? permission.operationDescription : (permission as any).permissionDescription}
+                                          {permission.operationDescription}
                                         </p>
                                         <Badge 
-                                          className={`mt-2 ${badgeClass}`}
-                                          variant={getOperationTypeBadgeVariant(operationType, hasPermission)}
+                                          className="mt-2"
+                                          variant="default"
                                           style={{
-                                            backgroundColor: hasPermission 
-                                              ? operationType === 'SYSTEM' ? '' 
-                                              : operationType === 'DEVICE' ? '#059669' 
-                                              : operationType === 'CONTENT' ? '#7e22ce' 
-                                              : operationType === 'ANALYTICS' ? '#ea580c'
-                                              : ''
-                                              : '',
-                                            color: hasPermission ? '#fff' : ''
+                                            backgroundColor: permission.operationType === 'SYSTEM' ? '#3b82f6' 
+                                              : permission.operationType === 'DEVICE' ? '#059669' 
+                                              : permission.operationType === 'CONTENT' ? '#7e22ce' 
+                                              : permission.operationType === 'ANALYTICS' ? '#ea580c'
+                                              : '#64748b',
+                                            color: '#fff'
                                           }}
                                         >
-                                          {operationType}
+                                          {permission.operationType}
                                         </Badge>
                                       </div>
                                       <div className="flex items-center">
-                                        {hasPermission ? (
-                                          <Check className="text-green-600 h-5 w-5" />
-                                        ) : (
-                                          <X className="text-slate-400 h-5 w-5" />
-                                        )}
+                                        <Check className="text-green-600 h-5 w-5" />
                                       </div>
                                     </div>
                                   </div>

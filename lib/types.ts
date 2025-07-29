@@ -8,6 +8,21 @@ export interface Role {
   permissions?: number[];
 }
 
+// 角色详情响应类型定义
+export interface RoleDetailResponse {
+  rid: number;
+  roleName: string; // 后端业务用于区分唯一角色的名称，不显示
+  displayName: string; // 前端显示的角色名
+  description?: string;
+  creatorId: number; // 角色创建者用户ID
+  creatorName: string; // 角色创建者用户名称
+  createTime: string; // 创建时间
+  updaterId: number; // 角色更新者用户ID
+  updaterName: string; // 角色更新者用户名称
+  updateTime: string; // 更新时间
+  operationPermissions: OperationPermissionResponse[]; // 角色的操作权限
+}
+
 // 权限响应类型定义
 export interface PermissionResponse {
   permissionId: number;

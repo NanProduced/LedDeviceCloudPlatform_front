@@ -856,6 +856,40 @@
                 }
             }
         },
+        "/role/detail": {
+            "get": {
+                "tags": [
+                    "Role(角色控制器)",
+                    "角色管理"
+                ],
+                "summary": "获取角色详情",
+                "description": "获取角色详情，包含角色的操作权限，用于回显角色",
+                "operationId": "getRoleDetail",
+                "parameters": [
+                    {
+                        "name": "rid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RoleDetailResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/permission-deny/check": {
             "get": {
                 "tags": [
@@ -2281,6 +2315,64 @@
                     }
                 },
                 "description": "用户可用功能响应DTO"
+            },
+            "RoleDetailResponse": {
+                "type": "object",
+                "properties": {
+                    "rid": {
+                        "type": "integer",
+                        "description": "角色Id",
+                        "format": "int64"
+                    },
+                    "roleName": {
+                        "type": "string",
+                        "description": "角色名（后端业务由于区分唯一角色的名称，不显示）"
+                    },
+                    "displayName": {
+                        "type": "string",
+                        "description": "前端显示的角色名（用户设置的）"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "角色描述"
+                    },
+                    "creatorId": {
+                        "type": "integer",
+                        "description": "角色创建者用户Id",
+                        "format": "int64"
+                    },
+                    "creatorName": {
+                        "type": "string",
+                        "description": "角色创建者用户名称"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    },
+                    "updaterId": {
+                        "type": "integer",
+                        "description": "角色更新者用户Id",
+                        "format": "int64"
+                    },
+                    "updaterName": {
+                        "type": "string",
+                        "description": "角色更新者用户名称"
+                    },
+                    "updateTime": {
+                        "type": "string",
+                        "description": "更新时间",
+                        "format": "date-time"
+                    },
+                    "operationPermissions": {
+                        "type": "array",
+                        "description": "角色的操作权限",
+                        "items": {
+                            "$ref": "#/components/schemas/OperationPermissionResponse"
+                        }
+                    }
+                },
+                "description": "角色详情响应"
             }
         }
     }
