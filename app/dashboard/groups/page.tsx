@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -17,12 +18,11 @@ import {
   Save,
   RotateCcw,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
   Folder,
   FolderOpen,
   Search,
-  Loader2
+  Loader2,
+  Info
 } from "lucide-react"
 
 // 导入API服务
@@ -135,7 +135,7 @@ function InteractivePermissionTree({
       })
     }
 
-    const calculatePositions = (nodes: TreeNode[], startX = 80, startY = 60, levelHeight = 100, nodeSpacing = 180) => {
+    const calculatePositions = (nodes: TreeNode[], startX = 60, startY = 50, levelHeight = 90, nodeSpacing = 160) => {
       const calculateSubtreeWidth = (node: TreeNode): number => {
         if (node.children.length === 0) return nodeSpacing
         return node.children.reduce((sum, child) => sum + calculateSubtreeWidth(child), 0)
@@ -337,25 +337,24 @@ function InteractivePermissionTree({
             <stop offset="0%" stopColor="#fef2f2" />
             <stop offset="100%" stopColor="#fecaca" />
           </linearGradient>
-          {/* 箭头标记 - 增大尺寸 */}
-          <marker id="arrowhead" markerWidth="12" markerHeight="9" refX="11" refY="4.5" orient="auto">
-            <polygon points="0 0, 12 4.5, 0 9" fill="#9ca3af" />
+          {/* 箭头标记 */}
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#d1d5db" />
           </marker>
         </defs>
 
-        {/* 绘制连接线 - 调整连接点 */}
+        {/* 绘制连接线 */}
         {allNodes.map((node) =>
           node.children.map((child) => (
             <line
               key={`${node.group.tgid}-${child.group.tgid}`}
               x1={node.x}
-              y1={node.y + 37}
+              y1={node.y + 32}
               x2={child.x}
-              y2={child.y - 15}
-              stroke="#9ca3af"
-              strokeWidth="3"
+              y2={child.y - 12}
+              stroke="#d1d5db"
+              strokeWidth="2"
               markerEnd="url(#arrowhead)"
-              className="drop-shadow-sm"
             />
           )),
         )}
@@ -374,60 +373,59 @@ function InteractivePermissionTree({
 
           return (
             <g key={node.group.tgid}>
-              {/* 区域背景（如果包含子组）- 调整大小 */}
+              {/* 区域背景（如果包含子组） */}
               {hasChildren && includeChildren && (permission === "INCLUDE" || permission === "EXCLUDE") && (
                 <rect
-                  x={node.x - 95}
-                  y={node.y - 25}
-                  width="190"
-                  height="100"
-                  rx="15"
+                  x={node.x - 85}
+                  y={node.y - 20}
+                  width="170"
+                  height="85"
+                  rx="12"
                   fill={permission === "INCLUDE" ? "url(#includeGradient)" : "url(#excludeGradient)"}
-                  fillOpacity="0.25"
+                  fillOpacity="0.3"
                   stroke={permission === "INCLUDE" ? "#16a34a" : "#dc2626"}
-                  strokeWidth="2"
-                  strokeDasharray="8,4"
-                  className="animate-pulse"
+                  strokeWidth="1"
+                  strokeDasharray="5,5"
                 />
               )}
 
-              {/* 主节点 - 增大尺寸 */}
+              {/* 主节点 - 适度增大 */}
               <rect
-                x={node.x - 85}
-                y={node.y - 15}
-                width="170"
-                height="75"
-                rx="12"
+                x={node.x - 75}
+                y={node.y - 12}
+                width="150"
+                height="65"
+                rx="8"
                 fill={nodeColor.fill}
                 stroke={nodeColor.stroke}
                 strokeWidth={nodeColor.strokeWidth}
                 filter="url(#shadow)"
-                className="cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200"
+                className="cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => handlePermissionToggle(node.group)}
               />
 
-              {/* 展开/折叠按钮 - 调整位置 */}
+              {/* 展开/折叠按钮 */}
               {hasChildren && (
                 <g
-                  className="cursor-pointer hover:scale-110 transition-transform duration-200"
+                  className="cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation()
                     toggleExpanded(node.group.tgid)
                   }}
                 >
-                  <circle cx={node.x + 75} cy={node.y + 15} r="10" fill="#ffffff" stroke="#6b7280" strokeWidth="2" />
-                  <text x={node.x + 75} y={node.y + 20} textAnchor="middle" fontSize="14" fontWeight="bold" fill="#6b7280">
+                  <circle cx={node.x + 65} cy={node.y + 12} r="9" fill="#ffffff" stroke="#6b7280" strokeWidth="1" />
+                  <text x={node.x + 65} y={node.y + 17} textAnchor="middle" fontSize="12" fill="#6b7280">
                     {isExpanded ? "−" : "+"}
                   </text>
                 </g>
               )}
 
-              {/* 节点文本 - 增大字体 */}
+              {/* 节点文本 */}
               <text
                 x={node.x}
-                y={node.y + 0}
+                y={node.y + 2}
                 textAnchor="middle"
-                fontSize="14"
+                fontSize="13"
                 fontWeight="600"
                 fill={nodeColor.text}
                 className="pointer-events-none"
@@ -435,39 +433,37 @@ function InteractivePermissionTree({
                 {node.group.tgName}
               </text>
 
-              {/* 权限状态 - 增大字体 */}
+              {/* 权限状态 */}
               <text
                 x={node.x}
                 y={node.y + 18}
                 textAnchor="middle"
-                fontSize="12"
-                fontWeight="500"
+                fontSize="11"
                 fill={nodeColor.text}
                 className="pointer-events-none"
               >
                 {getPermissionText(permission)}
               </text>
 
-              {/* 包含子组选项 - 调整位置和大小 */}
+              {/* 包含子组选项 */}
               {hasChildren && (permission === "INCLUDE" || permission === "EXCLUDE") && (
-                <g className="cursor-pointer hover:scale-110 transition-transform duration-200" onClick={(e) => handleIncludeChildrenToggle(node.group, e)}>
+                <g className="cursor-pointer" onClick={(e) => handleIncludeChildrenToggle(node.group, e)}>
                   <rect
-                    x={node.x - 75}
-                    y={node.y + 32}
-                    width="14"
-                    height="14"
-                    rx="3"
+                    x={node.x - 68}
+                    y={node.y + 28}
+                    width="12"
+                    height="12"
+                    rx="2"
                     fill={includeChildren ? nodeColor.stroke : "#ffffff"}
                     stroke={nodeColor.stroke}
-                    strokeWidth="2"
+                    strokeWidth="1"
                   />
                   {includeChildren && (
                     <text
-                      x={node.x - 68}
-                      y={node.y + 42}
+                      x={node.x - 62}
+                      y={node.y + 37}
                       textAnchor="middle"
-                      fontSize="10"
-                      fontWeight="bold"
+                      fontSize="8"
                       fill="#ffffff"
                       className="pointer-events-none"
                     >
@@ -475,10 +471,9 @@ function InteractivePermissionTree({
                     </text>
                   )}
                   <text
-                    x={node.x - 52}
-                    y={node.y + 42}
-                    fontSize="11"
-                    fontWeight="500"
+                    x={node.x - 48}
+                    y={node.y + 37}
+                    fontSize="9"
                     fill={nodeColor.text}
                     className="pointer-events-none"
                   >
@@ -487,14 +482,14 @@ function InteractivePermissionTree({
                 </g>
               )}
 
-              {/* 深度标识 - 调整位置和大小 */}
-              <circle cx={node.x - 75} cy={node.y - 10} r="10" fill="#3b82f6" className="pointer-events-none" />
+              {/* 深度标识 */}
+              <circle cx={node.x - 65} cy={node.y - 8} r="8" fill="#3b82f6" className="pointer-events-none" />
               <text
-                x={node.x - 75}
-                y={node.y - 5}
+                x={node.x - 65}
+                y={node.y - 3}
                 textAnchor="middle"
-                fontSize="12"
-                fontWeight="700"
+                fontSize="10"
+                fontWeight="600"
                 fill="#ffffff"
                 className="pointer-events-none"
               >
@@ -574,7 +569,7 @@ function TerminalGroupTree({ groups }: { groups: TerminalGroupTreeNode[] }) {
   return <div className="space-y-1">{groups.map((group) => renderTreeNode(group))}</div>
 }
 
-// 增强的权限统计面板组件
+// 权限统计面板组件
 function PermissionStatisticsPanel({
   statistics,
   pendingChanges,
@@ -591,56 +586,42 @@ function PermissionStatisticsPanel({
 
   return (
     <div className="space-y-4">
-      {/* 权限概览 */}
-      <Card className="border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-slate-800">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-            权限概览
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            权限统计
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-              <span className="text-xs text-slate-600 dark:text-slate-400">总绑定数</span>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-slate-200 rounded-full"></div>
-                <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{statistics.totalBindings}</span>
-              </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">总绑定数</span>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{statistics.totalBindings}</div>
             </div>
-            <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-lg shadow-sm">
-              <span className="text-xs text-green-700 dark:text-green-300">包含权限</span>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-400 rounded-full"></div>
-                <span className="font-bold text-sm text-green-700 dark:text-green-300">{statistics.includeBindings}</span>
-              </div>
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">包含权限</span>
+              <div className="font-semibold text-green-600">{statistics.includeBindings}</div>
             </div>
-            <div className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/20 rounded-lg shadow-sm">
-              <span className="text-xs text-red-700 dark:text-red-300">排除权限</span>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-400 rounded-full"></div>
-                <span className="font-bold text-sm text-red-700 dark:text-red-300">{statistics.excludeBindings}</span>
-              </div>
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">排除权限</span>
+              <div className="font-semibold text-red-600">{statistics.excludeBindings}</div>
             </div>
-            <div className="flex items-center justify-between p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg shadow-sm">
-              <span className="text-xs text-purple-700 dark:text-purple-300">含子组权限</span>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-purple-400 rounded-full"></div>
-                <span className="font-bold text-sm text-purple-700 dark:text-purple-300">{statistics.includeChildrenBindings}</span>
-              </div>
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">含子组权限</span>
+              <div className="font-semibold text-blue-600">{statistics.includeChildrenBindings}</div>
             </div>
           </div>
           
           <Separator />
           
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-600 dark:text-slate-400">覆盖终端组</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{statistics.totalCoveredTerminalGroups}</span>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">覆盖终端组</span>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{statistics.totalCoveredTerminalGroups}</div>
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-600 dark:text-slate-400">最大深度</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{statistics.maxDepth}</span>
+            <div>
+              <span className="text-slate-500 dark:text-slate-400">最大深度</span>
+              <div className="font-semibold text-slate-900 dark:text-slate-100">{statistics.maxDepth}</div>
             </div>
           </div>
         </CardContent>
@@ -680,6 +661,14 @@ function PermissionStatisticsPanel({
                 </div>
               )}
             </div>
+            
+            {/* 变更提示 */}
+            <Alert className="mt-3 border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
+              <Info className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-700 dark:text-orange-300 text-xs">
+                变更将在点击保存后生效，影响该用户组的所有用户
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
       )}
@@ -917,60 +906,57 @@ export default function TerminalGroupAssignmentPage() {
         </CardHeader>
       </Card>
 
-      {/* 权限状态图例 - 突出显示 */}
-      <Card className="mb-6 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-2">
+            {/* 权限状态图例 - 增强显示 */}
+      <Card className="mb-6">
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-8">
-              <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                权限状态说明
-              </h3>
+              <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300">权限状态说明</h3>
               <div className="flex items-center gap-6">
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
-                  <div className="w-6 h-6 bg-gradient-to-br from-green-100 to-green-200 border-2 border-green-400 rounded-md shadow-sm"></div>
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">✓ 包含权限</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 bg-green-200 border-2 border-green-500 rounded-md shadow-sm"></div>
+                  <span className="text-sm font-medium text-green-700 dark:text-green-300">包含权限</span>
                 </div>
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
-                  <div className="w-6 h-6 bg-gradient-to-br from-red-100 to-red-200 border-2 border-red-400 rounded-md shadow-sm"></div>
-                  <span className="text-sm font-medium text-red-700 dark:text-red-300">✗ 排除权限</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 bg-red-200 border-2 border-red-500 rounded-md shadow-sm"></div>
+                  <span className="text-sm font-medium text-red-700 dark:text-red-300">排除权限</span>
                 </div>
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
-                  <div className="w-6 h-6 bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-300 rounded-md shadow-sm"></div>
-                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">↓ 继承权限</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 bg-emerald-100 border-2 border-emerald-400 rounded-md shadow-sm"></div>
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">继承权限</span>
                 </div>
-                <div className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
-                  <div className="w-6 h-6 bg-gradient-to-br from-blue-100 to-blue-200 border-2 border-blue-400 rounded-md shadow-sm animate-pulse"></div>
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">⚡ 待保存变更</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 bg-blue-200 border-2 border-blue-500 rounded-md shadow-sm"></div>
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">待保存变更</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-800">
               <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-                             <span className="font-medium">操作提示：点击节点切换权限 • 点击 +/- 展开收起 • 勾选&ldquo;含子组&rdquo;应用到子节点</span>
+              <span className="font-medium">操作提示：点击节点切换权限 • 点击 +/- 展开收起 • 勾选&ldquo;含子组&rdquo;应用到子节点</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 主体三栏布局 - 优化布局 2-8-2 */}
+      {/* 主体三栏布局 */}
       <div className="grid grid-cols-12 gap-6">
-        {/* 左侧：终端组树（缩小） */}
-        <div className="col-span-2">
-          <Card className="h-[700px]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Monitor className="h-4 w-4 text-blue-600" />
+        {/* 左侧：终端组树 */}
+        <div className="col-span-3">
+          <Card className="h-[600px]">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Monitor className="h-5 w-5 text-blue-600" />
                 终端组结构
               </CardTitle>
-              <CardDescription className="text-xs">组织层级（只读）</CardDescription>
+              <CardDescription>组织的终端组层级结构（只读）</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[600px]">
+              <ScrollArea className="h-[480px]">
                 {isLoading ? (
                   <div className="flex items-center justify-center h-32">
-                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                    <span className="ml-1 text-xs text-slate-600 dark:text-slate-400">加载中...</span>
+                    <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                    <span className="ml-2 text-slate-600 dark:text-slate-400">加载中...</span>
                   </div>
                 ) : (
                   <TerminalGroupTree groups={terminalGroupTree} />
@@ -980,51 +966,30 @@ export default function TerminalGroupAssignmentPage() {
           </Card>
         </div>
 
-        {/* 中间：权限配置区域（扩大且居中） */}
-        <div className="col-span-8">
-          <Card className="h-[700px] mx-auto">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    权限配置树
-                  </CardTitle>
-                  <CardDescription className="mt-1 text-sm">
-                    为 <span className="font-semibold text-blue-600 dark:text-blue-400">{permissionStatus.userGroupName || "选中的用户组"}</span> 配置终端组访问权限 - 点击节点切换权限状态
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* 搜索框 */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                    <Input
-                      placeholder="搜索终端组..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-48 border-2 border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-                  {/* 功能按钮组 */}
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="text-xs border-green-200 hover:bg-green-50">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      全部包含
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs border-red-200 hover:bg-red-50">
-                      <XCircle className="w-3 h-3 mr-1" />
-                      全部排除
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs border-amber-200 hover:bg-amber-50">
-                      <AlertTriangle className="w-3 h-3 mr-1" />
-                      操作帮助
-                    </Button>
-                  </div>
+        {/* 中间：权限配置区域（居中显示） */}
+        <div className="col-span-6">
+          <Card className="h-[600px]">
+            <CardHeader>
+              <CardTitle className="text-lg">权限配置树</CardTitle>
+              <CardDescription>
+                为 {permissionStatus.userGroupName || "选中的用户组"} 配置终端组访问权限 - 点击节点切换权限状态
+              </CardDescription>
+              
+              {/* 搜索框 */}
+              <div className="flex items-center gap-4 mt-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Input
+                    placeholder="搜索终端组..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="flex justify-center">
-              <ScrollArea className="h-[580px] w-full">
+              <ScrollArea className="h-[400px] w-full">
                 {isLoading ? (
                   <div className="flex items-center justify-center h-32">
                     <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
@@ -1049,14 +1014,12 @@ export default function TerminalGroupAssignmentPage() {
           </Card>
         </div>
 
-        {/* 右侧：权限统计面板（缩小） */}
-        <div className="col-span-2">
-          <div className="h-[700px] overflow-y-auto">
-            <PermissionStatisticsPanel 
-              statistics={permissionStatus.statistics} 
-              pendingChanges={pendingChanges} 
-            />
-          </div>
+        {/* 右侧：权限统计面板 */}
+        <div className="col-span-3">
+          <PermissionStatisticsPanel 
+            statistics={permissionStatus.statistics} 
+            pendingChanges={pendingChanges} 
+          />
         </div>
       </div>
     </div>
