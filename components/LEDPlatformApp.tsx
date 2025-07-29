@@ -66,6 +66,7 @@ import {
 
 // Import components for different pages
 import UserManagementContent from '@/components/user-management-content';
+import DeviceManagementContent from '@/components/device-management-content';
 import FileManagementContent from '@/components/file-management-content';
 import FileUploadContent from '@/components/file-upload-content';
 import TranscodeManagementContent from '@/components/transcode-management-content';
