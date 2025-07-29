@@ -6,9 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import {
@@ -18,9 +16,9 @@ import {
   ChevronDown,
   Save,
   RotateCcw,
-  Info,
   AlertTriangle,
   CheckCircle,
+  XCircle,
   Folder,
   FolderOpen,
   Search,
@@ -86,136 +84,427 @@ interface UserGroupOption {
   ugName: string
 }
 
-// 权限配置卡片组件
-function PermissionConfigCard({
-  terminalGroup,
-  currentBinding,
-  pendingChange,
+// 交互式权限树组件 - 使用SVG树图
+function InteractivePermissionTree({
+  groups,
+  permissionBindings,
+  pendingChanges,
   onPermissionChange,
 }: {
-  terminalGroup: TerminalGroupTreeNode
-  currentBinding?: PermissionBinding
-  pendingChange?: PendingChange
+  groups: TerminalGroupTreeNode[]
+  permissionBindings: PermissionBinding[]
+  pendingChanges: Map<number, PendingChange>
   onPermissionChange: (tgid: number, change: PendingChange) => void
 }) {
-  const effectiveBinding = pendingChange || currentBinding
-  const bindingType = effectiveBinding?.bindingType || "NONE"
-  const includeChildren = effectiveBinding?.includeChildren || false
+  const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set())
 
-  const getStatusColor = (type: string) => {
-    switch (type) {
-      case "INCLUDE":
-        return "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400"
-      case "EXCLUDE":
-        return "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400"
-      default:
-        return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400"
+  // 默认展开根节点
+  useEffect(() => {
+    if (groups.length > 0) {
+      setExpandedNodes(new Set([groups[0].tgid]))
     }
+  }, [groups])
+
+  // 树节点位置计算
+  interface TreeNode {
+    group: TerminalGroupTreeNode
+    x: number
+    y: number
+    children: TreeNode[]
+    parent?: TreeNode
   }
 
-  const getStatusText = (type: string) => {
-    switch (type) {
-      case "INCLUDE":
-        return "🟢 包含权限"
-      case "EXCLUDE":
-        return "🔴 排除权限"
-      default:
-        return "⚪ 无权限"
+  const [allNodes, setAllNodes] = useState<TreeNode[]>([])
+
+  useEffect(() => {
+    const buildTreeNodes = (groups: TerminalGroupTreeNode[], parent?: TreeNode): TreeNode[] => {
+      return groups.map((group) => {
+        const node: TreeNode = {
+          group,
+          x: 0,
+          y: 0,
+          children: [],
+          parent,
+        }
+
+        if (group.children && expandedNodes.has(group.tgid)) {
+          node.children = buildTreeNodes(group.children, node)
+        }
+
+        return node
+      })
     }
+
+    const calculatePositions = (nodes: TreeNode[], startX = 80, startY = 60, levelHeight = 100, nodeSpacing = 180) => {
+      const calculateSubtreeWidth = (node: TreeNode): number => {
+        if (node.children.length === 0) return nodeSpacing
+        return node.children.reduce((sum, child) => sum + calculateSubtreeWidth(child), 0)
+      }
+
+      const positionNodes = (nodes: TreeNode[], x: number, y: number) => {
+        let currentX = x
+
+        nodes.forEach((node) => {
+          const subtreeWidth = calculateSubtreeWidth(node)
+          node.x = currentX + subtreeWidth / 2
+          node.y = y
+
+          if (node.children.length > 0) {
+            positionNodes(node.children, currentX, y + levelHeight)
+          }
+
+          currentX += subtreeWidth
+        })
+      }
+
+      positionNodes(nodes, startX, startY)
+      return nodes
+    }
+
+    const newTreeNodes = calculatePositions(buildTreeNodes(groups))
+    setAllNodes(getAllNodes(newTreeNodes))
+  }, [groups, expandedNodes])
+
+  // 获取所有节点（扁平化）
+  const getAllNodes = (nodes: TreeNode[]): TreeNode[] => {
+    const result: TreeNode[] = []
+    const traverse = (nodeList: TreeNode[]) => {
+      nodeList.forEach((node) => {
+        result.push(node)
+        traverse(node.children)
+      })
+    }
+    traverse(nodes)
+    return result
   }
 
-  const handlePermissionToggle = () => {
-    const nextType = bindingType === "NONE" ? "INCLUDE" : bindingType === "INCLUDE" ? "EXCLUDE" : "NONE"
+  // 获取节点的有效权限状态
+  const getEffectivePermission = (tgid: number): "INCLUDE" | "EXCLUDE" | "INHERITED" | "NONE" => {
+    const pendingChange = pendingChanges.get(tgid)
+    if (pendingChange) {
+      return pendingChange.bindingType === "NONE" ? "NONE" : pendingChange.bindingType
+    }
 
-    onPermissionChange(terminalGroup.tgid, {
-      tgid: terminalGroup.tgid,
-      bindingType: nextType,
-      includeChildren: nextType === "NONE" ? false : includeChildren,
-      terminalGroupName: terminalGroup.tgName,
+    const binding = permissionBindings.find((b) => b.tgid === tgid)
+    if (binding) {
+      return binding.bindingType
+    }
+
+    // 检查是否从父节点继承权限
+    const parentBinding = permissionBindings.find((b) => b.includeChildren && isChildOf(tgid, b.tgid, groups))
+    if (parentBinding && parentBinding.bindingType === "INCLUDE") {
+      return "INHERITED"
+    }
+
+    return "NONE"
+  }
+
+  // 检查是否为子节点
+  const isChildOf = (childTgid: number, parentTgid: number, groups: TerminalGroupTreeNode[]): boolean => {
+    const findNode = (nodes: TerminalGroupTreeNode[], targetTgid: number): TerminalGroupTreeNode | null => {
+      for (const node of nodes) {
+        if (node.tgid === targetTgid) return node
+        if (node.children) {
+          const found = findNode(node.children, targetTgid)
+          if (found) return found
+        }
+      }
+      return null
+    }
+
+    const childNode = findNode(groups, childTgid)
+    if (!childNode) return false
+
+    let current = childNode
+    while (current.parent) {
+      if (current.parent === parentTgid) return true
+      current = findNode(groups, current.parent) || current
+      if (!current.parent) break
+    }
+    return false
+  }
+
+  // 权限状态切换
+  const handlePermissionToggle = (group: TerminalGroupTreeNode) => {
+    const currentPermission = getEffectivePermission(group.tgid)
+    let nextPermission: "INCLUDE" | "EXCLUDE" | "NONE"
+
+    switch (currentPermission) {
+      case "NONE":
+      case "INHERITED":
+        nextPermission = "INCLUDE"
+        break
+      case "INCLUDE":
+        nextPermission = "EXCLUDE"
+        break
+      case "EXCLUDE":
+        nextPermission = "NONE"
+        break
+      default:
+        nextPermission = "INCLUDE"
+    }
+
+    const currentBinding = permissionBindings.find((b) => b.tgid === group.tgid)
+    const currentIncludeChildren = currentBinding?.includeChildren || false
+
+    onPermissionChange(group.tgid, {
+      tgid: group.tgid,
+      bindingType: nextPermission,
+      includeChildren: nextPermission === "NONE" ? false : currentIncludeChildren,
+      terminalGroupName: group.tgName,
     })
   }
 
-  const handleIncludeChildrenChange = (checked: boolean) => {
-    if (bindingType !== "NONE") {
-      onPermissionChange(terminalGroup.tgid, {
-        tgid: terminalGroup.tgid,
-        bindingType: bindingType as "INCLUDE" | "EXCLUDE",
-        includeChildren: checked,
-        terminalGroupName: terminalGroup.tgName,
-      })
+  // 切换展开状态
+  const toggleExpanded = (tgid: number) => {
+    const newExpanded = new Set(expandedNodes)
+    if (newExpanded.has(tgid)) {
+      newExpanded.delete(tgid)
+    } else {
+      newExpanded.add(tgid)
+    }
+    setExpandedNodes(newExpanded)
+  }
+
+  // 获取节点颜色
+  const getNodeColor = (permission: string, isPending: boolean) => {
+    const colors = {
+      INCLUDE: { fill: "#dcfce7", stroke: "#16a34a", text: "#15803d" },
+      EXCLUDE: { fill: "#fef2f2", stroke: "#dc2626", text: "#dc2626" },
+      INHERITED: { fill: "#f0fdf4", stroke: "#22c55e", text: "#16a34a" },
+      NONE: { fill: "#ffffff", stroke: "#d1d5db", text: "#6b7280" },
+    }
+
+    const color = colors[permission as keyof typeof colors] || colors.NONE
+
+    if (isPending) {
+      return { ...color, stroke: "#3b82f6", strokeWidth: "3" }
+    }
+
+    return { ...color, strokeWidth: "2" }
+  }
+
+  // 获取权限状态文本
+  const getPermissionText = (permission: string) => {
+    switch (permission) {
+      case "INCLUDE":
+        return "✓ 有权限"
+      case "EXCLUDE":
+        return "✗ 无权限"
+      case "INHERITED":
+        return "↓ 继承"
+      default:
+        return "○ 未配置"
     }
   }
 
-  const getChildrenCount = (group: TerminalGroupTreeNode): number => {
-    if (!group.children) return 0
-    return group.children.length + group.children.reduce((sum, child) => sum + getChildrenCount(child), 0)
+  // 切换包含子组选项
+  const handleIncludeChildrenToggle = (group: TerminalGroupTreeNode, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    const currentPermission = getEffectivePermission(group.tgid)
+    if (currentPermission === "NONE" || currentPermission === "INHERITED") return
+
+    const currentBinding = permissionBindings.find((b) => b.tgid === group.tgid)
+    const pendingChange = pendingChanges.get(group.tgid)
+    const currentIncludeChildren = pendingChange?.includeChildren ?? currentBinding?.includeChildren ?? false
+
+    onPermissionChange(group.tgid, {
+      tgid: group.tgid,
+      bindingType: currentPermission as "INCLUDE" | "EXCLUDE",
+      includeChildren: !currentIncludeChildren,
+      terminalGroupName: group.tgName,
+    })
   }
 
-  const childrenCount = getChildrenCount(terminalGroup)
+  // 计算SVG尺寸
+  const maxX = allNodes.length > 0 ? Math.max(...allNodes.map((n) => n.x)) + 100 : 800
+  const maxY = allNodes.length > 0 ? Math.max(...allNodes.map((n) => n.y)) + 100 : 400
 
   return (
-    <Card className={`mb-4 transition-all duration-200 ${pendingChange ? "ring-2 ring-blue-200 bg-blue-50/30" : ""}`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Folder className="h-4 w-4 text-slate-500" />
-            <span className="font-medium text-slate-900 dark:text-slate-100">{terminalGroup.tgName}</span>
-            <Badge variant="outline" className="text-xs">
-              深度 {terminalGroup.path.split('/').length - 1}
-            </Badge>
-          </div>
-          <Badge className={getStatusColor(bindingType)}>{getStatusText(bindingType)}</Badge>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{terminalGroup.path}</p>
-        {terminalGroup.description && (
-          <p className="text-xs text-slate-400 dark:text-slate-500">{terminalGroup.description}</p>
+    <div className="w-full h-full overflow-auto bg-slate-50 dark:bg-slate-900/50 rounded-lg">
+      <svg width={maxX} height={maxY} className="w-full h-full min-h-[400px]">
+        {/* 定义渐变和阴影 */}
+        <defs>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="2" dy="2" stdDeviation="3" floodColor="#00000020" />
+          </filter>
+          <linearGradient id="includeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#dcfce7" />
+            <stop offset="100%" stopColor="#bbf7d0" />
+          </linearGradient>
+          <linearGradient id="excludeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fef2f2" />
+            <stop offset="100%" stopColor="#fecaca" />
+          </linearGradient>
+          {/* 箭头标记 - 增大尺寸 */}
+          <marker id="arrowhead" markerWidth="12" markerHeight="9" refX="11" refY="4.5" orient="auto">
+            <polygon points="0 0, 12 4.5, 0 9" fill="#9ca3af" />
+          </marker>
+        </defs>
+
+        {/* 绘制连接线 - 调整连接点 */}
+        {allNodes.map((node) =>
+          node.children.map((child) => (
+            <line
+              key={`${node.group.tgid}-${child.group.tgid}`}
+              x1={node.x}
+              y1={node.y + 37}
+              x2={child.x}
+              y2={child.y - 15}
+              stroke="#9ca3af"
+              strokeWidth="3"
+              markerEnd="url(#arrowhead)"
+              className="drop-shadow-sm"
+            />
+          )),
         )}
-      </CardHeader>
 
-      <CardContent className="pt-0">
-        <div className="space-y-3">
-          {/* 权限状态切换按钮 */}
-          <div className="flex gap-2">
-            <Button
-              variant={bindingType === "NONE" ? "default" : "outline"}
-              size="sm"
-              onClick={handlePermissionToggle}
-              className="flex-1"
-            >
-              {bindingType === "NONE" ? "⚪ 无权限" : bindingType === "INCLUDE" ? "🟢 包含权限" : "🔴 排除权限"}
-            </Button>
-          </div>
+        {/* 绘制节点 */}
+        {allNodes.map((node) => {
+          const permission = getEffectivePermission(node.group.tgid)
+          const isPending = pendingChanges.has(node.group.tgid)
+          const nodeColor = getNodeColor(permission, isPending)
+          const hasChildren = node.group.children && node.group.children.length > 0
+          const isExpanded = expandedNodes.has(node.group.tgid)
 
-          {/* 包含子组选项 */}
-          {bindingType !== "NONE" && childrenCount > 0 && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id={`include-children-${terminalGroup.tgid}`}
-                checked={includeChildren}
-                onCheckedChange={handleIncludeChildrenChange}
+          const currentBinding = permissionBindings.find((b) => b.tgid === node.group.tgid)
+          const pendingChange = pendingChanges.get(node.group.tgid)
+          const includeChildren = pendingChange?.includeChildren ?? currentBinding?.includeChildren ?? false
+
+          return (
+            <g key={node.group.tgid}>
+              {/* 区域背景（如果包含子组）- 调整大小 */}
+              {hasChildren && includeChildren && (permission === "INCLUDE" || permission === "EXCLUDE") && (
+                <rect
+                  x={node.x - 95}
+                  y={node.y - 25}
+                  width="190"
+                  height="100"
+                  rx="15"
+                  fill={permission === "INCLUDE" ? "url(#includeGradient)" : "url(#excludeGradient)"}
+                  fillOpacity="0.25"
+                  stroke={permission === "INCLUDE" ? "#16a34a" : "#dc2626"}
+                  strokeWidth="2"
+                  strokeDasharray="8,4"
+                  className="animate-pulse"
+                />
+              )}
+
+              {/* 主节点 - 增大尺寸 */}
+              <rect
+                x={node.x - 85}
+                y={node.y - 15}
+                width="170"
+                height="75"
+                rx="12"
+                fill={nodeColor.fill}
+                stroke={nodeColor.stroke}
+                strokeWidth={nodeColor.strokeWidth}
+                filter="url(#shadow)"
+                className="cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200"
+                onClick={() => handlePermissionToggle(node.group)}
               />
-              <label
-                htmlFor={`include-children-${terminalGroup.tgid}`}
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                包含所有子组 ({childrenCount}个)
-              </label>
-            </div>
-          )}
 
-          {/* 影响预览 */}
-          {bindingType !== "NONE" && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                {bindingType === "INCLUDE" ? "将获得" : "将失去"}此组
-                {includeChildren && childrenCount > 0 ? `及${childrenCount}个子组` : ""}的访问权限
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+              {/* 展开/折叠按钮 - 调整位置 */}
+              {hasChildren && (
+                <g
+                  className="cursor-pointer hover:scale-110 transition-transform duration-200"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleExpanded(node.group.tgid)
+                  }}
+                >
+                  <circle cx={node.x + 75} cy={node.y + 15} r="10" fill="#ffffff" stroke="#6b7280" strokeWidth="2" />
+                  <text x={node.x + 75} y={node.y + 20} textAnchor="middle" fontSize="14" fontWeight="bold" fill="#6b7280">
+                    {isExpanded ? "−" : "+"}
+                  </text>
+                </g>
+              )}
+
+              {/* 节点文本 - 增大字体 */}
+              <text
+                x={node.x}
+                y={node.y + 0}
+                textAnchor="middle"
+                fontSize="14"
+                fontWeight="600"
+                fill={nodeColor.text}
+                className="pointer-events-none"
+              >
+                {node.group.tgName}
+              </text>
+
+              {/* 权限状态 - 增大字体 */}
+              <text
+                x={node.x}
+                y={node.y + 18}
+                textAnchor="middle"
+                fontSize="12"
+                fontWeight="500"
+                fill={nodeColor.text}
+                className="pointer-events-none"
+              >
+                {getPermissionText(permission)}
+              </text>
+
+              {/* 包含子组选项 - 调整位置和大小 */}
+              {hasChildren && (permission === "INCLUDE" || permission === "EXCLUDE") && (
+                <g className="cursor-pointer hover:scale-110 transition-transform duration-200" onClick={(e) => handleIncludeChildrenToggle(node.group, e)}>
+                  <rect
+                    x={node.x - 75}
+                    y={node.y + 32}
+                    width="14"
+                    height="14"
+                    rx="3"
+                    fill={includeChildren ? nodeColor.stroke : "#ffffff"}
+                    stroke={nodeColor.stroke}
+                    strokeWidth="2"
+                  />
+                  {includeChildren && (
+                    <text
+                      x={node.x - 68}
+                      y={node.y + 42}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fontWeight="bold"
+                      fill="#ffffff"
+                      className="pointer-events-none"
+                    >
+                      ✓
+                    </text>
+                  )}
+                  <text
+                    x={node.x - 52}
+                    y={node.y + 42}
+                    fontSize="11"
+                    fontWeight="500"
+                    fill={nodeColor.text}
+                    className="pointer-events-none"
+                  >
+                    含子组
+                  </text>
+                </g>
+              )}
+
+              {/* 深度标识 - 调整位置和大小 */}
+              <circle cx={node.x - 75} cy={node.y - 10} r="10" fill="#3b82f6" className="pointer-events-none" />
+              <text
+                x={node.x - 75}
+                y={node.y - 5}
+                textAnchor="middle"
+                fontSize="12"
+                fontWeight="700"
+                fill="#ffffff"
+                className="pointer-events-none"
+              >
+                {node.group.path.split('/').length - 1}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+    </div>
   )
 }
 
@@ -285,7 +574,7 @@ function TerminalGroupTree({ groups }: { groups: TerminalGroupTreeNode[] }) {
   return <div className="space-y-1">{groups.map((group) => renderTreeNode(group))}</div>
 }
 
-// 权限统计面板组件
+// 增强的权限统计面板组件
 function PermissionStatisticsPanel({
   statistics,
   pendingChanges,
@@ -302,43 +591,56 @@ function PermissionStatisticsPanel({
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-            权限统计
+      {/* 权限概览 */}
+      <Card className="border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-slate-800">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+            权限概览
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-slate-500 dark:text-slate-400">总绑定数</span>
-              <div className="font-semibold text-slate-900 dark:text-slate-100">{statistics.totalBindings}</div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+              <span className="text-xs text-slate-600 dark:text-slate-400">总绑定数</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-slate-200 rounded-full"></div>
+                <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{statistics.totalBindings}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400">包含权限</span>
-              <div className="font-semibold text-green-600">{statistics.includeBindings}</div>
+            <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-lg shadow-sm">
+              <span className="text-xs text-green-700 dark:text-green-300">包含权限</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-400 rounded-full"></div>
+                <span className="font-bold text-sm text-green-700 dark:text-green-300">{statistics.includeBindings}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400">排除权限</span>
-              <div className="font-semibold text-red-600">{statistics.excludeBindings}</div>
+            <div className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/20 rounded-lg shadow-sm">
+              <span className="text-xs text-red-700 dark:text-red-300">排除权限</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-red-400 rounded-full"></div>
+                <span className="font-bold text-sm text-red-700 dark:text-red-300">{statistics.excludeBindings}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400">含子组权限</span>
-              <div className="font-semibold text-blue-600">{statistics.includeChildrenBindings}</div>
+            <div className="flex items-center justify-between p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg shadow-sm">
+              <span className="text-xs text-purple-700 dark:text-purple-300">含子组权限</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-purple-400 rounded-full"></div>
+                <span className="font-bold text-sm text-purple-700 dark:text-purple-300">{statistics.includeChildrenBindings}</span>
+              </div>
             </div>
           </div>
           
           <Separator />
           
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-slate-500 dark:text-slate-400">覆盖终端组</span>
-              <div className="font-semibold text-slate-900 dark:text-slate-100">{statistics.totalCoveredTerminalGroups}</div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-600 dark:text-slate-400">覆盖终端组</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{statistics.totalCoveredTerminalGroups}</span>
             </div>
-            <div>
-              <span className="text-slate-500 dark:text-slate-400">最大深度</span>
-              <div className="font-semibold text-slate-900 dark:text-slate-100">{statistics.maxDepth}</div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-600 dark:text-slate-400">最大深度</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{statistics.maxDepth}</span>
             </div>
           </div>
         </CardContent>
@@ -552,30 +854,7 @@ export default function TerminalGroupAssignmentPage() {
     setPendingChanges(new Map())
   }
 
-  // 获取所有终端组的扁平列表
-  const getAllTerminalGroups = (groups: TerminalGroupTreeNode[]): TerminalGroupTreeNode[] => {
-    const result: TerminalGroupTreeNode[] = []
-    const traverse = (group: TerminalGroupTreeNode) => {
-      result.push(group)
-      if (group.children) {
-        group.children.forEach(traverse)
-      }
-    }
-    groups.forEach(traverse)
-    return result
-  }
 
-  const allTerminalGroups = getAllTerminalGroups(terminalGroupTree)
-  const filteredGroups = allTerminalGroups.filter(
-    (group) =>
-      group.tgName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      group.path.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  // 获取当前绑定
-  const getCurrentBinding = (tgid: number): PermissionBinding | undefined => {
-    return permissionStatus.permissionBindings.find((b) => b.tgid === tgid)
-  }
 
   return (
     <div className="space-y-6">
@@ -638,24 +917,60 @@ export default function TerminalGroupAssignmentPage() {
         </CardHeader>
       </Card>
 
-      {/* 主体三栏布局 */}
+      {/* 权限状态图例 - 突出显示 */}
+      <Card className="mb-6 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-2">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-8">
+              <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                权限状态说明
+              </h3>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
+                  <div className="w-6 h-6 bg-gradient-to-br from-green-100 to-green-200 border-2 border-green-400 rounded-md shadow-sm"></div>
+                  <span className="text-sm font-medium text-green-700 dark:text-green-300">✓ 包含权限</span>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
+                  <div className="w-6 h-6 bg-gradient-to-br from-red-100 to-red-200 border-2 border-red-400 rounded-md shadow-sm"></div>
+                  <span className="text-sm font-medium text-red-700 dark:text-red-300">✗ 排除权限</span>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
+                  <div className="w-6 h-6 bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-300 rounded-md shadow-sm"></div>
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">↓ 继承权限</span>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
+                  <div className="w-6 h-6 bg-gradient-to-br from-blue-100 to-blue-200 border-2 border-blue-400 rounded-md shadow-sm animate-pulse"></div>
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">⚡ 待保存变更</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-800">
+              <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                             <span className="font-medium">操作提示：点击节点切换权限 • 点击 +/- 展开收起 • 勾选&ldquo;含子组&rdquo;应用到子节点</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 主体三栏布局 - 优化布局 2-8-2 */}
       <div className="grid grid-cols-12 gap-6">
-        {/* 左侧：终端组树 */}
-        <div className="col-span-3">
-          <Card className="h-[600px]">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Monitor className="h-5 w-5 text-blue-600" />
+        {/* 左侧：终端组树（缩小） */}
+        <div className="col-span-2">
+          <Card className="h-[700px]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Monitor className="h-4 w-4 text-blue-600" />
                 终端组结构
               </CardTitle>
-              <CardDescription>组织的终端组层级结构（只读）</CardDescription>
+              <CardDescription className="text-xs">组织层级（只读）</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[480px]">
+              <ScrollArea className="h-[600px]">
                 {isLoading ? (
                   <div className="flex items-center justify-center h-32">
-                    <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-                    <span className="ml-2 text-slate-600 dark:text-slate-400">加载中...</span>
+                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                    <span className="ml-1 text-xs text-slate-600 dark:text-slate-400">加载中...</span>
                   </div>
                 ) : (
                   <TerminalGroupTree groups={terminalGroupTree} />
@@ -665,66 +980,68 @@ export default function TerminalGroupAssignmentPage() {
           </Card>
         </div>
 
-        {/* 中间：权限配置区域 */}
-        <div className="col-span-6">
-          <Card className="h-[600px]">
-            <CardHeader>
-              <CardTitle className="text-lg">权限配置</CardTitle>
-              <CardDescription>
-                为 {permissionStatus.userGroupName || "选中的用户组"} 配置终端组访问权限
-              </CardDescription>
-              
-              {/* 搜索框 */}
-              <div className="flex items-center gap-4 mt-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <Input
-                    placeholder="搜索终端组..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+        {/* 中间：权限配置区域（扩大且居中） */}
+        <div className="col-span-8">
+          <Card className="h-[700px] mx-auto">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    权限配置树
+                  </CardTitle>
+                  <CardDescription className="mt-1 text-sm">
+                    为 <span className="font-semibold text-blue-600 dark:text-blue-400">{permissionStatus.userGroupName || "选中的用户组"}</span> 配置终端组访问权限 - 点击节点切换权限状态
+                  </CardDescription>
                 </div>
-              </div>
-              
-              {/* 权限状态说明 */}
-              <div className="flex items-center gap-4 text-sm mt-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-green-50 border border-green-200 rounded dark:bg-green-900/20"></div>
-                  <span>包含权限</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-red-50 border border-red-200 rounded dark:bg-red-900/20"></div>
-                  <span>排除权限</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-blue-50 border border-blue-200 rounded dark:bg-blue-900/20"></div>
-                  <span>待保存变更</span>
+                <div className="flex items-center gap-3">
+                  {/* 搜索框 */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <Input
+                      placeholder="搜索终端组..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 w-48 border-2 border-blue-200 focus:border-blue-400"
+                    />
+                  </div>
+                  {/* 功能按钮组 */}
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="text-xs border-green-200 hover:bg-green-50">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      全部包含
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs border-red-200 hover:bg-red-50">
+                      <XCircle className="w-3 h-3 mr-1" />
+                      全部排除
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs border-amber-200 hover:bg-amber-50">
+                      <AlertTriangle className="w-3 h-3 mr-1" />
+                      操作帮助
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[380px]">
+            <CardContent className="flex justify-center">
+              <ScrollArea className="h-[580px] w-full">
                 {isLoading ? (
                   <div className="flex items-center justify-center h-32">
                     <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
                     <span className="ml-2 text-slate-600 dark:text-slate-400">加载权限状态...</span>
                   </div>
-                ) : filteredGroups.length === 0 ? (
+                ) : terminalGroupTree.length === 0 ? (
                   <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                     {searchTerm ? "未找到匹配的终端组" : "暂无终端组数据"}
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {filteredGroups.map((group) => (
-                      <PermissionConfigCard
-                        key={group.tgid}
-                        terminalGroup={group}
-                        currentBinding={getCurrentBinding(group.tgid)}
-                        pendingChange={pendingChanges.get(group.tgid)}
-                        onPermissionChange={handlePermissionChange}
-                      />
-                    ))}
+                  <div className="flex justify-center w-full">
+                    <InteractivePermissionTree
+                      groups={terminalGroupTree}
+                      permissionBindings={permissionStatus.permissionBindings}
+                      pendingChanges={pendingChanges}
+                      onPermissionChange={handlePermissionChange}
+                    />
                   </div>
                 )}
               </ScrollArea>
@@ -732,12 +1049,14 @@ export default function TerminalGroupAssignmentPage() {
           </Card>
         </div>
 
-        {/* 右侧：权限统计面板 */}
-        <div className="col-span-3">
-          <PermissionStatisticsPanel 
-            statistics={permissionStatus.statistics} 
-            pendingChanges={pendingChanges} 
-          />
+        {/* 右侧：权限统计面板（缩小） */}
+        <div className="col-span-2">
+          <div className="h-[700px] overflow-y-auto">
+            <PermissionStatisticsPanel 
+              statistics={permissionStatus.statistics} 
+              pendingChanges={pendingChanges} 
+            />
+          </div>
         </div>
       </div>
     </div>
