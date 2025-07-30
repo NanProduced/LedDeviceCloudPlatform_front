@@ -44,7 +44,6 @@ import {
   Settings,
   Play,
   Pause,
-  FolderPlus,
   Activity,
   List,
   Grid3X3,
@@ -52,6 +51,7 @@ import {
   Palette,
   Tv,
   Image,
+  Clock,
 } from "lucide-react"
 
 // 模拟终端组树数据
@@ -328,7 +328,7 @@ function TerminalCard({
               />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
                 <div className="flex items-center gap-2 text-white">
-                  <Image className="w-4 h-4" alt="" />
+                                     <Image className="w-4 h-4" />
                   <span className="text-sm truncate">{terminal.extendedInfo.currentProgram.programName}</span>
                 </div>
               </div>
@@ -389,16 +389,35 @@ function TerminalCard({
                   <Palette className="w-3 h-3" />
                   <span>色温</span>
                 </div>
-                <span className="text-slate-900 dark:text-slate-100">
-                  {terminal.extendedInfo.display.colorTemperature}K
-                </span>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
-  )
+                                 <span className="text-slate-900 dark:text-slate-100">
+                   {terminal.extendedInfo.display.colorTemperature}K
+                 </span>
+               </div>
+             </div>
+           ) : null}
+           
+           {/* Last Online Time for Offline Devices */}
+           {terminal.onlineStatus === 0 && (
+             <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-100 dark:border-slate-800">
+               <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                 <Clock className="w-3 h-3" />
+                 <span>最后在线</span>
+               </div>
+               <span className="text-slate-900 dark:text-slate-100 text-xs">
+                 {new Date(terminal.updatedAt).toLocaleString("zh-CN", {
+                   year: "numeric",
+                   month: "2-digit",
+                   day: "2-digit",
+                   hour: "2-digit",
+                   minute: "2-digit",
+                 })}
+               </span>
+             </div>
+           )}
+         </div>
+       </CardContent>
+     </Card>
+   )
 }
 
 function TerminalGroupTreeNode({
@@ -469,7 +488,6 @@ export default function DeviceManagementContent() {
   const [onlineStatusFilter, setOnlineStatusFilter] = useState<string>("all")
   const [terminalModelFilter, setTerminalModelFilter] = useState<string>("all")
   const [isCreateTerminalOpen, setIsCreateTerminalOpen] = useState(false)
-  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [terminals, setTerminals] = useState<Terminal[]>(mockTerminals as Terminal[])
   const [newTerminal, setNewTerminal] = useState({
@@ -478,10 +496,6 @@ export default function DeviceManagementContent() {
     terminalAccount: "",
     terminalPassword: "",
     terminalModel: "",
-  })
-  const [newGroup, setNewGroup] = useState({
-    terminalGroupName: "",
-    description: "",
   })
 
   const [selectedTerminals, setSelectedTerminals] = useState<Set<number>>(new Set())
@@ -570,11 +584,7 @@ export default function DeviceManagementContent() {
     setNewTerminal({ terminalName: "", description: "", terminalAccount: "", terminalPassword: "", terminalModel: "" })
   }
 
-  const handleCreateGroup = () => {
-    console.log("Creating group:", newGroup)
-    setIsCreateGroupOpen(false)
-    setNewGroup({ terminalGroupName: "", description: "" })
-  }
+
 
   const handleTerminalRowClick = (terminal: Terminal) => {
     setSelectedTerminalDetail(terminal)
@@ -634,57 +644,16 @@ export default function DeviceManagementContent() {
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400">设备分组管理</p>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <TerminalGroupTreeNode
-              node={terminalGroupTree}
-              level={0}
-              selectedGroup={selectedGroup}
-              onSelectGroup={setSelectedGroup}
-              expandedGroups={expandedGroups}
-              onToggleExpand={handleToggleExpand}
-            />
-
-            <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start gap-2 mt-4">
-                  <Plus className="w-4 h-4" />
-                  添加终端组
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>创建终端组</DialogTitle>
-                  <DialogDescription>在当前组织下创建新的终端组</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="groupName">终端组名称</Label>
-                    <Input
-                      id="groupName"
-                      value={newGroup.terminalGroupName}
-                      onChange={(e) => setNewGroup({ ...newGroup, terminalGroupName: e.target.value })}
-                      placeholder="请输入终端组名称"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="groupDesc">描述</Label>
-                    <Input
-                      id="groupDesc"
-                      value={newGroup.description}
-                      onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-                      placeholder="请输入终端组描述"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateGroupOpen(false)}>
-                    取消
-                  </Button>
-                  <Button onClick={handleCreateGroup}>创建</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
+                     <CardContent className="space-y-2">
+             <TerminalGroupTreeNode
+               node={terminalGroupTree}
+               level={0}
+               selectedGroup={selectedGroup}
+               onSelectGroup={setSelectedGroup}
+               expandedGroups={expandedGroups}
+               onToggleExpand={handleToggleExpand}
+             />
+           </CardContent>
         </Card>
 
         {/* Right Content - Terminal List */}
@@ -695,17 +664,8 @@ export default function DeviceManagementContent() {
                 <CardTitle className="text-xl">{selectedGroupName}</CardTitle>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{selectedGroupName} 组的设备信息</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                      <FolderPlus className="w-4 h-4" />
-                      添加子组
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
-
-                <Dialog open={isCreateTerminalOpen} onOpenChange={setIsCreateTerminalOpen}>
+                             <div className="flex items-center gap-2">
+                 <Dialog open={isCreateTerminalOpen} onOpenChange={setIsCreateTerminalOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm" className="gap-2">
                       <Plus className="w-4 h-4" />
