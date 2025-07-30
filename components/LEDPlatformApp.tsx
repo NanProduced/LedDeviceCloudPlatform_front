@@ -173,6 +173,7 @@ const recentActivities = [
 export const DashboardOverview = () => {
   const { user, loading, error } = useUser();
   const { t } = useLanguage();
+  const router = useRouter();
   
   // 使用用户数据来个性化欢迎消息
   const welcomeMessage = user ? `欢迎回来，${user.username}` : '欢迎回来';
@@ -360,24 +361,25 @@ export const DashboardOverview = () => {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {[
-              { name: "添加用户", icon: Users, color: "bg-blue-500" },
-              { name: "设备监控", icon: Monitor, color: "bg-green-500" },
-              { name: "发送通知", icon: Bell, color: "bg-purple-500" },
-              { name: "系统配置", icon: Settings, color: "bg-orange-500" },
-              { name: "查看日志", icon: FileText, color: "bg-red-500" },
-              { name: "数据统计", icon: BarChart3, color: "bg-indigo-500" },
-            ].map((action) => (
-              <Button
-                key={action.name}
-                variant="ghost"
-                className="h-20 flex-col gap-2 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <div className={`w-8 h-8 rounded-lg ${action.color} flex items-center justify-center`}>
-                  <action.icon className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-xs">{action.name}</span>
-              </Button>
-            ))}
+              { name: "添加用户", icon: Users, color: "bg-blue-500", path: "/dashboard/user-management" },
+              { name: "设备监控", icon: Monitor, color: "bg-green-500", path: "/dashboard/monitor" },
+              { name: "发送通知", icon: Bell, color: "bg-purple-500", path: "/dashboard/notifications" },
+              { name: "STOMP测试", icon: MessageSquare, color: "bg-cyan-500", path: "/dashboard/stomp-test" },
+              { name: "系统配置", icon: Settings, color: "bg-orange-500", path: "/dashboard/settings" },
+              { name: "查看日志", icon: FileText, color: "bg-red-500", path: "/dashboard/audit-logs" },
+                          ].map((action) => (
+                <Button
+                  key={action.name}
+                  variant="ghost"
+                  className="h-20 flex-col gap-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  onClick={() => router.push(action.path)}
+                >
+                  <div className={`w-8 h-8 rounded-lg ${action.color} flex items-center justify-center`}>
+                    <action.icon className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-xs">{action.name}</span>
+                </Button>
+              ))}
           </div>
         </CardContent>
       </Card>
