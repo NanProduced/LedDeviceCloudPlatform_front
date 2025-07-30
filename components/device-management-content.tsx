@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +46,12 @@ import {
   Pause,
   FolderPlus,
   Activity,
+  List,
+  Grid3X3,
+  Sun,
+  Palette,
+  Tv,
+  Image,
 } from "lucide-react"
 
 // 模拟终端组树数据
@@ -184,6 +192,40 @@ interface TerminalGroupNode {
   children: TerminalGroupNode[]
 }
 
+// 扩展的终端信息接口
+interface TerminalExtendedInfo {
+  // 当前播放节目信息
+  currentProgram?: {
+    programId: number
+    programName: string
+    thumbnail: string // 节目截图URL
+  }
+  // 显示参数
+  display: {
+    resolution: string // 分辨率，如 "1920x1080"
+    brightness: number // 亮度 0-100
+    colorTemperature: number // 色温，如 6500K
+  }
+}
+
+// 基础终端信息接口
+interface Terminal {
+  tid: number
+  terminalName: string
+  description: string
+  terminalModel: string
+  tgid: number
+  tgName: string
+  firmwareVersion: string
+  serialNumber: string
+  onlineStatus: number
+  createdAt: string
+  updatedAt: string
+  // 扩展信息（异步加载）
+  extendedInfo?: TerminalExtendedInfo
+  loadingExtended?: boolean
+}
+
 interface TerminalGroupTreeProps {
   node: TerminalGroupNode
   level: number
@@ -191,6 +233,172 @@ interface TerminalGroupTreeProps {
   onSelectGroup: (tgid: number) => void
   expandedGroups: Set<number>
   onToggleExpand: (tgid: number) => void
+}
+
+// Terminal Card Component
+interface TerminalCardProps {
+  terminal: Terminal
+  selected: boolean
+  onSelect: (e: React.MouseEvent) => void
+  onClick: () => void
+  onLoadExtended: () => void
+}
+
+function TerminalCard({ 
+  terminal, 
+  selected, 
+  onSelect, 
+  onClick,
+  onLoadExtended 
+}: TerminalCardProps) {
+  // 自动加载扩展信息
+  React.useEffect(() => {
+    if (!terminal.extendedInfo && !terminal.loadingExtended) {
+      onLoadExtended()
+    }
+  }, [terminal.extendedInfo, terminal.loadingExtended, onLoadExtended])
+
+  const getOnlineStatusBadge = (onlineStatus: number) => {
+    return onlineStatus === 1 ? (
+      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+        <Wifi className="w-3 h-3 mr-1" />
+        在线
+      </Badge>
+    ) : (
+      <Badge className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">
+        <WifiOff className="w-3 h-3 mr-1" />
+        离线
+      </Badge>
+    )
+  }
+
+  return (
+    <Card 
+      className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
+        selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+      } bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800`}
+      onClick={onClick}
+    >
+      <CardContent className="p-4 space-y-3">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Monitor className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium text-slate-900 dark:text-slate-100 truncate">
+                {terminal.terminalName}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                {terminal.description}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={(e) => onSelect(e as unknown as React.MouseEvent<Element, MouseEvent>)}
+              onClick={(e) => e.stopPropagation()}
+              className="rounded border-slate-300 dark:border-slate-600"
+            />
+            {getOnlineStatusBadge(terminal.onlineStatus)}
+          </div>
+        </div>
+
+        {/* Program Display Area */}
+        <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-lg relative overflow-hidden">
+          {terminal.loadingExtended ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="space-y-2 w-full p-4">
+                <Skeleton className="h-4 w-3/4 mx-auto" />
+                <Skeleton className="h-3 w-1/2 mx-auto" />
+              </div>
+            </div>
+          ) : terminal.extendedInfo?.currentProgram ? (
+            <div className="relative w-full h-full">
+              <img
+                src={terminal.extendedInfo.currentProgram.thumbnail}
+                alt={terminal.extendedInfo.currentProgram.programName}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjRjFGNUY5Ii8+CjxwYXRoIGQ9Ik0xNDQgNzJIMTc2VjEwOEgxNDRWNzJaIiBmaWxsPSIjOTQ5NEE4Ii8+Cjwvc3ZnPgo='
+                }}
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                <div className="flex items-center gap-2 text-white">
+                  <Image className="w-4 h-4" alt="" />
+                  <span className="text-sm truncate">{terminal.extendedInfo.currentProgram.programName}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-slate-400">
+              <div className="text-center">
+                <Tv className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-sm">暂无播放节目</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Technical Specs */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600 dark:text-slate-400">型号</span>
+            <Badge variant="outline" className="font-mono text-xs">
+              {terminal.terminalModel}
+            </Badge>
+          </div>
+          
+          {terminal.loadingExtended ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400 text-sm">分辨率</span>
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400 text-sm">亮度</span>
+                <Skeleton className="h-4 w-12" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400 text-sm">色温</span>
+                <Skeleton className="h-4 w-16" />
+              </div>
+            </div>
+          ) : terminal.extendedInfo ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600 dark:text-slate-400">分辨率</span>
+                <span className="font-mono text-slate-900 dark:text-slate-100">
+                  {terminal.extendedInfo.display.resolution}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                  <Sun className="w-3 h-3" />
+                  <span>亮度</span>
+                </div>
+                <span className="text-slate-900 dark:text-slate-100">
+                  {terminal.extendedInfo.display.brightness}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                  <Palette className="w-3 h-3" />
+                  <span>色温</span>
+                </div>
+                <span className="text-slate-900 dark:text-slate-100">
+                  {terminal.extendedInfo.display.colorTemperature}K
+                </span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 function TerminalGroupTreeNode({
@@ -262,6 +470,8 @@ export default function DeviceManagementContent() {
   const [terminalModelFilter, setTerminalModelFilter] = useState<string>("all")
   const [isCreateTerminalOpen, setIsCreateTerminalOpen] = useState(false)
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list")
+  const [terminals, setTerminals] = useState<Terminal[]>(mockTerminals as Terminal[])
   const [newTerminal, setNewTerminal] = useState({
     terminalName: "",
     description: "",
@@ -275,7 +485,7 @@ export default function DeviceManagementContent() {
   })
 
   const [selectedTerminals, setSelectedTerminals] = useState<Set<number>>(new Set())
-  const [selectedTerminalDetail, setSelectedTerminalDetail] = useState<any>(null)
+  const [selectedTerminalDetail, setSelectedTerminalDetail] = useState<Terminal | null>(null)
   const [isTerminalDetailOpen, setIsTerminalDetailOpen] = useState(false)
 
   const handleToggleExpand = (tgid: number) => {
@@ -288,7 +498,54 @@ export default function DeviceManagementContent() {
     setExpandedGroups(newExpanded)
   }
 
-  const filteredTerminals = mockTerminals.filter((terminal) => {
+  // 模拟异步加载扩展信息
+  const loadExtendedInfo = async (tid: number): Promise<TerminalExtendedInfo> => {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 1200))
+    
+    // 模拟扩展数据
+    const mockExtendedInfo: TerminalExtendedInfo = {
+      currentProgram: Math.random() > 0.3 ? {
+        programId: Math.floor(Math.random() * 1000),
+        programName: ["企业宣传片", "产品展示", "新闻资讯", "广告推广", "欢迎信息"][Math.floor(Math.random() * 5)],
+        thumbnail: `https://picsum.photos/320/180?random=${tid}`
+      } : undefined,
+      display: {
+        resolution: ["1920x1080", "3840x2160", "2560x1440", "1366x768"][Math.floor(Math.random() * 4)],
+        brightness: Math.floor(Math.random() * 100),
+        colorTemperature: [5000, 6500, 7500, 9300][Math.floor(Math.random() * 4)]
+      }
+    }
+    
+    return mockExtendedInfo
+  }
+
+  // 加载终端扩展信息
+  const handleLoadExtendedInfo = async (tid: number) => {
+    setTerminals(prev => prev.map(terminal => 
+      terminal.tid === tid 
+        ? { ...terminal, loadingExtended: true }
+        : terminal
+    ))
+
+    try {
+      const extendedInfo = await loadExtendedInfo(tid)
+      setTerminals(prev => prev.map(terminal => 
+        terminal.tid === tid 
+          ? { ...terminal, extendedInfo, loadingExtended: false }
+          : terminal
+      ))
+    } catch (error) {
+      console.error("加载扩展信息失败:", error)
+      setTerminals(prev => prev.map(terminal => 
+        terminal.tid === tid 
+          ? { ...terminal, loadingExtended: false }
+          : terminal
+      ))
+    }
+  }
+
+  const filteredTerminals = terminals.filter((terminal) => {
     const matchesSearch = 
       terminal.terminalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       terminal.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -319,7 +576,7 @@ export default function DeviceManagementContent() {
     setNewGroup({ terminalGroupName: "", description: "" })
   }
 
-  const handleTerminalRowClick = (terminal: any) => {
+  const handleTerminalRowClick = (terminal: Terminal) => {
     setSelectedTerminalDetail(terminal)
     setIsTerminalDetailOpen(true)
   }
@@ -561,6 +818,16 @@ export default function DeviceManagementContent() {
                     ))}
                   </SelectContent>
                 </Select>
+                
+                {/* View Toggle */}
+                <ToggleGroup type="single" value={viewMode} onValueChange={(value) => setViewMode(value as "list" | "grid")}>
+                  <ToggleGroupItem value="list" aria-label="列表视图">
+                    <List className="h-4 w-4" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="grid" aria-label="卡片视图">
+                    <Grid3X3 className="h-4 w-4" />
+                  </ToggleGroupItem>
+                </ToggleGroup>
               </div>
             </div>
 
@@ -585,132 +852,149 @@ export default function DeviceManagementContent() {
               </div>
             )}
 
-            {/* Terminal Table */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                    <TableHead className="w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedTerminals.size === filteredTerminals.length && filteredTerminals.length > 0}
-                        onChange={handleSelectAll}
-                        className="rounded border-slate-300 dark:border-slate-600"
-                      />
-                    </TableHead>
-                    <TableHead>设备名称</TableHead>
-                    <TableHead>所属组</TableHead>
-                    <TableHead>设备型号</TableHead>
-                    <TableHead>序列号</TableHead>
-                    <TableHead>固件版本</TableHead>
-                    <TableHead>在线状态</TableHead>
-                    <TableHead>更新时间</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTerminals.map((terminal) => (
-                    <TableRow
-                      key={terminal.tid}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
-                      onClick={() => handleTerminalRowClick(terminal)}
-                    >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
+            {/* Terminal Display */}
+            {viewMode === "list" ? (
+              /* Terminal Table */
+              <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 dark:bg-slate-800/50">
+                      <TableHead className="w-12">
                         <input
                           type="checkbox"
-                          checked={selectedTerminals.has(terminal.tid)}
-                          onChange={(e) => handleTerminalSelect(terminal.tid, e)}
+                          checked={selectedTerminals.size === filteredTerminals.length && filteredTerminals.length > 0}
+                          onChange={handleSelectAll}
                           className="rounded border-slate-300 dark:border-slate-600"
                         />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                            <Monitor className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <span className="font-medium">{terminal.terminalName}</span>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{terminal.description}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-slate-500" />
-                          <span>{terminal.tgName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {terminal.terminalModel}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-slate-600 dark:text-slate-400">
-                        {terminal.serialNumber}
-                      </TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-400">
-                        {terminal.firmwareVersion}
-                      </TableCell>
-                      <TableCell>
-                        {getOnlineStatusBadge(terminal.onlineStatus)}
-                      </TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-400">
-                        {new Date(terminal.updatedAt).toLocaleString("zh-CN", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>操作</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="gap-2">
-                              <Edit className="w-4 h-4" />
-                              编辑设备
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2">
-                              <Settings className="w-4 h-4" />
-                              设备配置
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2">
-                              <Activity className="w-4 h-4" />
-                              性能监控
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2">
-                              {terminal.onlineStatus === 1 ? (
-                                <>
-                                  <Pause className="w-4 h-4" />
-                                  停止设备
-                                </>
-                              ) : (
-                                <>
-                                  <Play className="w-4 h-4" />
-                                  启动设备
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="gap-2 text-red-600">
-                              <Trash2 className="w-4 h-4" />
-                              删除设备
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                      </TableHead>
+                      <TableHead>设备名称</TableHead>
+                      <TableHead>所属组</TableHead>
+                      <TableHead>设备型号</TableHead>
+                      <TableHead>序列号</TableHead>
+                      <TableHead>固件版本</TableHead>
+                      <TableHead>在线状态</TableHead>
+                      <TableHead>更新时间</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTerminals.map((terminal) => (
+                      <TableRow
+                        key={terminal.tid}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                        onClick={() => handleTerminalRowClick(terminal)}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedTerminals.has(terminal.tid)}
+                            onChange={(e) => handleTerminalSelect(terminal.tid, e as unknown as React.MouseEvent<Element, MouseEvent>)}
+                            className="rounded border-slate-300 dark:border-slate-600"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                              <Monitor className="w-4 h-4 text-white" />
+                            </div>
+                            <div>
+                              <span className="font-medium">{terminal.terminalName}</span>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">{terminal.description}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-slate-500" />
+                            <span>{terminal.tgName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {terminal.terminalModel}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm text-slate-600 dark:text-slate-400">
+                          {terminal.serialNumber}
+                        </TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-400">
+                          {terminal.firmwareVersion}
+                        </TableCell>
+                        <TableCell>
+                          {getOnlineStatusBadge(terminal.onlineStatus)}
+                        </TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-400">
+                          {new Date(terminal.updatedAt).toLocaleString("zh-CN", {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>操作</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="gap-2">
+                                <Edit className="w-4 h-4" />
+                                编辑设备
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2">
+                                <Settings className="w-4 h-4" />
+                                设备配置
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2">
+                                <Activity className="w-4 h-4" />
+                                性能监控
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2">
+                                {terminal.onlineStatus === 1 ? (
+                                  <>
+                                    <Pause className="w-4 h-4" />
+                                    停止设备
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="w-4 h-4" />
+                                    启动设备
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="gap-2 text-red-600">
+                                <Trash2 className="w-4 h-4" />
+                                删除设备
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              /* Terminal Grid Cards */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredTerminals.map((terminal) => (
+                  <TerminalCard
+                    key={terminal.tid}
+                    terminal={terminal}
+                    selected={selectedTerminals.has(terminal.tid)}
+                    onSelect={(e) => handleTerminalSelect(terminal.tid, e)}
+                    onClick={() => handleTerminalRowClick(terminal)}
+                    onLoadExtended={() => handleLoadExtendedInfo(terminal.tid)}
+                  />
+                ))}
+              </div>
+            )}
 
             {filteredTerminals.length === 0 && (
               <div className="text-center py-12">
