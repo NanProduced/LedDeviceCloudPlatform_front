@@ -347,9 +347,9 @@ export default function StompTestPage() {
       </Card>
       
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left Panel - Controls */}
-        <div className="space-y-6">
+        <div className="space-y-6 lg:col-span-2">
           {/* Send Message */}
           <Card>
             <CardHeader>
@@ -503,7 +503,7 @@ export default function StompTestPage() {
         </div>
         
         {/* Right Panel - Messages */}
-        <Card>
+        <Card className="lg:col-span-3">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
@@ -521,7 +521,7 @@ export default function StompTestPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-96">
+            <ScrollArea className="h-[600px]">
               {receivedMessages.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />

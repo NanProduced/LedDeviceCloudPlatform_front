@@ -13,14 +13,12 @@ import {
 import { useUser } from '@/contexts/UserContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { logout } from '@/config/auth';
-import { UserIcon, Settings, LogOut, Globe } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
 
-interface UserAvatarProps {}
-
-export function UserAvatar({}: UserAvatarProps = {}) {
+export function UserAvatar() {
   const router = useRouter();
   const { user, loading } = useUser();
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
 
   console.log('UserAvatar渲染 - 用户数据:', user);
   console.log('UserAvatar渲染 - 加载状态:', loading);
@@ -31,19 +29,9 @@ export function UserAvatar({}: UserAvatarProps = {}) {
     return name.charAt(0).toUpperCase();
   };
 
-  // 处理导航到个人资料页面
-  const handleProfileClick = () => {
-    router.push('/dashboard/profile');
-  };
-  
-  // 处理导航到设置页面
-  const handleSettingsClick = () => {
+  // 处理导航到账户设置页面
+  const handleAccountSettingsClick = () => {
     router.push('/dashboard/settings');
-  };
-
-  // 处理语言切换
-  const toggleLanguage = () => {
-    setLanguage(language === 'zh' ? 'en' : 'zh');
   };
 
   // 处理退出登录
@@ -79,17 +67,9 @@ export function UserAvatar({}: UserAvatarProps = {}) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleProfileClick}>
-          <UserIcon className="mr-2 h-4 w-4" />
-          <span>{t('profile')}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleSettingsClick}>
+        <DropdownMenuItem onClick={handleAccountSettingsClick}>
           <Settings className="mr-2 h-4 w-4" />
-          <span>{t('settings')}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={toggleLanguage}>
-          <Globe className="mr-2 h-4 w-4" />
-          <span>{language === 'zh' ? 'English' : '中文'}</span>
+          <span>账户设置</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="text-red-500">
