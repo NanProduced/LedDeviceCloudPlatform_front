@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,10 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { MaterialTree } from "@/components/ui/material-tree"
+import MaterialAPI from "@/lib/api/material" 
+import MaterialTreeAdapter from "@/lib/utils/materialTreeAdapter"
+import { Material, SharedMaterial } from "@/lib/types"
 import {
   Search,
   Folder,
-  FolderOpen,
   File,
   ImageIcon,
   Video,
@@ -28,164 +31,91 @@ import {
   Edit,
   MoreHorizontal,
   FolderPlus,
-  ChevronRight,
-  ChevronDown,
+  Loader2,
 } from "lucide-react"
 
-// Mock data
-const folderTree = {
-  id: 1,
-  name: "根目录",
-  type: "folder",
-  children: [
-    {
-      id: 2,
-      name: "视频素材",
-      type: "folder",
-      children: [
-        { id: 3, name: "宣传视频", type: "folder", children: [] },
-        { id: 4, name: "广告视频", type: "folder", children: [] },
-      ],
-    },
-    {
-      id: 5,
-      name: "图片素材",
-      type: "folder",
-      children: [
-        { id: 6, name: "LOGO", type: "folder", children: [] },
-        { id: 7, name: "背景图", type: "folder", children: [] },
-      ],
-    },
-    { id: 8, name: "音频素材", type: "folder", children: [] },
-  ],
-}
+// 现在使用真实的API数据，不再需要模拟数据
 
-const mockFiles = [
-  {
-    id: 1,
-    name: "宣传视频_2024.mp4",
-    type: "video",
-    size: "245.6 MB",
-    uploadTime: "2024-01-15T10:30:00",
-    status: "已转码",
-    thumbnail: "/placeholder.svg?height=60&width=60",
-    duration: "00:03:45",
-  },
-  {
-    id: 2,
-    name: "产品展示.jpg",
-    type: "image",
-    size: "2.3 MB",
-    uploadTime: "2024-01-20T14:20:00",
-    status: "已处理",
-    thumbnail: "/placeholder.svg?height=60&width=60",
-  },
-  {
-    id: 3,
-    name: "背景音乐.mp3",
-    type: "audio",
-    size: "8.7 MB",
-    uploadTime: "2024-01-22T09:15:00",
-    status: "已处理",
-    duration: "00:02:15",
-  },
-]
-
-interface FolderTreeProps {
-  node: any
-  level: number
-  onSelectFolder: (id: number, name: string) => void
-  selectedFolder: number | null
-  expandedFolders: Set<number>
-  onToggleExpand: (id: number) => void
-}
-
-function FolderTreeNode({
-  node,
-  level,
-  onSelectFolder,
-  selectedFolder,
-  expandedFolders,
-  onToggleExpand,
-}: FolderTreeProps) {
-  const isExpanded = expandedFolders.has(node.id)
-  const hasChildren = node.children && node.children.length > 0
-  const isSelected = selectedFolder === node.id
-
-  return (
-    <div>
-      <div
-        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${
-          isSelected ? "bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800" : ""
-        }`}
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
-        onClick={() => onSelectFolder(node.id, node.name)}
-      >
-        {hasChildren ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-4 h-4 p-0"
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleExpand(node.id)
-            }}
-          >
-            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          </Button>
-        ) : (
-          <div className="w-4" />
-        )}
-        {hasChildren ? (
-          isExpanded ? (
-            <FolderOpen className="w-4 h-4 text-blue-600" />
-          ) : (
-            <Folder className="w-4 h-4 text-blue-600" />
-          )
-        ) : (
-          <Folder className="w-4 h-4 text-slate-500" />
-        )}
-        <span className="flex-1 text-sm font-medium text-slate-900 dark:text-slate-100">{node.name}</span>
-      </div>
-      {hasChildren && isExpanded && (
-        <div>
-          {node.children.map((child: any) => (
-            <FolderTreeNode
-              key={child.id}
-              node={child}
-              level={level + 1}
-              onSelectFolder={onSelectFolder}
-              selectedFolder={selectedFolder}
-              expandedFolders={expandedFolders}
-              onToggleExpand={onToggleExpand}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
+// 素材节点名称映射
+const getNodeDisplayName = (nodeId: string) => {
+  const nodeMap: Record<string, string> = {
+    "all": "全部素材",
+    "group-1": "设备组素材A",
+    "group-2": "设备组素材B", 
+    "group-3": "虚拟设备组目录",
+    "public": "公共素材组",
+    "shared": "分享文件夹",
+    "group-1-video": "视频文件夹A",
+    "group-1-image": "图片文件夹A",
+    "group-2-audio": "音频文件夹B",
+    "public-video": "公共视频文件夹A",
+    "public-image": "公共图片文件夹B",
+    "shared-folder-1": "来自销售部的分享",
+    "shared-folder-2": "来自市场部的分享",
+  }
+  return nodeMap[nodeId] || nodeId
 }
 
 export default function FileManagementContent() {
-  const [selectedFolder, setSelectedFolder] = useState<number | null>(1)
-  const [selectedFolderName, setSelectedFolderName] = useState("根目录")
-  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set([1, 2, 5]))
+  const [selectedNode, setSelectedNode] = useState<string>("all")
+  const [selectedFolderName, setSelectedFolderName] = useState("全部素材")
   const [searchQuery, setSearchQuery] = useState("")
+  const [materials, setMaterials] = useState<(Material | SharedMaterial)[]>([])
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string>("")
 
-  const handleToggleExpand = (id: number) => {
-    const newExpanded = new Set(expandedFolders)
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id)
-    } else {
-      newExpanded.add(id)
+  const handleNodeSelect = async (nodeId: string) => {
+    setSelectedNode(nodeId)
+    setSelectedFolderName(getNodeDisplayName(nodeId))
+    await loadMaterials(nodeId)
+  }
+
+  const handleError = (errorMessage: string) => {
+    setError(errorMessage)
+  }
+
+  // 根据节点加载对应的素材列表
+  const loadMaterials = async (nodeId: string) => {
+    try {
+      setLoading(true)
+      setError("")
+      
+      const { apiType, params } = MaterialTreeAdapter.getApiCallParams(nodeId)
+      
+      let materialList: (Material | SharedMaterial)[] = []
+      
+      switch (apiType) {
+        case 'all':
+          materialList = await MaterialAPI.listAllMaterials()
+          break
+        case 'user':
+          materialList = await MaterialAPI.listUserMaterials(params.ugid, params.fid, params.includeSub)
+          break
+        case 'public':
+          materialList = await MaterialAPI.listPublicMaterials(params.fid, params.includeSub)
+          break
+        case 'shared':
+          materialList = await MaterialAPI.listSharedMaterials(params.fid, params.includeSub)
+          break
+        default:
+          throw new Error(`不支持的API类型: ${apiType}`)
+      }
+      
+      setMaterials(materialList)
+    } catch (error) {
+      console.error('Failed to load materials:', error)
+      const errorMsg = error instanceof Error ? error.message : '未知错误'
+      setError(`加载素材列表失败: ${errorMsg}`)
+      setMaterials([])
+    } finally {
+      setLoading(false)
     }
-    setExpandedFolders(newExpanded)
   }
 
-  const handleSelectFolder = (id: number, name: string) => {
-    setSelectedFolder(id)
-    setSelectedFolderName(name)
-  }
+  // 初始化时加载全部素材
+  useEffect(() => {
+    loadMaterials("all")
+  }, [])
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -200,19 +130,28 @@ export default function FileManagementContent() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "已转码":
-      case "已处理":
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">已完成</Badge>
-      case "转码中":
-        return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">处理中</Badge>
-      default:
-        return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400">{status}</Badge>
+  const getStatusBadge = (material: Material | SharedMaterial) => {
+    const statusMap: Record<number, { label: string; className: string }> = {
+      0: { label: "已完成", className: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" },
+      1: { label: "处理中", className: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400" },
+      2: { label: "失败", className: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400" },
     }
+    
+    const status = statusMap[material.fileStatus] || { label: material.fileStatusDesc, className: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400" }
+    
+    return (
+      <div className="flex items-center gap-2">
+        <Badge className={status.className}>{status.label}</Badge>
+        {material.processProgress !== undefined && material.fileStatus === 1 && (
+          <span className="text-xs text-slate-500">{material.processProgress}%</span>
+        )}
+      </div>
+    )
   }
 
-  const filteredFiles = mockFiles.filter((file) => file.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredMaterials = materials.filter((material) => 
+    material.materialName.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <div className="space-y-6">
@@ -223,22 +162,19 @@ export default function FileManagementContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* 文件夹树 */}
+        {/* 素材树 */}
         <Card className="lg:col-span-1 border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Folder className="w-5 h-5 text-blue-600" />
-              文件夹
+              素材分类
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <FolderTreeNode
-              node={folderTree}
-              level={0}
-              onSelectFolder={handleSelectFolder}
-              selectedFolder={selectedFolder}
-              expandedFolders={expandedFolders}
-              onToggleExpand={handleToggleExpand}
+            <MaterialTree 
+              selectedNode={selectedNode}
+              onNodeSelect={handleNodeSelect}
+              onError={handleError}
             />
 
             <Button variant="ghost" className="w-full justify-start gap-2 mt-4">
@@ -270,6 +206,13 @@ export default function FileManagementContent() {
               />
             </div>
 
+            {/* 错误提示 */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
+
             {/* 文件表格 */}
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
               <Table>
@@ -284,70 +227,83 @@ export default function FileManagementContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredFiles.map((file) => (
-                    <TableRow key={file.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {file.thumbnail ? (
-                            <img
-                              src={file.thumbnail || "/placeholder.svg"}
-                              alt={file.name}
-                              className="w-10 h-10 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center">
-                              {getFileIcon(file.type)}
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-medium">{file.name}</p>
-                            {file.duration && <p className="text-xs text-slate-500">{file.duration}</p>}
-                          </div>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm text-gray-500">加载中...</span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getFileIcon(file.type)}
-                          <span className="capitalize">{file.type}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-400">{file.size}</TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-400">
-                        {new Date(file.uploadTime).toLocaleString("zh-CN")}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(file.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>操作</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="gap-2">
-                              <Eye className="w-4 h-4" />
-                              预览
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2">
-                              <Download className="w-4 h-4" />
-                              下载
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2">
-                              <Edit className="w-4 h-4" />
-                              重命名
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="gap-2 text-red-600">
-                              <Trash2 className="w-4 h-4" />
-                              删除
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : filteredMaterials.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <p className="text-sm text-gray-500">
+                          {searchQuery ? "没有找到匹配的文件" : "此文件夹为空"}
+                        </p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredMaterials.map((material) => (
+                      <TableRow key={material.mid} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center">
+                              {getFileIcon(material.materialType.toLowerCase())}
+                            </div>
+                            <div>
+                              <p className="font-medium">{material.materialName}</p>
+                              <p className="text-xs text-slate-500">ID: {material.mid}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getFileIcon(material.materialType.toLowerCase())}
+                            <span className="capitalize">{material.materialType.toLowerCase()}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-400">
+                          {material.fileSizeFormatted}
+                        </TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-400">
+                          {new Date(material.uploadTime).toLocaleString("zh-CN")}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(material)}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>操作</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="gap-2">
+                                <Eye className="w-4 h-4" />
+                                预览
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2">
+                                <Download className="w-4 h-4" />
+                                下载
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2">
+                                <Edit className="w-4 h-4" />
+                                重命名
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="gap-2 text-red-600">
+                                <Trash2 className="w-4 h-4" />
+                                删除
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>

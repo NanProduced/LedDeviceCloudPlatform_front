@@ -52,129 +52,13 @@ import {
   Tv,
   Image,
   Clock,
+  AlertCircle,
+  Loader2,
 } from "lucide-react"
+import { useEffect, useCallback } from "react"
+import { terminalApi, type Terminal as ApiTerminal, type TerminalGroupTreeNode } from "@/lib/api/terminal"
 
-// 模拟终端组树数据
-const terminalGroupTree = {
-  tgid: 1,
-  tgName: "总部LED设备",
-  terminalCount: 245,
-  children: [
-    {
-      tgid: 2,
-      tgName: "一楼大厅",
-      terminalCount: 12,
-      children: [
-        {
-          tgid: 3,
-          tgName: "接待区",
-          terminalCount: 4,
-          children: [],
-        },
-        {
-          tgid: 4,
-          tgName: "展示区",
-          terminalCount: 8,
-          children: [],
-        },
-      ],
-    },
-    {
-      tgid: 5,
-      tgName: "二楼办公区",
-      terminalCount: 25,
-      children: [
-        {
-          tgid: 6,
-          tgName: "会议室",
-          terminalCount: 10,
-          children: [],
-        },
-        {
-          tgid: 7,
-          tgName: "开放办公区",
-          terminalCount: 15,
-          children: [],
-        },
-      ],
-    },
-    {
-      tgid: 8,
-      tgName: "户外广告屏",
-      terminalCount: 20,
-      children: [],
-    },
-  ],
-}
-
-// 模拟终端列表数据
-const mockTerminals = [
-  {
-    tid: 1,
-    terminalName: "大厅主屏",
-    description: "一楼大厅主要展示屏幕",
-    terminalModel: "LED-4K-65",
-    tgid: 2,
-    tgName: "一楼大厅",
-    firmwareVersion: "v2.1.5",
-    serialNumber: "SN2024001001",
-    onlineStatus: 1,
-    createdAt: "2024-01-15T10:30:00",
-    updatedAt: "2024-01-25T14:20:00",
-  },
-  {
-    tid: 2,
-    terminalName: "接待台屏幕",
-    description: "接待台信息展示屏",
-    terminalModel: "LED-HD-32",
-    tgid: 3,
-    tgName: "接待区",
-    firmwareVersion: "v2.0.8",
-    serialNumber: "SN2024001002",
-    onlineStatus: 1,
-    createdAt: "2024-01-18T09:15:00",
-    updatedAt: "2024-01-24T16:45:00",
-  },
-  {
-    tid: 3,
-    terminalName: "产品展示屏A",
-    description: "产品展示区A区域屏幕",
-    terminalModel: "LED-4K-55",
-    tgid: 4,
-    tgName: "展示区",
-    firmwareVersion: "v2.1.3",
-    serialNumber: "SN2024001003",
-    onlineStatus: 0,
-    createdAt: "2024-01-20T11:20:00",
-    updatedAt: "2024-01-23T10:30:00",
-  },
-  {
-    tid: 4,
-    terminalName: "会议室主屏",
-    description: "主会议室投影屏幕",
-    terminalModel: "LED-4K-75",
-    tgid: 6,
-    tgName: "会议室",
-    firmwareVersion: "v2.1.5",
-    serialNumber: "SN2024001004",
-    onlineStatus: 1,
-    createdAt: "2024-02-01T14:30:00",
-    updatedAt: "2024-02-01T14:30:00",
-  },
-  {
-    tid: 5,
-    terminalName: "户外广告屏1号",
-    description: "正门入口户外LED广告屏",
-    terminalModel: "LED-Outdoor-100",
-    tgid: 8,
-    tgName: "户外广告屏",
-    firmwareVersion: "v1.8.2",
-    serialNumber: "SN2024001005",
-    onlineStatus: 0,
-    createdAt: "2024-01-10T08:00:00",
-    updatedAt: "2024-01-22T12:15:00",
-  },
-]
+// 清除模拟数据，现在使用真实API
 
 // 终端型号选项
 const terminalModelOptions = [
@@ -190,9 +74,13 @@ interface TerminalGroupNode {
   tgName: string
   terminalCount: number
   children: TerminalGroupNode[]
+  parent?: number
+  path?: string
+  description?: string
+  hasPermission?: boolean
 }
 
-// 扩展的终端信息接口
+// 扩展的终端信息接口（暂未开发的API字段）
 interface TerminalExtendedInfo {
   // 当前播放节目信息
   currentProgram?: {
@@ -208,19 +96,8 @@ interface TerminalExtendedInfo {
   }
 }
 
-// 基础终端信息接口
-interface Terminal {
-  tid: number
-  terminalName: string
-  description: string
-  terminalModel: string
-  tgid: number
-  tgName: string
-  firmwareVersion: string
-  serialNumber: string
-  onlineStatus: number
-  createdAt: string
-  updatedAt: string
+// 基础终端信息接口（继承API接口并添加扩展信息）
+interface Terminal extends ApiTerminal {
   // 扩展信息（异步加载）
   extendedInfo?: TerminalExtendedInfo
   loadingExtended?: boolean
@@ -318,6 +195,7 @@ function TerminalCard({
             </div>
           ) : terminal.extendedInfo?.currentProgram ? (
             <div className="relative w-full h-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={terminal.extendedInfo.currentProgram.thumbnail}
                 alt={terminal.extendedInfo.currentProgram.programName}
@@ -328,7 +206,8 @@ function TerminalCard({
               />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
                 <div className="flex items-center gap-2 text-white">
-                                     <Image className="w-4 h-4" />
+                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                  <Image className="w-4 h-4" />
                   <span className="text-sm truncate">{terminal.extendedInfo.currentProgram.programName}</span>
                 </div>
               </div>
@@ -482,14 +361,27 @@ function TerminalGroupTreeNode({
 }
 
 export default function DeviceManagementContent() {
-  const [selectedGroup, setSelectedGroup] = useState<number | null>(1)
-  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set([1, 2, 5]))
+  const [selectedGroup, setSelectedGroup] = useState<number | null>(null)
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set())
   const [searchQuery, setSearchQuery] = useState("")
   const [onlineStatusFilter, setOnlineStatusFilter] = useState<string>("all")
   const [terminalModelFilter, setTerminalModelFilter] = useState<string>("all")
   const [isCreateTerminalOpen, setIsCreateTerminalOpen] = useState(false)
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
-  const [terminals, setTerminals] = useState<Terminal[]>(mockTerminals as Terminal[])
+  
+  // API 状态管理
+  const [terminals, setTerminals] = useState<Terminal[]>([])
+  const [terminalGroupTree, setTerminalGroupTree] = useState<TerminalGroupNode | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadingTerminals, setLoadingTerminals] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pagination, setPagination] = useState({
+    pageNum: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 0,
+  })
+
   const [newTerminal, setNewTerminal] = useState({
     terminalName: "",
     description: "",
@@ -501,6 +393,106 @@ export default function DeviceManagementContent() {
   const [selectedTerminals, setSelectedTerminals] = useState<Set<number>>(new Set())
   const [selectedTerminalDetail, setSelectedTerminalDetail] = useState<Terminal | null>(null)
   const [isTerminalDetailOpen, setIsTerminalDetailOpen] = useState(false)
+
+  // 加载终端组树
+  const loadTerminalGroupTree = async () => {
+    try {
+      setError(null)
+      const response = await terminalApi.getTerminalGroupTree()
+      
+      // 将API响应转换为组件需要的格式
+      if (response.accessibleTrees && response.accessibleTrees.length > 0) {
+        // 计算每个节点的终端数量（递归计算）
+        const convertTreeNode = (node: TerminalGroupTreeNode, parentCount = 0): TerminalGroupNode => {
+          const children = node.children?.map(child => convertTreeNode(child)) || []
+          const terminalCount = children.reduce((sum, child) => sum + child.terminalCount, 0) + parentCount
+          
+          return {
+            tgid: node.tgid,
+            tgName: node.tgName,
+            terminalCount,
+            children,
+            parent: node.parent,
+            path: node.path,
+            description: node.description,
+            hasPermission: node.hasPermission,
+          }
+        }
+        
+        // 使用第一个可访问的树作为根节点
+        const rootNode = convertTreeNode(response.accessibleTrees[0])
+        setTerminalGroupTree(rootNode)
+        
+        // 自动选择第一个组并展开
+        setSelectedGroup(rootNode.tgid)
+        setExpandedGroups(new Set([rootNode.tgid]))
+      }
+    } catch (error) {
+      console.error('加载终端组树失败:', error)
+      setError(error instanceof Error ? error.message : '加载终端组树失败')
+      
+      // 使用fallback数据
+      const fallbackTree = {
+        tgid: 1,
+        tgName: "总部LED设备",
+        terminalCount: 0,
+        children: [],
+      }
+      setTerminalGroupTree(fallbackTree)
+      setSelectedGroup(1)
+      setExpandedGroups(new Set([1]))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 加载终端列表
+  const loadTerminals = useCallback(async (tgid: number, page = 1) => {
+    if (!tgid) return
+    
+    try {
+      setLoadingTerminals(true)
+      setError(null)
+      
+      const params = {
+        tgid,
+        pageNum: page,
+        pageSize: pagination.pageSize,
+        includeSubGroups: true,
+        keyword: searchQuery || undefined,
+        terminalModel: terminalModelFilter !== "all" ? terminalModelFilter : undefined,
+        onlineStatus: onlineStatusFilter !== "all" ? (onlineStatusFilter === "online" ? 1 : 0) : undefined,
+      }
+      
+      const response = await terminalApi.getTerminalList(params)
+      
+      setTerminals(response.records.map(terminal => ({ ...terminal } as Terminal)))
+      setPagination({
+        pageNum: response.pageNum,
+        pageSize: response.pageSize,
+        total: response.total,
+        totalPages: response.totalPages,
+      })
+    } catch (error) {
+      console.error('加载终端列表失败:', error)
+      setError(error instanceof Error ? error.message : '加载终端列表失败')
+      setTerminals([])
+    } finally {
+      setLoadingTerminals(false)
+    }
+  }, [pagination.pageSize, searchQuery, terminalModelFilter, onlineStatusFilter])
+
+  // 初始化数据加载
+  useEffect(() => {
+    loadTerminalGroupTree()
+  }, [])
+
+  // 当选择的组或过滤条件改变时重新加载终端列表
+  useEffect(() => {
+    if (selectedGroup) {
+      loadTerminals(selectedGroup, 1)
+    }
+  }, [selectedGroup, loadTerminals])
 
   const handleToggleExpand = (tgid: number) => {
     const newExpanded = new Set(expandedGroups)
@@ -559,29 +551,41 @@ export default function DeviceManagementContent() {
     }
   }
 
-  const filteredTerminals = terminals.filter((terminal) => {
-    const matchesSearch = 
-      terminal.terminalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      terminal.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      terminal.serialNumber.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    const matchesOnlineStatus = 
-      onlineStatusFilter === "all" || 
-      (onlineStatusFilter === "online" && terminal.onlineStatus === 1) ||
-      (onlineStatusFilter === "offline" && terminal.onlineStatus === 0)
-    
-    const matchesModel = 
-      terminalModelFilter === "all" || terminal.terminalModel === terminalModelFilter
+  // 由于现在通过API进行过滤，这里只做本地搜索的补充过滤
+  const filteredTerminals = terminals
 
-    return matchesSearch && matchesOnlineStatus && matchesModel
-  })
+  const selectedGroupName = terminalGroupTree?.children?.find(child => child.tgid === selectedGroup)?.tgName || terminalGroupTree?.tgName || "未选择组"
 
-  const selectedGroupName = selectedGroup === 1 ? "总部LED设备" : "一楼大厅"
+  const handleCreateTerminal = async () => {
+    if (!selectedGroup) {
+      setError("请先选择一个终端组")
+      return
+    }
 
-  const handleCreateTerminal = () => {
-    console.log("Creating terminal:", newTerminal)
-    setIsCreateTerminalOpen(false)
-    setNewTerminal({ terminalName: "", description: "", terminalAccount: "", terminalPassword: "", terminalModel: "" })
+    try {
+      setLoadingTerminals(true)
+      await terminalApi.createTerminal({
+        ...newTerminal,
+        tgid: selectedGroup,
+      })
+      
+      // 创建成功后重新加载终端列表
+      await loadTerminals(selectedGroup, pagination.pageNum)
+      
+      setIsCreateTerminalOpen(false)
+      setNewTerminal({ 
+        terminalName: "", 
+        description: "", 
+        terminalAccount: "", 
+        terminalPassword: "", 
+        terminalModel: "" 
+      })
+    } catch (error) {
+      console.error('创建终端失败:', error)
+      setError(error instanceof Error ? error.message : '创建终端失败')
+    } finally {
+      setLoadingTerminals(false)
+    }
   }
 
 
@@ -644,16 +648,43 @@ export default function DeviceManagementContent() {
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400">设备分组管理</p>
           </CardHeader>
-                     <CardContent className="space-y-2">
-             <TerminalGroupTreeNode
-               node={terminalGroupTree}
-               level={0}
-               selectedGroup={selectedGroup}
-               onSelectGroup={setSelectedGroup}
-               expandedGroups={expandedGroups}
-               onToggleExpand={handleToggleExpand}
-             />
-           </CardContent>
+          <CardContent className="space-y-2">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="space-y-3 w-full">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-6 w-3/4 ml-4" />
+                  <Skeleton className="h-6 w-2/3 ml-8" />
+                </div>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <AlertCircle className="w-8 h-8 text-red-500 mb-2" />
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2" 
+                  onClick={loadTerminalGroupTree}
+                >
+                  重试
+                </Button>
+              </div>
+            ) : terminalGroupTree ? (
+              <TerminalGroupTreeNode
+                node={terminalGroupTree}
+                level={0}
+                selectedGroup={selectedGroup}
+                onSelectGroup={setSelectedGroup}
+                expandedGroups={expandedGroups}
+                onToggleExpand={handleToggleExpand}
+              />
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <p className="text-sm text-slate-500">暂无终端组数据</p>
+              </div>
+            )}
+          </CardContent>
         </Card>
 
         {/* Right Content - Terminal List */}
@@ -743,6 +774,22 @@ export default function DeviceManagementContent() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Error Banner */}
+            {error && (
+              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg mb-4">
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                <span className="text-sm text-red-800 dark:text-red-200 flex-1">{error}</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => selectedGroup && loadTerminals(selectedGroup, pagination.pageNum)}
+                  disabled={loadingTerminals}
+                >
+                  {loadingTerminals ? <Loader2 className="w-4 h-4 animate-spin" /> : "重试"}
+                </Button>
+              </div>
+            )}
+
             {/* Search and Filter Bar */}
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <div className="relative flex-1">
@@ -752,6 +799,7 @@ export default function DeviceManagementContent() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                  disabled={loadingTerminals}
                 />
               </div>
               <div className="flex gap-2">
@@ -813,7 +861,68 @@ export default function DeviceManagementContent() {
             )}
 
             {/* Terminal Display */}
-            {viewMode === "list" ? (
+            {loadingTerminals ? (
+              <div className="space-y-4">
+                {viewMode === "list" ? (
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50 dark:bg-slate-800/50">
+                          <TableHead className="w-12"></TableHead>
+                          <TableHead>设备名称</TableHead>
+                          <TableHead>所属组</TableHead>
+                          <TableHead>设备型号</TableHead>
+                          <TableHead>序列号</TableHead>
+                          <TableHead>固件版本</TableHead>
+                          <TableHead>在线状态</TableHead>
+                          <TableHead>更新时间</TableHead>
+                          <TableHead className="text-right">操作</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...Array(5)].map((_, index) => (
+                          <TableRow key={index}>
+                            <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {[...Array(8)].map((_, index) => (
+                      <Card key={index} className="border-slate-200 dark:border-slate-800">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <Skeleton className="w-10 h-10 rounded-lg" />
+                              <div className="space-y-2 flex-1">
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-3 w-3/4" />
+                              </div>
+                            </div>
+                            <Skeleton className="w-12 h-5" />
+                          </div>
+                          <Skeleton className="aspect-video w-full rounded-lg" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-2/3" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : viewMode === "list" ? (
               /* Terminal Table */
               <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
                 <Table>

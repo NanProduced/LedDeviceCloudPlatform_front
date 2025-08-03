@@ -100,7 +100,34 @@ export default function StompTestPage() {
       setIsConnecting(false)
       setConnectionError(null)
       
-      console.log('连接建立完成，可以开始手动订阅和测试')
+      console.log('连接建立完成，开始自动订阅默认主题...')
+      
+      // 自动订阅默认主题
+      if (user) {
+        const autoSubscriptions = [
+          '/user/queue/messages',
+          `/topic/org/${user.oid}`,
+          '/topic/system'
+        ]
+        
+        autoSubscriptions.forEach((destination) => {
+          try {
+            const subscription = stompClient.subscribe(destination, (message) => {
+              console.log(`收到自动订阅消息 [${destination}]:`, message.body)
+              addReceivedMessage(destination, message.headers, message.body)
+            })
+            
+            addSubscription(destination, subscription)
+            console.log(`✓ 自动订阅成功: ${destination}`)
+          } catch (error) {
+            console.error(`✗ 自动订阅失败 [${destination}]:`, error)
+          }
+        })
+        
+        console.log('自动订阅完成，可以开始手动订阅其他主题和测试')
+      } else {
+        console.log('用户信息不存在，跳过自动订阅')
+      }
     }
     
     stompClient.onStompError = (frame) => {
@@ -244,6 +271,16 @@ export default function StompTestPage() {
   const handleCopyMessage = (content: string) => {
     navigator.clipboard.writeText(content)
     alert('已复制到剪贴板')
+  }
+
+  // 格式化JSON，如果不是有效JSON则返回原始内容
+  const formatJsonMessage = (content: string) => {
+    try {
+      const parsed = JSON.parse(content)
+      return JSON.stringify(parsed, null, 2)
+    } catch {
+      return content
+    }
   }
   
   // 组件卸载时断开连接
@@ -521,7 +558,7 @@ export default function StompTestPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[600px]">
+            <ScrollArea className="h-[750px]">
               {receivedMessages.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -566,25 +603,25 @@ export default function StompTestPage() {
                               <div><strong>子类型1:</strong> {message.parsed.subType_1}</div>
                               <div><strong>子类型2:</strong> {message.parsed.subType_2}</div>
                               <div><strong>载荷:</strong></div>
-                              <pre className="bg-slate-100 dark:bg-slate-700 p-2 rounded text-xs overflow-x-auto">
+                              <pre className="bg-slate-100 dark:bg-slate-700 p-3 rounded text-xs overflow-x-auto min-h-[100px] whitespace-pre-wrap">
                                 {JSON.stringify(message.parsed.payload, null, 2)}
                               </pre>
                             </div>
                           ) : (
-                            <pre className="bg-slate-100 dark:bg-slate-700 p-2 rounded text-xs overflow-x-auto">
-                              {message.body}
+                            <pre className="bg-slate-100 dark:bg-slate-700 p-3 rounded text-xs overflow-x-auto min-h-[120px] whitespace-pre-wrap">
+                              {formatJsonMessage(message.body)}
                             </pre>
                           )}
                         </TabsContent>
                         
                         <TabsContent value="raw" className="mt-2">
-                          <pre className="bg-slate-100 dark:bg-slate-700 p-2 rounded text-xs overflow-x-auto">
-                            {message.body}
+                          <pre className="bg-slate-100 dark:bg-slate-700 p-3 rounded text-xs overflow-x-auto min-h-[120px] whitespace-pre-wrap">
+                            {formatJsonMessage(message.body)}
                           </pre>
                         </TabsContent>
                         
                         <TabsContent value="headers" className="mt-2">
-                          <pre className="bg-slate-100 dark:bg-slate-700 p-2 rounded text-xs overflow-x-auto">
+                          <pre className="bg-slate-100 dark:bg-slate-700 p-3 rounded text-xs overflow-x-auto min-h-[100px] whitespace-pre-wrap">
                             {JSON.stringify(message.headers, null, 2)}
                           </pre>
                         </TabsContent>

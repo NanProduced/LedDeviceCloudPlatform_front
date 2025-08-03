@@ -41,7 +41,7 @@ export default function StorageStatistics() {
         <div className="flex items-center gap-4">
           <Link href="/file-management">
             <Button variant="outline" size="sm">
-              文件浏览
+              素材管理
             </Button>
           </Link>
           <Link href="/file-management/upload">

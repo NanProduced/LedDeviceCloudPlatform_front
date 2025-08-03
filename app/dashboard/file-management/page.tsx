@@ -24,11 +24,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
+import { MaterialTree, materialTreeData } from "@/components/ui/material-tree"
 import {
   Upload,
   Search,
   Folder,
-  FolderOpen,
   File,
   ImageIcon,
   Video,
@@ -43,38 +43,8 @@ import {
   CheckCircle,
   AlertCircle,
   Loader,
-  ChevronRight,
-  ChevronDown,
 } from "lucide-react"
 import Link from "next/link"
-
-// 模拟数据
-const folderTree = {
-  id: 1,
-  name: "根目录",
-  type: "folder",
-  children: [
-    {
-      id: 2,
-      name: "视频素材",
-      type: "folder",
-      children: [
-        { id: 3, name: "宣传视频", type: "folder", children: [] },
-        { id: 4, name: "广告视频", type: "folder", children: [] },
-      ],
-    },
-    {
-      id: 5,
-      name: "图片素材",
-      type: "folder",
-      children: [
-        { id: 6, name: "LOGO", type: "folder", children: [] },
-        { id: 7, name: "背景图", type: "folder", children: [] },
-      ],
-    },
-    { id: 8, name: "音频素材", type: "folder", children: [] },
-  ],
-}
 
 const mockFiles = [
   {
@@ -171,85 +141,29 @@ const storageStats = {
   ],
 }
 
-interface FolderTreeProps {
-  node: any
-  level: number
-  onSelectFolder: (id: number, name: string) => void
-  selectedFolder: number | null
-  expandedFolders: Set<number>
-  onToggleExpand: (id: number) => void
-}
-
-function FolderTreeNode({
-  node,
-  level,
-  onSelectFolder,
-  selectedFolder,
-  expandedFolders,
-  onToggleExpand,
-}: FolderTreeProps) {
-  const isExpanded = expandedFolders.has(node.id)
-  const hasChildren = node.children && node.children.length > 0
-  const isSelected = selectedFolder === node.id
-
-  return (
-    <div>
-      <div
-        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${
-          isSelected ? "bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800" : ""
-        }`}
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
-        onClick={() => onSelectFolder(node.id, node.name)}
-      >
-        {hasChildren ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-4 h-4 p-0"
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleExpand(node.id)
-            }}
-          >
-            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          </Button>
-        ) : (
-          <div className="w-4" />
-        )}
-        {hasChildren ? (
-          isExpanded ? (
-            <FolderOpen className="w-4 h-4 text-blue-600" />
-          ) : (
-            <Folder className="w-4 h-4 text-blue-600" />
-          )
-        ) : (
-          <Folder className="w-4 h-4 text-slate-500" />
-        )}
-        <span className="flex-1 text-sm font-medium text-slate-900 dark:text-slate-100">{node.name}</span>
-      </div>
-      {hasChildren && isExpanded && (
-        <div>
-          {node.children.map((child: any) => (
-            <FolderTreeNode
-              key={child.id}
-              node={child}
-              level={level + 1}
-              onSelectFolder={onSelectFolder}
-              selectedFolder={selectedFolder}
-              expandedFolders={expandedFolders}
-              onToggleExpand={onToggleExpand}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
+// 素材节点名称映射
+const getNodeDisplayName = (nodeId: string) => {
+  const nodeMap: Record<string, string> = {
+    "all": "全部素材",
+    "group-1": "设备组素材A",
+    "group-2": "设备组素材B", 
+    "group-3": "虚拟设备组目录",
+    "public": "公共素材组",
+    "shared": "分享文件夹",
+    "group-1-video": "视频文件夹A",
+    "group-1-image": "图片文件夹A",
+    "group-2-audio": "音频文件夹B",
+    "public-video": "公共视频文件夹A",
+    "public-image": "公共图片文件夹B",
+    "shared-folder-1": "来自销售部的分享",
+    "shared-folder-2": "来自市场部的分享",
+  }
+  return nodeMap[nodeId] || nodeId
 }
 
 export default function FileManagement() {
-  const [selectedFolder, setSelectedFolder] = useState<number | null>(1)
-  const [selectedFolderName, setSelectedFolderName] = useState("根目录")
-  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set([1, 2, 5]))
+  const [selectedNode, setSelectedNode] = useState<string>("all")
+  const [selectedFolderName, setSelectedFolderName] = useState("全部素材")
   const [searchQuery, setSearchQuery] = useState("")
   const [isUploadOpen, setIsUploadOpen] = useState(false)
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
@@ -258,19 +172,9 @@ export default function FileManagement() {
   const [previewFile, setPreviewFile] = useState<any>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
-  const handleToggleExpand = (id: number) => {
-    const newExpanded = new Set(expandedFolders)
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id)
-    } else {
-      newExpanded.add(id)
-    }
-    setExpandedFolders(newExpanded)
-  }
-
-  const handleSelectFolder = (id: number, name: string) => {
-    setSelectedFolder(id)
-    setSelectedFolderName(name)
+  const handleNodeSelect = (nodeId: string) => {
+    setSelectedNode(nodeId)
+    setSelectedFolderName(getNodeDisplayName(nodeId))
   }
 
   const handleFileSelect = (id: number) => {
@@ -343,7 +247,7 @@ export default function FileManagement() {
       <div className="flex items-center gap-4 mb-6">
         <Link href="/dashboard/file-management">
           <Button variant="default" size="sm">
-            文件浏览
+            素材管理
           </Button>
         </Link>
         <Link href="/dashboard/file-management/upload">
@@ -364,22 +268,19 @@ export default function FileManagement() {
       </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* 文件夹树 */}
+          {/* 素材树 */}
           <Card className="lg:col-span-1 border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Folder className="w-5 h-5 text-blue-600" />
-                文件夹
+                素材分类
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <FolderTreeNode
-                node={folderTree}
-                level={0}
-                onSelectFolder={handleSelectFolder}
-                selectedFolder={selectedFolder}
-                expandedFolders={expandedFolders}
-                onToggleExpand={handleToggleExpand}
+              <MaterialTree 
+                data={materialTreeData}
+                selectedNode={selectedNode}
+                onNodeSelect={handleNodeSelect}
               />
 
               <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>

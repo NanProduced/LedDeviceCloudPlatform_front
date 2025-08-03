@@ -93,6 +93,37 @@ export async function fetchApi(path: string, options: RequestInit = {}) {
   }
 }
 
+// 通用API对象 - 类似axios的接口
+export const api = {
+  get: async (url: string, config?: RequestInit) => {
+    const response = await fetchApi(url, { ...config, method: 'GET' });
+    return { data: response };
+  },
+  
+  post: async (url: string, data?: unknown, config?: RequestInit) => {
+    const response = await fetchApi(url, {
+      ...config,
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    return { data: response };
+  },
+  
+  put: async (url: string, data?: unknown, config?: RequestInit) => {
+    const response = await fetchApi(url, {
+      ...config,
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    return { data: response };
+  },
+  
+  delete: async (url: string, config?: RequestInit) => {
+    const response = await fetchApi(url, { ...config, method: 'DELETE' });
+    return { data: response };
+  }
+};
+
 // 用户相关API
 export const userApi = {
   // 获取当前登录用户信息

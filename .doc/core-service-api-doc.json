@@ -32,6 +32,18 @@
             "description": "终端组相关的操作"
         },
         {
+            "name": "STOMP Permission(STOMP RPC调用权限控制器)",
+            "description": "STOMP主题权限验证相关操作"
+        },
+        {
+            "name": "Terminal(终端控制器)",
+            "description": "终端相关的所有操作"
+        },
+        {
+            "name": "Material(素材资源控制器)",
+            "description": "素材/文件夹相关所有操作"
+        },
+        {
             "name": "PermissionDeny(权限拒绝管理)",
             "description": "权限拒绝相关操作"
         },
@@ -44,8 +56,8 @@
             "description": "组织相关的所有操作"
         },
         {
-            "name": "Terminal(终端控制器)",
-            "description": "终端相关的所以操作"
+            "name": "TerminalCommand(终端指令控制器)",
+            "description": "封装指令操作"
         },
         {
             "name": "Permission(权限控制器)",
@@ -325,6 +337,40 @@
                 }
             }
         },
+        "/terminal_command/brightness": {
+            "post": {
+                "tags": [
+                    "终端管理",
+                    "指令管理",
+                    "TerminalCommand(终端指令控制器)"
+                ],
+                "summary": "下发亮度指令",
+                "description": "下发指令调整终端亮度",
+                "operationId": "brightnessCommand",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SingleCommandRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SingleCommandResult"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/terminal/list": {
             "post": {
                 "tags": [
@@ -492,6 +538,74 @@
                 "responses": {
                     "200": {
                         "description": "OK"
+                    }
+                }
+            }
+        },
+        "/rpc/permissions/stomp/topic/verify": {
+            "post": {
+                "tags": [
+                    "STOMP Permission(STOMP RPC调用权限控制器)",
+                    "STOMP",
+                    "FEIGN_RPC"
+                ],
+                "summary": "验证STOMP主题订阅权限",
+                "description": "验证指定用户是否有权限订阅特定的STOMP主题，支持用户、组织、终端等不同类型主题",
+                "operationId": "verifyTopicSubscriptionPermission",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TopicPermissionRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TopicPermissionResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/rpc/permissions/stomp/topic/batch-verify": {
+            "post": {
+                "tags": [
+                    "STOMP Permission(STOMP RPC调用权限控制器)",
+                    "STOMP",
+                    "FEIGN_RPC"
+                ],
+                "summary": "批量验证STOMP主题订阅权限",
+                "description": "批量验证用户对多个STOMP主题的订阅权限，主要用于用户连接时的自动订阅场景",
+                "operationId": "batchVerifyTopicSubscriptionPermission",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TopicPermissionRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TopicPermissionResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -690,6 +804,32 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/material/folder/create": {
+            "post": {
+                "tags": [
+                    "素材管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "创建文件夹",
+                "description": "在对应路径下创建文件夹",
+                "operationId": "createFolder",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateFolderRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
                     }
                 }
             }
@@ -970,6 +1110,202 @@
                                         "items": {
                                             "$ref": "#/components/schemas/OperationPermissionResponse"
                                         }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/material/tree/init": {
+            "get": {
+                "tags": [
+                    "素材管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "素材文件结构树初始化",
+                "description": "初始化素材管理左侧树形结构",
+                "operationId": "initMaterialStructTree",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MaterialNodeTreeResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/material/list/user": {
+            "get": {
+                "tags": [
+                    "素材管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "查询用户组素材",
+                "description": "根据用户组Id,用户组下文件夹Id查询素材",
+                "operationId": "listUserMaterials",
+                "parameters": [
+                    {
+                        "name": "ugid",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "fid",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "includeSub",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ListMaterialResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/material/list/shared": {
+            "get": {
+                "tags": [
+                    "资源管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "查询由其他用户组分享的素材",
+                "description": "查询分享文件夹下素材",
+                "operationId": "listSharedMaterials",
+                "parameters": [
+                    {
+                        "name": "fid",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "includeSub",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ListSharedMaterialResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/material/list/public": {
+            "get": {
+                "tags": [
+                    "资源管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "查询公共资源组素材",
+                "description": "查询公共资源组下素材",
+                "operationId": "listPublicMaterials",
+                "parameters": [
+                    {
+                        "name": "fid",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "includeSub",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ListMaterialResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/material/get/all": {
+            "get": {
+                "tags": [
+                    "素材管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "查询全部素材",
+                "description": "快速查询全部当前用户可见素材",
+                "operationId": "listAllVisibleMaterials",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ListMaterialResponse"
                                     }
                                 }
                             }
@@ -1273,6 +1609,64 @@
                     }
                 },
                 "description": "创建用户组请求DTO"
+            },
+            "BaseCommand": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string"
+                    }
+                },
+                "discriminator": {
+                    "propertyName": "type"
+                }
+            },
+            "BrightnessCommand": {
+                "type": "object",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/BaseCommand"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "brightness": {
+                                "type": "integer",
+                                "format": "int32"
+                            }
+                        }
+                    }
+                ]
+            },
+            "SingleCommandRequest": {
+                "type": "object",
+                "properties": {
+                    "tid": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "command": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/BaseCommand"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BrightnessCommand"
+                            }
+                        ]
+                    }
+                }
+            },
+            "SingleCommandResult": {
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "commandId": {
+                        "type": "string"
+                    }
+                }
             },
             "PageRequestDTOQueryTerminalListRequest": {
                 "type": "object",
@@ -1739,6 +2133,96 @@
                 },
                 "description": "创建终端组请求DTO"
             },
+            "TopicPermissionRequest": {
+                "type": "object",
+                "properties": {
+                    "uid": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "oid": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "ugid": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tid": {
+                        "type": "string"
+                    },
+                    "userType": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "topicPath": {
+                        "type": "string"
+                    },
+                    "topicPaths": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "topicType": {
+                        "type": "string"
+                    },
+                    "sessionId": {
+                        "type": "string"
+                    }
+                }
+            },
+            "TopicPermissionResponse": {
+                "type": "object",
+                "properties": {
+                    "hasPermission": {
+                        "type": "boolean"
+                    },
+                    "deniedReason": {
+                        "type": "string"
+                    },
+                    "batchResults": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/TopicPermissionResult"
+                        }
+                    },
+                    "accessibleTerminalIds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "userGroupIds": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    "timestamp": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "TopicPermissionResult": {
+                "type": "object",
+                "properties": {
+                    "topicPath": {
+                        "type": "string"
+                    },
+                    "hasPermission": {
+                        "type": "boolean"
+                    },
+                    "permissionLevel": {
+                        "type": "string"
+                    },
+                    "deniedReason": {
+                        "type": "string"
+                    }
+                }
+            },
             "UpdateRolesRequest": {
                 "required": [
                     "rid"
@@ -1912,6 +2396,33 @@
                     }
                 },
                 "description": "创建组织响应DTO"
+            },
+            "CreateFolderRequest": {
+                "required": [
+                    "folderName"
+                ],
+                "type": "object",
+                "properties": {
+                    "ugid": {
+                        "type": "integer",
+                        "description": "用户组Id（未选择父级文件夹时，在用户组根目录下创建文件夹）",
+                        "format": "int64"
+                    },
+                    "fid": {
+                        "type": "integer",
+                        "description": "父级文件夹Id（未选择用户组时，在目标父级文件夹下创建文件夹）",
+                        "format": "int64"
+                    },
+                    "folderName": {
+                        "type": "string",
+                        "description": "文件夹名称"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "文件夹描述"
+                    }
+                },
+                "description": "创建文件夹请求"
             },
             "UserInfoResponse": {
                 "type": "object",
@@ -2373,6 +2884,346 @@
                     }
                 },
                 "description": "角色详情响应"
+            },
+            "FolderNode": {
+                "type": "object",
+                "properties": {
+                    "fid": {
+                        "type": "integer",
+                        "description": "文件夹Id",
+                        "format": "int64"
+                    },
+                    "folderName": {
+                        "type": "string",
+                        "description": "文件夹名称"
+                    },
+                    "parent": {
+                        "type": "integer",
+                        "description": "父级文件夹",
+                        "format": "int64"
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "文件夹路径"
+                    },
+                    "children": {
+                        "type": "array",
+                        "description": "子文件夹",
+                        "items": {
+                            "$ref": "#/components/schemas/FolderNode"
+                        }
+                    }
+                },
+                "description": "文件夹节点"
+            },
+            "GroupNode": {
+                "type": "object",
+                "properties": {
+                    "ugid": {
+                        "type": "integer",
+                        "description": "用户组Id",
+                        "format": "int64"
+                    },
+                    "groupName": {
+                        "type": "string",
+                        "description": "用户组名称"
+                    },
+                    "parent": {
+                        "type": "integer",
+                        "description": "父级组",
+                        "format": "int64"
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "路径"
+                    },
+                    "folders": {
+                        "type": "array",
+                        "description": "用户组根目录下文件夹",
+                        "items": {
+                            "$ref": "#/components/schemas/FolderNode"
+                        }
+                    },
+                    "children": {
+                        "type": "array",
+                        "description": "子用户组",
+                        "items": {
+                            "$ref": "#/components/schemas/GroupNode"
+                        }
+                    }
+                },
+                "description": "用户组根目录节点"
+            },
+            "MaterialNodeTreeResponse": {
+                "type": "object",
+                "properties": {
+                    "rootUserGroupNode": {
+                        "$ref": "#/components/schemas/GroupNode"
+                    },
+                    "publicFolders": {
+                        "type": "array",
+                        "description": "公共资源组文件夹",
+                        "items": {
+                            "$ref": "#/components/schemas/FolderNode"
+                        }
+                    },
+                    "sharedFolders": {
+                        "type": "array",
+                        "description": "分享文件夹",
+                        "items": {
+                            "$ref": "#/components/schemas/FolderNode"
+                        }
+                    }
+                },
+                "description": "素材管理 - 素材文件夹结构树响应"
+            },
+            "ListMaterialResponse": {
+                "type": "object",
+                "properties": {
+                    "mid": {
+                        "type": "integer",
+                        "description": "素材ID",
+                        "format": "int64"
+                    },
+                    "materialName": {
+                        "type": "string",
+                        "description": "素材文件名"
+                    },
+                    "fileId": {
+                        "type": "string",
+                        "description": "文件ID"
+                    },
+                    "materialType": {
+                        "type": "string",
+                        "description": "素材类型",
+                        "example": "IMAGE/VIDEO/AUDIO/DOCUMENT"
+                    },
+                    "fileSize": {
+                        "type": "integer",
+                        "description": "文件大小(字节)",
+                        "format": "int64"
+                    },
+                    "fileSizeFormatted": {
+                        "type": "string",
+                        "description": "文件大小(格式化)",
+                        "example": "2.3 MB"
+                    },
+                    "mimeType": {
+                        "type": "string",
+                        "description": "MIME类型",
+                        "example": "video/mp4"
+                    },
+                    "fileExtension": {
+                        "type": "string",
+                        "description": "文件扩展名",
+                        "example": "mp4"
+                    },
+                    "fileStatus": {
+                        "type": "integer",
+                        "description": "文件状态",
+                        "format": "int32"
+                    },
+                    "fileStatusDesc": {
+                        "type": "string",
+                        "description": "文件状态描述",
+                        "example": "已完成"
+                    },
+                    "processProgress": {
+                        "type": "integer",
+                        "description": "处理进度(仅处理中状态有效)",
+                        "format": "int32",
+                        "example": 65
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "素材描述"
+                    },
+                    "usageCount": {
+                        "type": "integer",
+                        "description": "使用次数",
+                        "format": "int64"
+                    },
+                    "ugid": {
+                        "type": "integer",
+                        "description": "所属用户组ID",
+                        "format": "int64"
+                    },
+                    "fid": {
+                        "type": "integer",
+                        "description": "所属文件夹ID",
+                        "format": "int64"
+                    },
+                    "uploadedBy": {
+                        "type": "integer",
+                        "description": "上传者ID",
+                        "format": "int64"
+                    },
+                    "uploaderName": {
+                        "type": "string",
+                        "description": "上传者名称"
+                    },
+                    "uploadTime": {
+                        "type": "string",
+                        "description": "上传时间",
+                        "format": "date-time"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    },
+                    "updateTime": {
+                        "type": "string",
+                        "description": "更新时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "查询素材列表响应 - 单个素材VO"
+            },
+            "ListSharedMaterialResponse": {
+                "type": "object",
+                "properties": {
+                    "mid": {
+                        "type": "integer",
+                        "description": "素材ID",
+                        "format": "int64"
+                    },
+                    "materialName": {
+                        "type": "string",
+                        "description": "素材文件名"
+                    },
+                    "fileId": {
+                        "type": "string",
+                        "description": "文件ID"
+                    },
+                    "materialType": {
+                        "type": "string",
+                        "description": "素材类型",
+                        "example": "IMAGE/VIDEO/AUDIO/DOCUMENT"
+                    },
+                    "fileSize": {
+                        "type": "integer",
+                        "description": "文件大小(字节)",
+                        "format": "int64"
+                    },
+                    "fileSizeFormatted": {
+                        "type": "string",
+                        "description": "文件大小(格式化)",
+                        "example": "2.3 MB"
+                    },
+                    "mimeType": {
+                        "type": "string",
+                        "description": "MIME类型",
+                        "example": "video/mp4"
+                    },
+                    "fileExtension": {
+                        "type": "string",
+                        "description": "文件扩展名",
+                        "example": "mp4"
+                    },
+                    "fileStatus": {
+                        "type": "integer",
+                        "description": "文件状态",
+                        "format": "int32"
+                    },
+                    "fileStatusDesc": {
+                        "type": "string",
+                        "description": "文件状态描述",
+                        "example": "已完成"
+                    },
+                    "processProgress": {
+                        "type": "integer",
+                        "description": "处理进度(仅处理中状态有效)",
+                        "format": "int32",
+                        "example": 65
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "素材描述"
+                    },
+                    "usageCount": {
+                        "type": "integer",
+                        "description": "使用次数",
+                        "format": "int64"
+                    },
+                    "ugid": {
+                        "type": "integer",
+                        "description": "所属用户组ID",
+                        "format": "int64"
+                    },
+                    "fid": {
+                        "type": "integer",
+                        "description": "所属文件夹ID",
+                        "format": "int64"
+                    },
+                    "uploadedBy": {
+                        "type": "integer",
+                        "description": "上传者ID",
+                        "format": "int64"
+                    },
+                    "uploaderName": {
+                        "type": "string",
+                        "description": "上传者名称"
+                    },
+                    "uploadTime": {
+                        "type": "string",
+                        "description": "上传时间",
+                        "format": "date-time"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    },
+                    "updateTime": {
+                        "type": "string",
+                        "description": "更新时间",
+                        "format": "date-time"
+                    },
+                    "shareId": {
+                        "type": "integer",
+                        "description": "分享记录ID",
+                        "format": "int64"
+                    },
+                    "sharedFrom": {
+                        "type": "integer",
+                        "description": "分享来源用户组ID",
+                        "format": "int64"
+                    },
+                    "sharedFromGroupName": {
+                        "type": "string",
+                        "description": "分享来源用户组名称"
+                    },
+                    "sharedTo": {
+                        "type": "integer",
+                        "description": "分享到的用户组ID",
+                        "format": "int64"
+                    },
+                    "sharedToGroupName": {
+                        "type": "string",
+                        "description": "分享到的用户组名称"
+                    },
+                    "sharedBy": {
+                        "type": "integer",
+                        "description": "分享操作者ID",
+                        "format": "int64"
+                    },
+                    "sharedByUserName": {
+                        "type": "string",
+                        "description": "分享操作者名称"
+                    },
+                    "sharedTime": {
+                        "type": "string",
+                        "description": "分享时间",
+                        "format": "date-time"
+                    },
+                    "resourceType": {
+                        "type": "integer",
+                        "description": "资源类型",
+                        "format": "int32"
+                    }
+                },
+                "description": "查询素材列表响应 - 单个分享素材VO"
             }
         }
     }

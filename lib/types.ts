@@ -178,4 +178,57 @@ export interface Translations {
 export interface LanguageConfig {
   zh: Translations;
   en: Translations;
+}
+
+// ========== Material 素材管理相关类型定义 ==========
+
+// Material Tree 前端显示节点类型
+export interface MaterialTreeNode {
+  id: string
+  name: string
+  type: "ALL" | "GROUP" | "NORMAL" | "PUBLIC" | "SHARED" | "SHARED_FOLDER"
+  icon: string
+  ugid?: number | null
+  fid?: number | null
+  isOwn?: boolean
+  isVirtual?: boolean
+  sharedBy?: string
+  children: MaterialTreeNode[]
+}
+
+// 素材类型
+export interface Material {
+  mid: number
+  materialName: string
+  fileId: string
+  materialType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT'
+  fileSize: number
+  fileSizeFormatted: string
+  mimeType: string
+  fileExtension: string
+  fileStatus: number
+  fileStatusDesc: string
+  processProgress?: number
+  description?: string
+  usageCount: number
+  ugid: number
+  fid: number
+  uploadedBy: number
+  uploaderName: string
+  uploadTime: string
+  createTime: string
+  updateTime: string
+}
+
+// 分享素材类型
+export interface SharedMaterial extends Material {
+  shareId: number
+  sharedFrom: number
+  sharedFromGroupName: string
+  sharedTo: number
+  sharedToGroupName: string
+  sharedBy: number
+  sharedByUserName: string
+  sharedTime: string
+  resourceType: number
 } 
