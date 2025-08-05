@@ -119,7 +119,7 @@ const navigationItems = [
     title: "素材管理",
     icon: FileText,
     items: [
-      { title: "文件浏览", path: "/dashboard/file-management", icon: Folder },
+      { title: "素材浏览", path: "/dashboard/file-management", icon: Folder },
       { title: "文件上传", path: "/dashboard/file-management/upload", icon: Upload },
       { title: "转码管理", path: "/dashboard/file-management/transcode", icon: RotateCcw },
       { title: "存储统计", path: "/dashboard/file-management/storage", icon: HardDrive },

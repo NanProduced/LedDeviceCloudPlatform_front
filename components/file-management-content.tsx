@@ -14,6 +14,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { MaterialTree } from "@/components/ui/material-tree"
 import MaterialAPI from "@/lib/api/material" 
 import MaterialTreeAdapter from "@/lib/utils/materialTreeAdapter"
@@ -32,6 +34,7 @@ import {
   MoreHorizontal,
   FolderPlus,
   Loader2,
+  HelpCircle,
 } from "lucide-react"
 
 // 现在使用真实的API数据，不再需要模拟数据
@@ -57,17 +60,30 @@ const getNodeDisplayName = (nodeId: string) => {
 }
 
 export default function FileManagementContent() {
-  const [selectedNode, setSelectedNode] = useState<string>("all")
-  const [selectedFolderName, setSelectedFolderName] = useState("全部素材")
+  const [selectedNode, setSelectedNode] = useState<string>("")
+  const [selectedFolderName, setSelectedFolderName] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [materials, setMaterials] = useState<(Material | SharedMaterial)[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>("")
+  const [includeSub, setIncludeSub] = useState<boolean>(false)
+  const [showIncludeSubOption, setShowIncludeSubOption] = useState<boolean>(false)
+  const [initializing, setInitializing] = useState<boolean>(true)
 
   const handleNodeSelect = async (nodeId: string) => {
     setSelectedNode(nodeId)
     setSelectedFolderName(getNodeDisplayName(nodeId))
-    await loadMaterials(nodeId)
+    
+    // 根据节点类型判断是否显示includeSub选项并加载材料
+    try {
+      const { apiType } = MaterialTreeAdapter.getApiCallParams(nodeId)
+      setShowIncludeSubOption(apiType === 'user' || apiType === 'public' || apiType === 'shared')
+      await loadMaterials(nodeId)
+    } catch (error) {
+      console.error('API参数解析失败:', error)
+      const errorMsg = error instanceof Error ? error.message : '未知错误'
+      setError(`无法处理节点选择: ${errorMsg}`)
+    }
   }
 
   const handleError = (errorMessage: string) => {
@@ -89,13 +105,13 @@ export default function FileManagementContent() {
           materialList = await MaterialAPI.listAllMaterials()
           break
         case 'user':
-          materialList = await MaterialAPI.listUserMaterials(params.ugid, params.fid, params.includeSub)
+          materialList = await MaterialAPI.listUserMaterials(params.ugid, params.fid, includeSub)
           break
         case 'public':
-          materialList = await MaterialAPI.listPublicMaterials(params.fid, params.includeSub)
+          materialList = await MaterialAPI.listPublicMaterials(params.fid, includeSub)
           break
         case 'shared':
-          materialList = await MaterialAPI.listSharedMaterials(params.fid, params.includeSub)
+          materialList = await MaterialAPI.listSharedMaterials(params.fid, includeSub)
           break
         default:
           throw new Error(`不支持的API类型: ${apiType}`)
@@ -112,10 +128,46 @@ export default function FileManagementContent() {
     }
   }
 
-  // 初始化时加载全部素材
+  // 初始化默认选择用户组根目录
   useEffect(() => {
-    loadMaterials("all")
+    const initializeDefault = async () => {
+      try {
+        setInitializing(true)
+        setError("")
+        
+        // 获取素材树数据来确定默认选择的用户组
+        const treeData = await MaterialAPI.initMaterialTree()
+        
+        // 默认选择用户组根目录（rootUserGroupNode本身）
+        if (treeData.rootUserGroupNode) {
+          const rootUserGroupId = `group-${treeData.rootUserGroupNode.ugid}`
+          const rootUserGroupName = treeData.rootUserGroupNode.groupName
+          
+          setSelectedNode(rootUserGroupId)
+          setSelectedFolderName(rootUserGroupName)
+          setShowIncludeSubOption(true) // 用户组需要显示includeSub选项
+          
+          // 加载该用户组的素材
+          await loadMaterials(rootUserGroupId)
+        }
+      } catch (error) {
+        console.error('Failed to initialize default selection:', error)
+        const errorMsg = error instanceof Error ? error.message : '未知错误'
+        setError(`初始化失败: ${errorMsg}`)
+      } finally {
+        setInitializing(false)
+      }
+    }
+    
+    initializeDefault()
   }, [])
+  
+  // 当includeSub状态变化时重新加载素材
+  useEffect(() => {
+    if (selectedNode && !initializing) {
+      loadMaterials(selectedNode)
+    }
+  }, [includeSub])
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -196,14 +248,45 @@ export default function FileManagementContent() {
           </CardHeader>
           <CardContent>
             {/* 搜索栏 */}
-            <div className="relative mb-6">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-                placeholder="搜索文件..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-              />
+            <div className="space-y-3 mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input
+                  placeholder="搜索文件..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                />
+              </div>
+              
+              {/* 是否包含子组勾选框 */}
+              {showIncludeSubOption && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="include-sub"
+                      checked={includeSub}
+                      onCheckedChange={(checked) => setIncludeSub(checked as boolean)}
+                    />
+                    <label
+                      htmlFor="include-sub"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      是否包含子组
+                    </label>
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="w-4 h-4 text-slate-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>勾选后将查询当前组及其所有子组下的素材文件</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              )}
             </div>
 
             {/* 错误提示 */}

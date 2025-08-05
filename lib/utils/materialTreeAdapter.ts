@@ -11,7 +11,7 @@ export class MaterialTreeAdapter {
   static transformMaterialTree(apiData: MaterialNodeTreeResponse): MaterialTreeNode[] {
     const result: MaterialTreeNode[] = []
 
-    // 1. 添加"全部素材"根节点
+    // 1. 添加"全部素材"根节点（独立节点，不包含用户组）
     const allNode: MaterialTreeNode = {
       id: 'all',
       name: '全部素材',
@@ -19,59 +19,55 @@ export class MaterialTreeAdapter {
       icon: 'folder',
       children: []
     }
-
-    // 转换用户组节点
-    if (apiData.rootUserGroupNode) {
-      const groupChildren = this.transformGroupNode(apiData.rootUserGroupNode)
-      allNode.children.push(...groupChildren)
-    }
-
     result.push(allNode)
 
-    // 2. 添加公共资源组节点
-    if (apiData.publicFolders && apiData.publicFolders.length > 0) {
-      const publicNode: MaterialTreeNode = {
-        id: 'public',
-        name: '公共素材组',
-        type: 'PUBLIC',
-        icon: 'globe',
-        children: []
-      }
+    // 2. 直接添加用户组根节点（不创建额外容器）
+    if (apiData.rootUserGroupNode) {
+      const rootGroupNode = this.transformSingleGroupNode(apiData.rootUserGroupNode)
+      result.push(rootGroupNode)
+    }
 
+    // 3. 添加公共资源组节点（始终显示，即使为空）
+    const publicNode: MaterialTreeNode = {
+      id: 'public',
+      name: '公共资源组',
+      type: 'PUBLIC',
+      icon: 'globe',
+      children: []
+    }
+
+    if (apiData.publicFolders && apiData.publicFolders.length > 0) {
       publicNode.children = apiData.publicFolders.map(folder => 
         this.transformFolderToTreeNode(folder, 'NORMAL')
       )
-
-      result.push(publicNode)
     }
 
-    // 3. 添加分享文件夹节点
-    if (apiData.sharedFolders && apiData.sharedFolders.length > 0) {
-      const sharedNode: MaterialTreeNode = {
-        id: 'shared',
-        name: '分享文件夹',
-        type: 'SHARED',
-        icon: 'share',
-        children: []
-      }
+    result.push(publicNode)
 
+    // 4. 添加分享文件夹节点（始终显示，即使为空）
+    const sharedNode: MaterialTreeNode = {
+      id: 'shared',
+      name: '分享文件夹',
+      type: 'SHARED',
+      icon: 'share',
+      children: []
+    }
+
+    if (apiData.sharedFolders && apiData.sharedFolders.length > 0) {
       sharedNode.children = apiData.sharedFolders.map(folder => 
         this.transformFolderToTreeNode(folder, 'SHARED_FOLDER')
       )
-
-      result.push(sharedNode)
     }
+
+    result.push(sharedNode)
 
     return result
   }
 
   /**
-   * 转换用户组节点（递归）
+   * 转换单个用户组节点（包含文件夹和子用户组）
    */
-  private static transformGroupNode(groupNode: GroupNode): MaterialTreeNode[] {
-    const result: MaterialTreeNode[] = []
-
-    // 转换当前用户组
+  private static transformSingleGroupNode(groupNode: GroupNode): MaterialTreeNode {
     const treeNode: MaterialTreeNode = {
       id: `group-${groupNode.ugid}`,
       name: groupNode.groupName,
@@ -90,17 +86,22 @@ export class MaterialTreeAdapter {
       treeNode.children.push(...folderChildren)
     }
 
-    result.push(treeNode)
-
     // 递归处理子用户组
     if (groupNode.children && groupNode.children.length > 0) {
-      for (const childGroup of groupNode.children) {
-        const childNodes = this.transformGroupNode(childGroup)
-        result.push(...childNodes)
-      }
+      const childGroupNodes = groupNode.children.map(childGroup => 
+        this.transformSingleGroupNode(childGroup)
+      )
+      treeNode.children.push(...childGroupNodes)
     }
 
-    return result
+    return treeNode
+  }
+
+  /**
+   * 转换用户组节点（递归）- 保持兼容性
+   */
+  private static transformGroupNode(groupNode: GroupNode): MaterialTreeNode[] {
+    return [this.transformSingleGroupNode(groupNode)]
   }
 
   /**

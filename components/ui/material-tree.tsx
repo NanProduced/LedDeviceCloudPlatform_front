@@ -27,6 +27,7 @@ const getNodeIcon = (node: MaterialTreeNode, isExpanded: boolean) => {
   switch (node.type) {
     case "ALL":
       return isExpanded ? <FolderOpen className="w-4 h-4" /> : <Folder className="w-4 h-4" />
+
     case "GROUP":
       return <Building className="w-4 h-4" />
     case "PUBLIC":
@@ -44,6 +45,7 @@ const getNodeStyle = (node: MaterialTreeNode) => {
   switch (node.type) {
     case "ALL":
       return "text-blue-600 font-medium"
+
     case "GROUP":
       if (node.isVirtual) {
         return "text-gray-500 italic"
