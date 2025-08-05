@@ -18,17 +18,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
+
 import {
   Monitor,
   Search,
@@ -55,8 +47,9 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react"
-import { useEffect, useCallback } from "react"
+import { useEffect, useCallback, useMemo } from "react"
 import { terminalApi, type Terminal as ApiTerminal, type TerminalGroupTreeNode } from "@/lib/api/terminal"
+import DeviceDetailDialog, { type DeviceDetailInfo } from "@/components/DeviceDetailDialog"
 
 // 清除模拟数据，现在使用真实API
 
@@ -394,6 +387,90 @@ export default function DeviceManagementContent() {
   const [selectedTerminalDetail, setSelectedTerminalDetail] = useState<Terminal | null>(null)
   const [isTerminalDetailOpen, setIsTerminalDetailOpen] = useState(false)
 
+  // 生成设备详细信息（包含模拟的扩展数据）
+  const generateDeviceDetailInfo = (terminal: Terminal): DeviceDetailInfo => {
+    return {
+      // 基础设备信息
+      tid: terminal.tid,
+      terminalName: terminal.terminalName,
+      description: terminal.description,
+      terminalModel: terminal.terminalModel,
+      tgName: terminal.tgName,
+      firmwareVersion: terminal.firmwareVersion,
+      serialNumber: terminal.serialNumber,
+      onlineStatus: terminal.onlineStatus,
+      createdAt: terminal.createdAt,
+      updatedAt: terminal.updatedAt,
+
+      // 设备配置信息
+      display: {
+        resolution: ["1920x1080", "3840x2160", "2560x1440", "1366x768"][Math.floor(Math.random() * 4)],
+        width: 256,
+        height: 256,
+        brightness: Math.floor(Math.random() * 100),
+        contrast: Math.floor(Math.random() * 100),
+        colorTemperature: [5000, 6500, 7500, 9300][Math.floor(Math.random() * 4)]
+      },
+
+      // 存储信息
+      storage: {
+        totalSpace: [32, 64, 128, 256, 512][Math.floor(Math.random() * 5)],
+        usedSpace: 0,
+        freeSpace: 0,
+        usagePercentage: Math.floor(Math.random() * 80) + 10 // 10-90%
+      },
+
+      // 系统设置
+      system: {
+        timezone: "UTC+08:00 北京时间",
+        language: "简体中文",
+        autoRestart: Math.random() > 0.5,
+        volume: Math.floor(Math.random() * 100),
+        runTime: Math.floor(Math.random() * 8760) // 0-8760小时（一年）
+      },
+
+      // 网络信息
+      network: {
+        connectionStatus: terminal.onlineStatus === 1 ? "COMPLETED" : "DISCONNECTED",
+        speed: terminal.onlineStatus === 1 ? "100Mbps" : "0Mbps",
+        state: terminal.onlineStatus === 1 ? "UP" : "DOWN",
+        ipAddress: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+        subnetMask: "255.255.255.0",
+        macAddress: Array.from({length: 6}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join(':'),
+        gateway: "192.168.1.1",
+        dns: "8.8.8.8"
+      },
+
+      // 当前播放内容
+      content: {
+        currentProgram: Math.random() > 0.3 ? {
+          programId: Math.floor(Math.random() * 1000),
+          programName: ["企业宣传片", "产品展示", "新闻资讯", "广告推广", "欢迎信息"][Math.floor(Math.random() * 5)],
+          thumbnail: `https://picsum.photos/320/180?random=${terminal.tid}`,
+          duration: 120,
+          progress: Math.floor(Math.random() * 100)
+        } : undefined,
+        playlist: Array.from({length: Math.floor(Math.random() * 6)}, (_, i) => ({
+          id: i + 1,
+          name: ["宣传视频", "产品介绍", "公司文化", "新闻播报", "广告片", "培训视频"][Math.floor(Math.random() * 6)],
+          type: ["视频", "图片", "音频"][Math.floor(Math.random() * 3)],
+          size: `${(Math.random() * 500 + 10).toFixed(1)}MB`,
+          source: "Internet",
+          addTime: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
+        }))
+      }
+    }
+  }
+
+  // 计算存储使用情况
+  const deviceDetailInfo = useMemo(() => {
+    if (!selectedTerminalDetail) return null
+    const info = generateDeviceDetailInfo(selectedTerminalDetail)
+    info.storage.usedSpace = Math.floor(info.storage.totalSpace * info.storage.usagePercentage / 100)
+    info.storage.freeSpace = info.storage.totalSpace - info.storage.usedSpace
+    return info
+  }, [selectedTerminalDetail])
+
   // 加载终端组树
   const loadTerminalGroupTree = async () => {
     try {
@@ -696,80 +773,10 @@ export default function DeviceManagementContent() {
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{selectedGroupName} 组的设备信息</p>
               </div>
                              <div className="flex items-center gap-2">
-                 <Dialog open={isCreateTerminalOpen} onOpenChange={setIsCreateTerminalOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="gap-2">
-                      <Plus className="w-4 h-4" />
-                      添加设备
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>创建终端设备</DialogTitle>
-                      <DialogDescription>在 {selectedGroupName} 组下创建新终端设备</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="terminalName">设备名称</Label>
-                        <Input
-                          id="terminalName"
-                          value={newTerminal.terminalName}
-                          onChange={(e) => setNewTerminal({ ...newTerminal, terminalName: e.target.value })}
-                          placeholder="请输入设备名称"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="description">设备描述</Label>
-                        <Input
-                          id="description"
-                          value={newTerminal.description}
-                          onChange={(e) => setNewTerminal({ ...newTerminal, description: e.target.value })}
-                          placeholder="请输入设备描述"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="terminalAccount">设备账号</Label>
-                        <Input
-                          id="terminalAccount"
-                          value={newTerminal.terminalAccount}
-                          onChange={(e) => setNewTerminal({ ...newTerminal, terminalAccount: e.target.value })}
-                          placeholder="请输入设备账号"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="terminalPassword">设备密码</Label>
-                        <Input
-                          id="terminalPassword"
-                          type="password"
-                          value={newTerminal.terminalPassword}
-                          onChange={(e) => setNewTerminal({ ...newTerminal, terminalPassword: e.target.value })}
-                          placeholder="请输入设备密码"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="terminalModel">设备型号</Label>
-                        <Select value={newTerminal.terminalModel} onValueChange={(value) => setNewTerminal({ ...newTerminal, terminalModel: value })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="选择设备型号" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {terminalModelOptions.map((model) => (
-                              <SelectItem key={model.value} value={model.value}>
-                                {model.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsCreateTerminalOpen(false)}>
-                        取消
-                      </Button>
-                      <Button onClick={handleCreateTerminal}>创建</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                 <Button size="sm" className="gap-2" onClick={() => setIsCreateTerminalOpen(true)}>
+                  <Plus className="w-4 h-4" />
+                  添加设备
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -1073,69 +1080,11 @@ export default function DeviceManagementContent() {
             )}
 
             {/* Terminal Detail Dialog */}
-            <Dialog open={isTerminalDetailOpen} onOpenChange={setIsTerminalDetailOpen}>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                      <Monitor className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">{selectedTerminalDetail?.terminalName}</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {selectedTerminalDetail?.description}
-                      </p>
-                    </div>
-                  </DialogTitle>
-                </DialogHeader>
-                {selectedTerminalDetail && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600 dark:text-slate-400">设备ID</Label>
-                        <p className="mt-1">{selectedTerminalDetail.tid}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600 dark:text-slate-400">所属组</Label>
-                        <p className="mt-1">{selectedTerminalDetail.tgName}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600 dark:text-slate-400">设备型号</Label>
-                        <p className="mt-1">{selectedTerminalDetail.terminalModel}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600 dark:text-slate-400">序列号</Label>
-                        <p className="mt-1 font-mono">{selectedTerminalDetail.serialNumber}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600 dark:text-slate-400">固件版本</Label>
-                        <p className="mt-1">{selectedTerminalDetail.firmwareVersion}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600 dark:text-slate-400">创建时间</Label>
-                        <p className="mt-1">{new Date(selectedTerminalDetail.createdAt).toLocaleString("zh-CN")}</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium text-slate-600 dark:text-slate-400">在线状态</Label>
-                      <div className="mt-2">
-                        {getOnlineStatusBadge(selectedTerminalDetail.onlineStatus)}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsTerminalDetailOpen(false)}>
-                    关闭
-                  </Button>
-                  <Button className="gap-2">
-                    <Edit className="w-4 h-4" />
-                    编辑设备
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <DeviceDetailDialog 
+              device={deviceDetailInfo}
+              open={isTerminalDetailOpen}
+              onOpenChange={setIsTerminalDetailOpen}
+            />
           </CardContent>
         </Card>
       </div>
