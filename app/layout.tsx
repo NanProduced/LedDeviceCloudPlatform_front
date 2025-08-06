@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/contexts/UserContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { WebSocketProvider } from "@/components/websocket/WebSocketProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,18 @@ export default function RootLayout({
       >
         <LanguageProvider>
           <UserProvider>
-            {children}
+            <WebSocketProvider 
+              config={{
+                brokerURL: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://192.168.1.222:8082/ws',
+                reconnectDelay: 3000,
+                maxReconnectAttempts: 5,
+                debug: process.env.NODE_ENV === 'development',
+              }}
+              enableDebug={process.env.NODE_ENV === 'development'}
+              showConnectionStatus={true}
+            >
+              {children}
+            </WebSocketProvider>
           </UserProvider>
         </LanguageProvider>
       </body>
