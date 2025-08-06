@@ -333,13 +333,16 @@ export default function FileManagementContent() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* 素材树 */}
         <Card className="lg:col-span-1 border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Folder className="w-5 h-5 text-blue-600" />
               素材分类
             </CardTitle>
+            <CardDescription className="text-sm text-slate-500 mt-1">
+              按组织结构浏览和管理素材文件
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="pt-2 space-y-2">
             <MaterialTree 
               selectedNode={selectedNode}
               onNodeSelect={handleNodeSelect}

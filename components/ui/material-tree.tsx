@@ -92,17 +92,25 @@ const TreeNodeComponent = ({
 
   const handleSelect = () => {
     onNodeSelect(node.id)
-    if (hasChildren && !isExpanded) {
-      onToggleExpand(node.id)
-    }
+    // 完全移除自动展开逻辑，避免选择节点时意外触发展开/折叠
+    // 用户需要明确点击展开/折叠按钮来控制节点状态
   }
+
+  // 判断是否为根节点
+  const isRootNode = level === 0
 
   return (
     <div>
       <div
         className={cn(
-          "flex items-center py-2 px-3 hover:bg-gray-50 cursor-pointer rounded-md mx-1",
-          isSelected && "bg-blue-50 border border-blue-200",
+          "flex items-center cursor-pointer rounded-md mx-1",
+          // 根节点样式：更大的内边距、更强的视觉效果
+          isRootNode 
+            ? "py-3 px-4 hover:bg-gray-100" 
+            : "py-2 px-3 hover:bg-gray-50",
+          isSelected && (isRootNode 
+            ? "bg-blue-100 border-2 border-blue-300 shadow-sm" 
+            : "bg-blue-50 border border-blue-200"),
           level > 0 && "ml-2",
         )}
         style={{ paddingLeft: `${level * 12 + 6}px` }}
@@ -111,17 +119,29 @@ const TreeNodeComponent = ({
         {hasChildren ? (
           <button
             onClick={handleToggle}
-            className="flex items-center justify-center w-4 h-4 mr-1 hover:bg-gray-200 rounded"
+            className={cn(
+              "flex items-center justify-center mr-1 hover:bg-gray-200 rounded",
+              isRootNode ? "w-5 h-5" : "w-4 h-4"
+            )}
           >
-            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            {isExpanded ? (
+              <ChevronDown className={cn(isRootNode ? "w-4 h-4" : "w-3 h-3")} />
+            ) : (
+              <ChevronRight className={cn(isRootNode ? "w-4 h-4" : "w-3 h-3")} />
+            )}
           </button>
         ) : (
-          <div className="w-5 mr-1" />
+          <div className={cn("mr-1", isRootNode ? "w-6" : "w-5")} />
         )}
 
         <div className="flex items-center flex-1 min-w-0">
           <div className="mr-2 flex-shrink-0">{getNodeIcon(node, isExpanded)}</div>
-          <span className={cn("text-base truncate font-medium", getNodeStyle(node))}>
+          <span className={cn(
+            "truncate font-medium", 
+            getNodeStyle(node),
+            // 根节点使用更大的字体
+            isRootNode ? "text-lg font-semibold" : "text-base"
+          )}>
             {node.name}
             {node.isVirtual && <span className="ml-1 text-xs">[虚拟节点]</span>}
             {node.sharedBy && <span className="ml-1 text-xs">({node.sharedBy})</span>}
