@@ -19,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { MaterialTree } from "@/components/ui/material-tree"
 import MaterialAPI from "@/lib/api/material" 
 import MaterialTreeAdapter from "@/lib/utils/materialTreeAdapter"
-import { Material, SharedMaterial } from "@/lib/types"
+import { Material, SharedMaterial, MaterialTreeNode } from "@/lib/types"
 import {
   Search,
   Folder,
@@ -39,29 +39,10 @@ import {
 
 // 现在使用真实的API数据，不再需要模拟数据
 
-// 素材节点名称映射
-const getNodeDisplayName = (nodeId: string) => {
-  const nodeMap: Record<string, string> = {
-    "all": "全部素材",
-    "group-1": "设备组素材A",
-    "group-2": "设备组素材B", 
-    "group-3": "虚拟设备组目录",
-    "public": "公共素材组",
-    "shared": "分享文件夹",
-    "group-1-video": "视频文件夹A",
-    "group-1-image": "图片文件夹A",
-    "group-2-audio": "音频文件夹B",
-    "public-video": "公共视频文件夹A",
-    "public-image": "公共图片文件夹B",
-    "shared-folder-1": "来自销售部的分享",
-    "shared-folder-2": "来自市场部的分享",
-  }
-  return nodeMap[nodeId] || nodeId
-}
-
 export default function FileManagementContent() {
   const [selectedNode, setSelectedNode] = useState<string>("")
   const [selectedFolderName, setSelectedFolderName] = useState("")
+  const [selectedNodeDescription, setSelectedNodeDescription] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [materials, setMaterials] = useState<(Material | SharedMaterial)[]>([])
   const [loading, setLoading] = useState<boolean>(false)
@@ -69,10 +50,44 @@ export default function FileManagementContent() {
   const [includeSub, setIncludeSub] = useState<boolean>(false)
   const [showIncludeSubOption, setShowIncludeSubOption] = useState<boolean>(false)
   const [initializing, setInitializing] = useState<boolean>(true)
+  const [treeData, setTreeData] = useState<MaterialTreeNode[]>([])
+  const [treeLoading, setTreeLoading] = useState<boolean>(true)
+
+  // 从树数据中查找节点名称
+  const findNodeInTree = (nodeId: string, nodes: MaterialTreeNode[]): MaterialTreeNode | null => {
+    for (const node of nodes) {
+      if (node.id === nodeId) {
+        return node
+      }
+      if (node.children) {
+        const found = findNodeInTree(nodeId, node.children)
+        if (found) return found
+      }
+    }
+    return null
+  }
 
   const handleNodeSelect = async (nodeId: string) => {
     setSelectedNode(nodeId)
-    setSelectedFolderName(getNodeDisplayName(nodeId))
+    
+    // 从树数据中获取真实的节点名称
+    const selectedNodeData = findNodeInTree(nodeId, treeData)
+    const nodeName = selectedNodeData?.name || nodeId
+    setSelectedFolderName(nodeName)
+    
+    // 根据节点类型设置描述
+    const nodeType = selectedNodeData?.type
+    let description = "当前文件夹中的文件列表"
+    if (nodeType === 'GROUP') {
+      description = "当前用户组下的素材文件列表"
+    } else if (nodeType === 'ALL') {
+      description = "全部素材文件列表"
+    } else if (nodeType === 'PUBLIC') {
+      description = "公共资源组中的文件列表"
+    } else if (nodeType === 'SHARED') {
+      description = "分享文件夹中的文件列表"
+    }
+    setSelectedNodeDescription(description)
     
     // 根据节点类型判断是否显示includeSub选项并加载材料
     try {
@@ -128,38 +143,43 @@ export default function FileManagementContent() {
     }
   }
 
-  // 初始化默认选择用户组根目录
+  // 初始化树数据和默认选择
   useEffect(() => {
-    const initializeDefault = async () => {
+    const initializeTreeAndDefault = async () => {
       try {
         setInitializing(true)
+        setTreeLoading(true)
         setError("")
         
-        // 获取素材树数据来确定默认选择的用户组
-        const treeData = await MaterialAPI.initMaterialTree()
+        // 获取素材树数据
+        const apiData = await MaterialAPI.initMaterialTree()
+        const transformedData = MaterialTreeAdapter.transformMaterialTree(apiData)
+        setTreeData(transformedData)
         
         // 默认选择用户组根目录（rootUserGroupNode本身）
-        if (treeData.rootUserGroupNode) {
-          const rootUserGroupId = `group-${treeData.rootUserGroupNode.ugid}`
-          const rootUserGroupName = treeData.rootUserGroupNode.groupName
+        if (apiData.rootUserGroupNode) {
+          const rootUserGroupId = `group-${apiData.rootUserGroupNode.ugid}`
+          const rootUserGroupName = apiData.rootUserGroupNode.groupName
           
           setSelectedNode(rootUserGroupId)
           setSelectedFolderName(rootUserGroupName)
+          setSelectedNodeDescription("当前用户组下的素材文件列表")
           setShowIncludeSubOption(true) // 用户组需要显示includeSub选项
           
           // 加载该用户组的素材
           await loadMaterials(rootUserGroupId)
         }
       } catch (error) {
-        console.error('Failed to initialize default selection:', error)
+        console.error('Failed to initialize tree and default selection:', error)
         const errorMsg = error instanceof Error ? error.message : '未知错误'
         setError(`初始化失败: ${errorMsg}`)
       } finally {
         setInitializing(false)
+        setTreeLoading(false)
       }
     }
     
-    initializeDefault()
+    initializeTreeAndDefault()
   }, [])
   
   // 当includeSub状态变化时重新加载素材
@@ -227,6 +247,8 @@ export default function FileManagementContent() {
               selectedNode={selectedNode}
               onNodeSelect={handleNodeSelect}
               onError={handleError}
+              treeData={treeData}
+              loading={treeLoading}
             />
 
             <Button variant="ghost" className="w-full justify-start gap-2 mt-4">
@@ -242,7 +264,7 @@ export default function FileManagementContent() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-xl">{selectedFolderName}</CardTitle>
-                <CardDescription>当前文件夹中的文件列表</CardDescription>
+                <CardDescription>{selectedNodeDescription}</CardDescription>
               </div>
             </div>
           </CardHeader>

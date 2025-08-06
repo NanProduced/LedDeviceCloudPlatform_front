@@ -21,6 +21,8 @@ interface MaterialTreeProps {
   selectedNode: string
   onNodeSelect: (nodeId: string) => void
   onError?: (error: string) => void
+  treeData?: MaterialTreeNode[]
+  loading?: boolean
 }
 
 const getNodeIcon = (node: MaterialTreeNode, isExpanded: boolean) => {
@@ -99,11 +101,11 @@ const TreeNodeComponent = ({
     <div>
       <div
         className={cn(
-          "flex items-center py-1.5 px-2 hover:bg-gray-50 cursor-pointer rounded-md mx-2",
+          "flex items-center py-2 px-3 hover:bg-gray-50 cursor-pointer rounded-md mx-1",
           isSelected && "bg-blue-50 border border-blue-200",
-          level > 0 && "ml-4",
+          level > 0 && "ml-2",
         )}
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
+        style={{ paddingLeft: `${level * 12 + 6}px` }}
         onClick={handleSelect}
       >
         {hasChildren ? (
@@ -119,7 +121,7 @@ const TreeNodeComponent = ({
 
         <div className="flex items-center flex-1 min-w-0">
           <div className="mr-2 flex-shrink-0">{getNodeIcon(node, isExpanded)}</div>
-          <span className={cn("text-sm truncate", getNodeStyle(node))}>
+          <span className={cn("text-base truncate font-medium", getNodeStyle(node))}>
             {node.name}
             {node.isVirtual && <span className="ml-1 text-xs">[虚拟节点]</span>}
             {node.sharedBy && <span className="ml-1 text-xs">({node.sharedBy})</span>}
@@ -161,12 +163,16 @@ const TreeNodeComponent = ({
   )
 }
 
-export function MaterialTree({ selectedNode, onNodeSelect, onError }: MaterialTreeProps) {
-  const [treeData, setTreeData] = useState<MaterialTreeNode[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
+export function MaterialTree({ selectedNode, onNodeSelect, onError, treeData: propTreeData, loading: propLoading }: MaterialTreeProps) {
+  const [internalTreeData, setInternalTreeData] = useState<MaterialTreeNode[]>([])
+  const [internalLoading, setInternalLoading] = useState<boolean>(true)
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
     new Set(["all", "public", "shared"]),
   )
+
+  // 使用外部传入的数据，或者内部加载数据（向后兼容）
+  const treeData = propTreeData || internalTreeData
+  const loading = propLoading !== undefined ? propLoading : internalLoading
 
   const handleToggleExpand = (nodeId: string) => {
     const newExpanded = new Set(expandedNodes)
@@ -178,14 +184,33 @@ export function MaterialTree({ selectedNode, onNodeSelect, onError }: MaterialTr
     setExpandedNodes(newExpanded)
   }
 
-  // 初始化加载树形结构数据
+  // 只有在没有外部数据时才内部加载数据（向后兼容）
   useEffect(() => {
+    if (propTreeData) {
+      // 使用外部数据时，自动展开节点
+      const firstLevelIds = propTreeData.map(node => node.id)
+      const expandedSet = new Set(firstLevelIds)
+      // 也展开用户组节点
+      propTreeData.forEach(node => {
+        if (node.type === 'ALL') {
+          node.children?.forEach(child => {
+            if (child.type === 'GROUP') {
+              expandedSet.add(child.id)
+            }
+          })
+        }
+      })
+      setExpandedNodes(expandedSet)
+      return
+    }
+
+    // 向后兼容：内部加载数据
     const loadTreeData = async () => {
       try {
-        setLoading(true)
+        setInternalLoading(true)
         const apiData = await MaterialAPI.initMaterialTree()
         const transformedData = MaterialTreeAdapter.transformMaterialTree(apiData)
-        setTreeData(transformedData)
+        setInternalTreeData(transformedData)
         
         // 自动展开第一级节点
         const firstLevelIds = transformedData.map(node => node.id)
@@ -193,7 +218,7 @@ export function MaterialTree({ selectedNode, onNodeSelect, onError }: MaterialTr
         // 也展开用户组节点
         transformedData.forEach(node => {
           if (node.type === 'ALL') {
-            node.children.forEach(child => {
+            node.children?.forEach(child => {
               if (child.type === 'GROUP') {
                 expandedSet.add(child.id)
               }
@@ -205,12 +230,12 @@ export function MaterialTree({ selectedNode, onNodeSelect, onError }: MaterialTr
         console.error('Failed to load material tree:', error)
         onError?.(`加载素材树失败: ${error instanceof Error ? error.message : '未知错误'}`)
       } finally {
-        setLoading(false)
+        setInternalLoading(false)
       }
     }
 
     loadTreeData()
-  }, [onError])
+  }, [onError, propTreeData])
 
   if (loading) {
     return (
