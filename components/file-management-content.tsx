@@ -109,7 +109,7 @@ export default function FileManagementContent() {
     
     // 根据节点类型判断是否显示includeSub选项并加载材料
     try {
-      const { apiType } = MaterialTreeAdapter.getApiCallParams(nodeId)
+      const { apiType } = MaterialTreeAdapter.getApiCallParams(nodeId, nodeType)
       setShowIncludeSubOption(apiType === 'user' || apiType === 'public' || apiType === 'shared')
       await loadMaterials(nodeId)
     } catch (error) {
@@ -129,7 +129,11 @@ export default function FileManagementContent() {
       setLoading(true)
       setError("")
       
-      const { apiType, params } = MaterialTreeAdapter.getApiCallParams(nodeId)
+      // 从树数据中获取节点类型
+      const selectedNodeData = findNodeInTree(nodeId, treeData)
+      const nodeType = selectedNodeData?.type
+      
+      const { apiType, params } = MaterialTreeAdapter.getApiCallParams(nodeId, nodeType)
       
       let materialList: (Material | SharedMaterial)[] = []
       

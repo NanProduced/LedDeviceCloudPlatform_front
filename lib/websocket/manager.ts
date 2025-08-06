@@ -9,7 +9,7 @@
  * - 错误处理
  */
 
-import { StompClient, StompSubscription } from '@stomp/stompjs';
+import { Client, StompSubscription } from '@stomp/stompjs';
 import { 
   ConnectionState, 
   WebSocketConfig, 
@@ -33,7 +33,7 @@ import {
  * WebSocket连接管理器类
  */
 export class WebSocketManager {
-  private client: StompClient | null = null;
+  private client: Client | null = null;
   private config: WebSocketConfig;
   private logger = createLogger('WebSocketManager');
   
@@ -53,8 +53,8 @@ export class WebSocketManager {
   private onMessageReceived?: (message: UnifiedMessage) => void;
   
   // 网络状态监听
-  private isOnline = navigator.onLine;
-  private isPageVisible = !document.hidden;
+  private isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  private isPageVisible = typeof document !== 'undefined' ? !document.hidden : true;
 
   constructor(config?: Partial<WebSocketConfig>) {
     this.config = { ...DEFAULT_WEBSOCKET_CONFIG, ...config };
@@ -254,7 +254,7 @@ export class WebSocketManager {
    * 创建STOMP连接
    */
   private async createConnection(): Promise<void> {
-    this.client = new StompClient({
+    this.client = new Client({
       brokerURL: this.config.brokerURL,
       connectHeaders: this.config.connectHeaders || {},
       debug: this.config.debug ? (str) => this.logger.debug('[STOMP]', str) : undefined,
@@ -429,6 +429,12 @@ export class WebSocketManager {
    * 设置网络状态监听
    */
   private setupNetworkListeners(): void {
+    // 检查是否在客户端环境
+    if (typeof window === 'undefined') {
+      this.logger.debug('Server-side environment detected, skipping network listeners setup');
+      return;
+    }
+    
     window.addEventListener('online', () => {
       this.logger.info('Network came online');
       this.isOnline = true;
@@ -442,22 +448,30 @@ export class WebSocketManager {
       }
     });
 
-    window.addEventListener('offline', () => {
-      this.logger.info('Network went offline');
-      this.isOnline = false;
-      
-      // 清除重连定时器
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
-    });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('offline', () => {
+        this.logger.info('Network went offline');
+        this.isOnline = false;
+        
+        // 清除重连定时器
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
+      });
+    }
   }
 
   /**
    * 设置页面可见性监听
    */
   private setupVisibilityListeners(): void {
+    // 检查是否在客户端环境
+    if (typeof document === 'undefined') {
+      this.logger.debug('Server-side environment detected, skipping visibility listeners setup');
+      return;
+    }
+    
     document.addEventListener('visibilitychange', () => {
       this.isPageVisible = !document.hidden;
       

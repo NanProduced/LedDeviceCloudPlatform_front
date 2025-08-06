@@ -412,23 +412,33 @@ export class SubscriptionManager {
    * 设置路由监听器（用于页面级订阅管理）
    */
   private setupRouteListener(): void {
+    // 检查是否在客户端环境
+    if (typeof window === 'undefined') {
+      this.logger.debug('Server-side environment detected, skipping route listener setup');
+      return;
+    }
+    
     // 监听浏览器历史变化
     let currentPath = window.location.pathname;
 
     const handleRouteChange = () => {
-      const newPath = window.location.pathname;
-      if (newPath !== currentPath) {
-        this.logger.debug('Route changed:', { from: currentPath, to: newPath });
-        
-        // 清理旧页面的订阅
-        this.unsubscribeForPage(currentPath);
-        
-        currentPath = newPath;
+      if (typeof window !== 'undefined') {
+        const newPath = window.location.pathname;
+        if (newPath !== currentPath) {
+          this.logger.debug('Route changed:', { from: currentPath, to: newPath });
+          
+          // 清理旧页面的订阅
+          this.unsubscribeForPage(currentPath);
+          
+          currentPath = newPath;
+        }
       }
     };
 
     // 监听popstate事件（浏览器前进后退）
-    window.addEventListener('popstate', handleRouteChange);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('popstate', handleRouteChange);
+    }
 
     // 监听pushstate和replacestate（程序化导航）
     const originalPushState = history.pushState;
@@ -461,14 +471,22 @@ export class SubscriptionManager {
     this.subscriptions.clear();
     this.autoSubscriptions.clear();
 
-    // 重新建立订阅
+    // 如果有用户登录，先设置自动订阅
+    if (this.currentUser) {
+      this.logger.info('Setting up auto subscriptions after connection');
+      await this.setupAutoSubscriptions();
+    }
+
+    // 重新建立其他订阅（排除自动订阅，因为已经在上面设置了）
     for (const subscription of subscriptionsToRestore) {
-      try {
-        await this.subscribe(subscription.destination, undefined, {
-          isAutoSubscription: subscription.isAutoSubscription
-        });
-      } catch (error) {
-        this.logger.error(`Failed to restore subscription: ${subscription.destination}`, error);
+      if (!subscription.isAutoSubscription) {
+        try {
+          await this.subscribe(subscription.destination, undefined, {
+            isAutoSubscription: subscription.isAutoSubscription
+          });
+        } catch (error) {
+          this.logger.error(`Failed to restore subscription: ${subscription.destination}`, error);
+        }
       }
     }
 

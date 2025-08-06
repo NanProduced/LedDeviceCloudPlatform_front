@@ -28,21 +28,26 @@ export class MaterialTreeAdapter {
     }
 
     // 3. 添加公共资源组节点（始终显示，即使为空）
-    const publicNode: MaterialTreeNode = {
-      id: 'public',
-      name: '公共资源组',
-      type: 'PUBLIC',
-      icon: 'globe',
-      children: []
+    console.log('处理公共资源组数据:', apiData.publicGroupNode)
+    
+    if (apiData.publicGroupNode) {
+      // 后端返回了公共资源组数据，使用转换后的节点
+      const publicGroupNode = this.transformSingleGroupNode(apiData.publicGroupNode)
+      // 修改节点类型为PUBLIC，保持原有的显示特性
+      publicGroupNode.type = 'PUBLIC'
+      publicGroupNode.icon = 'globe'
+      result.push(publicGroupNode)
+    } else {
+      // 后端没有返回数据，创建空的公共资源组节点
+      const publicNode: MaterialTreeNode = {
+        id: 'public',
+        name: '公共资源组',
+        type: 'PUBLIC',
+        icon: 'globe',
+        children: []
+      }
+      result.push(publicNode)
     }
-
-    if (apiData.publicFolders && apiData.publicFolders.length > 0) {
-      publicNode.children = apiData.publicFolders.map(folder => 
-        this.transformFolderToTreeNode(folder, 'NORMAL')
-      )
-    }
-
-    result.push(publicNode)
 
     // 4. 添加分享文件夹节点（始终显示，即使为空）
     const sharedNode: MaterialTreeNode = {
@@ -162,8 +167,10 @@ export class MaterialTreeAdapter {
 
   /**
    * 根据节点ID和类型确定应该调用哪个API来获取文件列表
+   * @param nodeId 节点ID
+   * @param nodeType 可选的节点类型，用于区分公共资源组
    */
-  static getApiCallParams(nodeId: string): {
+  static getApiCallParams(nodeId: string, nodeType?: string): {
     apiType: 'all' | 'user' | 'public' | 'shared'
     params: { ugid?: number; fid?: number; includeSub?: boolean }
   } {
@@ -174,6 +181,11 @@ export class MaterialTreeAdapter {
         return { apiType: 'all', params: {} }
       
       case 'group':
+        // 如果nodeType是PUBLIC，说明这是公共资源组节点
+        if (nodeType === 'PUBLIC') {
+          return { apiType: 'public', params: { includeSub: false } }
+        }
+        // 否则是普通用户组
         return { 
           apiType: 'user', 
           params: { ugid: parsed.ugid, includeSub: false } 

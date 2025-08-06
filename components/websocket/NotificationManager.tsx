@@ -219,6 +219,11 @@ export function NotificationManager({
       case Level.ERROR:
         await showModalNotification(message, notificationItem);
         break;
+      case Level.IGNORE:
+        // 忽略级别的消息不显示UI，只记录日志
+        logger.debug('Message with IGNORE level received:', message.messageId, message.messageType);
+        // 直接返回，不添加到通知列表
+        return;
       default:
         logger.warn('Unknown message level:', message.level);
         await showToastNotification(message, notificationItem);

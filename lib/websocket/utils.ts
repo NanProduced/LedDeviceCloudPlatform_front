@@ -31,43 +31,56 @@ import {
 // ========== 消息验证函数 ==========
 
 /**
- * 验证消息是否符合UnifiedMessage格式
+ * 验证并规范化消息格式
+ * 对于不完整的消息，尝试自动补充缺失字段
  */
 export function validateMessage(message: any): message is UnifiedMessage {
   if (!message || typeof message !== 'object') {
     return false;
   }
 
-  // 检查必填字段
-  const requiredFields = ['messageId', 'timestamp', 'oid', 'messageType', 'level'];
-  for (const field of requiredFields) {
-    if (!message[field]) {
-      return false;
+  // 自动补充缺失的必填字段
+  if (!message.messageId) {
+    message.messageId = generateMessageId();
+  }
+
+  if (!message.timestamp) {
+    message.timestamp = new Date().toISOString();
+  }
+
+  if (typeof message.oid !== 'number') {
+    // 如果oid不是数字，尝试转换
+    if (typeof message.oid === 'string' && !isNaN(Number(message.oid))) {
+      message.oid = Number(message.oid);
+    } else {
+      message.oid = 0; // 默认值
     }
   }
 
-  // 验证枚举值
+  if (!message.messageType) {
+    message.messageType = MessageType.SYSTEM_NOTIFICATION; // 默认类型
+  }
+
+  if (!message.level) {
+    message.level = Level.INFO; // 默认级别
+  }
+
+  // 验证messageType是否在我们的枚举中，如果不在，使用默认值
   if (!Object.values(MessageType).includes(message.messageType)) {
-    return false;
+    console.warn(`Unknown messageType: ${message.messageType}, using SYSTEM_NOTIFICATION`);
+    message.messageType = MessageType.SYSTEM_NOTIFICATION;
   }
 
+  // 验证level是否在我们的枚举中，如果不在，使用默认值
   if (!Object.values(Level).includes(message.level)) {
-    return false;
-  }
-
-  // 验证时间戳格式
-  if (!isValidISODate(message.timestamp)) {
-    return false;
-  }
-
-  // 验证oid是数字
-  if (typeof message.oid !== 'number') {
-    return false;
+    console.warn(`Unknown level: ${message.level}, using INFO`);
+    message.level = Level.INFO;
   }
 
   // 验证优先级（如果存在）
   if (message.priority && !Object.values(Priority).includes(message.priority)) {
-    return false;
+    console.warn(`Unknown priority: ${message.priority}, using NORMAL`);
+    message.priority = Priority.NORMAL;
   }
 
   // 验证actions数组（如果存在）

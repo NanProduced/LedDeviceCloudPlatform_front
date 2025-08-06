@@ -3,7 +3,7 @@ import { api } from '../api'
 // 材料节点树响应类型
 export interface MaterialNodeTreeResponse {
   rootUserGroupNode: GroupNode
-  publicFolders: FolderNode[]
+  publicGroupNode?: GroupNode  // 公共资源组节点（可能为空，但前端始终显示）
   sharedFolders: FolderNode[]
 }
 

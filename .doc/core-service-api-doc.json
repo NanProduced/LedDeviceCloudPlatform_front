@@ -20,12 +20,12 @@
     ],
     "tags": [
         {
-            "name": "Role(角色控制器)",
-            "description": "角色相关的所有操作"
-        },
-        {
             "name": "UserGroup(用户组控制器)",
             "description": "用户组相关的操作"
+        },
+        {
+            "name": "Realtime(实时消息控制器)",
+            "description": "实时消息相关操作"
         },
         {
             "name": "TerminalGroup(终端组控制器)",
@@ -34,18 +34,6 @@
         {
             "name": "STOMP Permission(STOMP RPC调用权限控制器)",
             "description": "STOMP主题权限验证相关操作"
-        },
-        {
-            "name": "Terminal(终端控制器)",
-            "description": "终端相关的所有操作"
-        },
-        {
-            "name": "Material(素材资源控制器)",
-            "description": "素材/文件夹相关所有操作"
-        },
-        {
-            "name": "PermissionDeny(权限拒绝管理)",
-            "description": "权限拒绝相关操作"
         },
         {
             "name": "User(用户控制器)",
@@ -60,8 +48,32 @@
             "description": "封装指令操作"
         },
         {
+            "name": "广播消息API",
+            "description": "提供广播消息查询、统计等功能"
+        },
+        {
+            "name": "广播消息管理",
+            "description": "广播消息查询、统计等功能"
+        },
+        {
             "name": "Permission(权限控制器)",
             "description": "权限相关操作"
+        },
+        {
+            "name": "Role(角色控制器)",
+            "description": "角色相关的所有操作"
+        },
+        {
+            "name": "Terminal(终端控制器)",
+            "description": "终端相关的所有操作"
+        },
+        {
+            "name": "Material(素材资源控制器)",
+            "description": "素材/文件夹相关所有操作"
+        },
+        {
+            "name": "PermissionDeny(权限拒绝管理)",
+            "description": "权限拒绝相关操作"
         }
     ],
     "paths": {
@@ -337,7 +349,145 @@
                 }
             }
         },
-        "/terminal_command/brightness": {
+        "/terminal_command/single/wakeup": {
+            "post": {
+                "tags": [
+                    "终端管理",
+                    "指令管理",
+                    "TerminalCommand(终端指令控制器)"
+                ],
+                "summary": "下发唤醒指令",
+                "description": "下发指令使设备唤醒",
+                "operationId": "wakeupCommand",
+                "parameters": [
+                    {
+                        "name": "tid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SingleCommandResult"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/terminal_command/single/volume": {
+            "post": {
+                "tags": [
+                    "终端管理",
+                    "指令管理",
+                    "TerminalCommand(终端指令控制器)"
+                ],
+                "summary": "下发音量指令",
+                "description": "下发指令调整设备音量",
+                "operationId": "volumeCommand",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SingleCommandRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SingleCommandResult"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/terminal_command/single/sleep": {
+            "post": {
+                "tags": [
+                    "终端管理",
+                    "指令管理",
+                    "TerminalCommand(终端指令控制器)"
+                ],
+                "summary": "下发休眠指令",
+                "description": "下发指令使设备进入休眠状态",
+                "operationId": "sleepCommand",
+                "parameters": [
+                    {
+                        "name": "tid",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SingleCommandResult"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/terminal_command/single/colorTemp": {
+            "post": {
+                "tags": [
+                    "终端管理",
+                    "指令管理",
+                    "TerminalCommand(终端指令控制器)"
+                ],
+                "summary": "下发色温指令",
+                "description": "下发指令调整设备色温",
+                "operationId": "colorTempCommand",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SingleCommandRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SingleCommandResult"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/terminal_command/single/brightness": {
             "post": {
                 "tags": [
                     "终端管理",
@@ -689,6 +839,40 @@
                 }
             }
         },
+        "/realtime/message/list": {
+            "post": {
+                "tags": [
+                    "通用接口",
+                    "实时消息",
+                    "Realtime(实时消息控制器)"
+                ],
+                "summary": "查询用户实时消息列表",
+                "description": "查询用户的实时消息列表",
+                "operationId": "getUserMessages",
+                "parameters": [
+                    {
+                        "name": "requestDTO",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/PageRequestDTOQueryRealtimeMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageVORealtimeMessageResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/permission-deny/remove": {
             "post": {
                 "tags": [
@@ -830,6 +1014,39 @@
                 "responses": {
                     "200": {
                         "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/broadcast/message/list": {
+            "post": {
+                "tags": [
+                    "广播消息管理",
+                    "广播消息API"
+                ],
+                "summary": "获取用户广播消息列表",
+                "description": "分页查询当前用户的广播消息，支持类型筛选和已读状态筛选",
+                "operationId": "getUserBroadcastMessages",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PageRequestDTOQueryBroadcastMessageRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageVOBroadcastMessageResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1023,6 +1240,59 @@
                             "*/*": {
                                 "schema": {
                                     "$ref": "#/components/schemas/RoleDetailResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/realtime/message/unread": {
+            "get": {
+                "tags": [
+                    "通用接口",
+                    "实时消息",
+                    "Realtime(实时消息控制器)"
+                ],
+                "summary": "查询用户未读消息（前端页面右上角消息小红点）",
+                "description": "查询用户的未读消息数量",
+                "operationId": "getUnreadCount",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "integer",
+                                    "format": "int64"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/realtime/message/count": {
+            "get": {
+                "tags": [
+                    "通用接口",
+                    "实时消息",
+                    "Realtime(实时消息控制器)"
+                ],
+                "summary": "查询用户未读消息统计(消息中心-实时消息页面统计数据卡片)",
+                "description": "查询用户的未读消息 - 按类型分类统计",
+                "operationId": "getUnreadCountMap",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
                                 }
                             }
                         }
@@ -1307,6 +1577,90 @@
                                     "items": {
                                         "$ref": "#/components/schemas/ListMaterialResponse"
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/broadcast/message/unread/count": {
+            "get": {
+                "tags": [
+                    "广播消息管理",
+                    "广播消息API"
+                ],
+                "summary": "获取用户未读广播消息数量",
+                "description": "获取当前用户未读的广播消息总数",
+                "operationId": "getUnreadCount_1",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "integer",
+                                    "format": "int64"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/broadcast/message/unread/count-by-type": {
+            "get": {
+                "tags": [
+                    "广播消息管理",
+                    "广播消息API"
+                ],
+                "summary": "按类型获取用户未读广播消息数量",
+                "description": "获取当前用户按消息类型分组的未读消息数量",
+                "operationId": "getUnreadCountByType",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/broadcast/message/detail/{messageId}": {
+            "get": {
+                "tags": [
+                    "广播消息管理",
+                    "广播消息API"
+                ],
+                "summary": "获取广播消息详情",
+                "description": "根据消息ID获取广播消息的详细信息",
+                "operationId": "getMessageDetail",
+                "parameters": [
+                    {
+                        "name": "messageId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BroadcastMessageResponse"
                                 }
                             }
                         }
@@ -1610,6 +1964,17 @@
                 },
                 "description": "创建用户组请求DTO"
             },
+            "SingleCommandResult": {
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "commandId": {
+                        "type": "string"
+                    }
+                }
+            },
             "BaseCommand": {
                 "type": "object",
                 "properties": {
@@ -1623,6 +1988,7 @@
             },
             "BrightnessCommand": {
                 "type": "object",
+                "description": "亮度指令",
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/BaseCommand"
@@ -1632,6 +1998,26 @@
                         "properties": {
                             "brightness": {
                                 "type": "integer",
+                                "description": "亮度",
+                                "format": "int32"
+                            }
+                        }
+                    }
+                ]
+            },
+            "ColorTempCommand": {
+                "type": "object",
+                "description": "色温指令",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/BaseCommand"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "colorTemp": {
+                                "type": "integer",
+                                "description": "色温",
                                 "format": "int32"
                             }
                         }
@@ -1639,6 +2025,9 @@
                 ]
             },
             "SingleCommandRequest": {
+                "required": [
+                    "tid"
+                ],
                 "type": "object",
                 "properties": {
                     "tid": {
@@ -1652,21 +2041,35 @@
                             },
                             {
                                 "$ref": "#/components/schemas/BrightnessCommand"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ColorTempCommand"
+                            },
+                            {
+                                "$ref": "#/components/schemas/VolumeCommand"
                             }
                         ]
                     }
                 }
             },
-            "SingleCommandResult": {
+            "VolumeCommand": {
                 "type": "object",
-                "properties": {
-                    "success": {
-                        "type": "boolean"
+                "description": "音量指令",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/BaseCommand"
                     },
-                    "commandId": {
-                        "type": "string"
+                    {
+                        "type": "object",
+                        "properties": {
+                            "volume": {
+                                "type": "integer",
+                                "description": "音量",
+                                "format": "int32"
+                            }
+                        }
                     }
-                }
+                ]
             },
             "PageRequestDTOQueryTerminalListRequest": {
                 "type": "object",
@@ -2277,6 +2680,123 @@
                 },
                 "description": "创建角色请求DTO"
             },
+            "PageRequestDTOQueryRealtimeMessageRequest": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "sortField": {
+                        "type": "string"
+                    },
+                    "sortOrder": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "$ref": "#/components/schemas/QueryRealtimeMessageRequest"
+                    }
+                }
+            },
+            "QueryRealtimeMessageRequest": {
+                "type": "object",
+                "properties": {
+                    "messageType": {
+                        "type": "string",
+                        "description": "消息类型筛选项"
+                    },
+                    "onlyUnread": {
+                        "type": "boolean",
+                        "description": "是否只看未读消息"
+                    }
+                },
+                "description": "查询实时消息请求DTO"
+            },
+            "PageVORealtimeMessageResponse": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "records": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RealtimeMessageResponse"
+                        }
+                    },
+                    "hasNext": {
+                        "type": "boolean"
+                    },
+                    "hasPrevious": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "RealtimeMessageResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "用于详情查询的id"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "description": "时间戳"
+                    },
+                    "oid": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "uid": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "messageType": {
+                        "type": "string",
+                        "description": "主类型"
+                    },
+                    "subType_1": {
+                        "type": "string"
+                    },
+                    "subType_2": {
+                        "type": "string"
+                    },
+                    "level": {
+                        "type": "string",
+                        "description": "优先级"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "标题"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "消息内容"
+                    },
+                    "payload": {
+                        "type": "object",
+                        "description": "附加消息"
+                    }
+                },
+                "description": "实时消息响应类"
+            },
             "PermissionDenyRequest": {
                 "required": [
                     "method",
@@ -2423,6 +2943,166 @@
                     }
                 },
                 "description": "创建文件夹请求"
+            },
+            "PageRequestDTOQueryBroadcastMessageRequest": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "sortField": {
+                        "type": "string"
+                    },
+                    "sortOrder": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "$ref": "#/components/schemas/QueryBroadcastMessageRequest"
+                    }
+                }
+            },
+            "QueryBroadcastMessageRequest": {
+                "type": "object",
+                "properties": {
+                    "messageType": {
+                        "type": "string",
+                        "description": "消息类型筛选项"
+                    },
+                    "subType_1": {
+                        "type": "string",
+                        "description": "消息子类型筛选项"
+                    },
+                    "onlyUnread": {
+                        "type": "boolean",
+                        "description": "是否只看未读消息"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "description": "消息范围筛选项（SYSTEM/ORG）"
+                    }
+                },
+                "description": "查询广播消息请求DTO"
+            },
+            "BroadcastMessageResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "MongoDB文档ID"
+                    },
+                    "messageId": {
+                        "type": "string",
+                        "description": "消息ID"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "description": "时间戳"
+                    },
+                    "oid": {
+                        "type": "integer",
+                        "description": "组织ID",
+                        "format": "int64"
+                    },
+                    "messageType": {
+                        "type": "string",
+                        "description": "消息类型"
+                    },
+                    "subType_1": {
+                        "type": "string",
+                        "description": "消息子类型1"
+                    },
+                    "subType_2": {
+                        "type": "string",
+                        "description": "消息子类型2"
+                    },
+                    "level": {
+                        "type": "string",
+                        "description": "消息级别"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "description": "消息范围（SYSTEM/ORG）"
+                    },
+                    "targetOid": {
+                        "type": "array",
+                        "description": "目标组织列表",
+                        "items": {
+                            "type": "integer",
+                            "description": "目标组织列表",
+                            "format": "int64"
+                        }
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "消息标题"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "消息内容"
+                    },
+                    "payload": {
+                        "type": "object",
+                        "description": "附加数据"
+                    },
+                    "expiredAt": {
+                        "type": "string",
+                        "description": "过期时间",
+                        "format": "date-time"
+                    },
+                    "publisherId": {
+                        "type": "integer",
+                        "description": "发布者ID",
+                        "format": "int64"
+                    },
+                    "isRead": {
+                        "type": "boolean",
+                        "description": "用户是否已读该消息"
+                    },
+                    "readAt": {
+                        "type": "string",
+                        "description": "用户已读时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "广播消息响应类"
+            },
+            "PageVOBroadcastMessageResponse": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "records": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BroadcastMessageResponse"
+                        }
+                    },
+                    "hasNext": {
+                        "type": "boolean"
+                    },
+                    "hasPrevious": {
+                        "type": "boolean"
+                    }
+                }
             },
             "UserInfoResponse": {
                 "type": "object",
@@ -2960,12 +3640,8 @@
                     "rootUserGroupNode": {
                         "$ref": "#/components/schemas/GroupNode"
                     },
-                    "publicFolders": {
-                        "type": "array",
-                        "description": "公共资源组文件夹",
-                        "items": {
-                            "$ref": "#/components/schemas/FolderNode"
-                        }
+                    "publicRootFolder": {
+                        "$ref": "#/components/schemas/FolderNode"
                     },
                     "sharedFolders": {
                         "type": "array",

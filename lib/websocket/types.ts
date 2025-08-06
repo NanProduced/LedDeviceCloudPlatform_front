@@ -29,7 +29,11 @@ export enum MessageType {
   /** 系统通知 */
   SYSTEM_NOTIFICATION = 'SYSTEM_NOTIFICATION',
   /** 用户消息 */
-  USER_MESSAGE = 'USER_MESSAGE'
+  USER_MESSAGE = 'USER_MESSAGE',
+  /** 连接状态 */
+  CONNECTION_STATUS = 'CONNECTION_STATUS',
+  /** 主题订阅反馈 */
+  TOPIC_SUBSCRIBE_FEEDBACK = 'TOPIC_SUBSCRIBE_FEEDBACK'
 }
 
 /**
@@ -44,7 +48,9 @@ export enum Level {
   /** 警告 - 黄色Alert组件，需手动关闭 */
   WARNING = 'WARNING',
   /** 错误 - 红色Modal弹窗，必须用户确认 */
-  ERROR = 'ERROR'
+  ERROR = 'ERROR',
+  /** 忽略 - 不显示UI，仅记录日志 */
+  IGNORE = 'IGNORE'
 }
 
 /**

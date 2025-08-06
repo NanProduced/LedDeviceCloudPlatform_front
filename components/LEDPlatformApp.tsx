@@ -364,7 +364,7 @@ export const DashboardOverview = () => {
               { name: "添加用户", icon: Users, color: "bg-blue-500", path: "/dashboard/user-management" },
               { name: "设备监控", icon: Monitor, color: "bg-green-500", path: "/dashboard/monitor" },
               { name: "发送通知", icon: Bell, color: "bg-purple-500", path: "/dashboard/notifications" },
-              { name: "STOMP测试", icon: MessageSquare, color: "bg-cyan-500", path: "/dashboard/stomp-test" },
+              { name: "STOMP调试", icon: MessageSquare, color: "bg-cyan-500", path: "/dashboard/stomp-debug" },
               { name: "系统配置", icon: Settings, color: "bg-orange-500", path: "/dashboard/settings" },
               { name: "查看日志", icon: FileText, color: "bg-red-500", path: "/dashboard/audit-logs" },
                           ].map((action) => (

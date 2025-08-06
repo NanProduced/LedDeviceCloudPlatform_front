@@ -34,7 +34,7 @@ export default function RootLayout({
           <UserProvider>
             <WebSocketProvider 
               config={{
-                brokerURL: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://192.168.1.222:8082/ws',
+                brokerURL: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://192.168.1.222:8082/message-service/ws',
                 reconnectDelay: 3000,
                 maxReconnectAttempts: 5,
                 debug: process.env.NODE_ENV === 'development',

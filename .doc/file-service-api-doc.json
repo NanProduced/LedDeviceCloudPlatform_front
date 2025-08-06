@@ -1,0 +1,701 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "OpenAPI definition",
+        "version": "v0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8086",
+            "description": "Generated server url"
+        }
+    ],
+    "tags": [
+        {
+            "name": "文件上传",
+            "description": "文件上传相关接口"
+        }
+    ],
+    "paths": {
+        "/file/upload/single": {
+            "post": {
+                "tags": [
+                    "文件上传"
+                ],
+                "summary": "异步上传单个文件",
+                "description": "异步上传单个文件，立即返回任务ID",
+                "operationId": "uploadSingleAsync",
+                "parameters": [
+                    {
+                        "name": "uploadRequest",
+                        "in": "query",
+                        "description": "上传参数",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/FileUploadRequest"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "file"
+                                ],
+                                "type": "object",
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "description": "上传的文件",
+                                        "format": "binary"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskInitResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/file/upload/check-duplicate": {
+            "post": {
+                "tags": [
+                    "文件上传"
+                ],
+                "summary": "MD5文件去重检查",
+                "description": "检查文件是否已存在以实现去重",
+                "operationId": "checkFileDuplicate",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FileExistenceCheckRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FileExistenceCheckResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/file/upload/supported-types": {
+            "get": {
+                "tags": [
+                    "文件上传"
+                ],
+                "operationId": "getSupportedFileTypes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SupportedFileTypesResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/file/upload/statistics/{organizationId}": {
+            "get": {
+                "tags": [
+                    "文件上传"
+                ],
+                "summary": "获取上传统计",
+                "description": "获取组织的文件上传统计信息",
+                "operationId": "getUploadStatistics",
+                "parameters": [
+                    {
+                        "name": "organizationId",
+                        "in": "path",
+                        "description": "组织ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FileUploadStatistics"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/file/upload/progress/{taskId}": {
+            "get": {
+                "tags": [
+                    "文件上传"
+                ],
+                "operationId": "getUploadProgress",
+                "parameters": [
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "description": "上传任务ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UploadProgressResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "FileUploadRequest": {
+                "type": "object",
+                "properties": {
+                    "folderId": {
+                        "type": "string",
+                        "description": "目标文件夹ID",
+                        "example": "folder001"
+                    },
+                    "materialName": {
+                        "maxLength": 200,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "素材名称",
+                        "example": "宣传视频"
+                    },
+                    "description": {
+                        "maxLength": 500,
+                        "minLength": 0,
+                        "type": "string",
+                        "description": "文件描述",
+                        "example": "宣传视频素材"
+                    }
+                },
+                "description": "文件上传请求"
+            },
+            "TaskInitResponse": {
+                "type": "object",
+                "properties": {
+                    "taskId": {
+                        "type": "string"
+                    },
+                    "taskType": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "filename": {
+                        "type": "string"
+                    },
+                    "fileSize": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "organizationId": {
+                        "type": "string"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "estimatedDuration": {
+                        "type": "string"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "progressSubscriptionUrl": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                }
+            },
+            "FileExistenceCheckRequest": {
+                "type": "object",
+                "properties": {
+                    "md5Hash": {
+                        "type": "string"
+                    },
+                    "organizationId": {
+                        "type": "string"
+                    }
+                }
+            },
+            "FileExistenceCheckResponse": {
+                "type": "object",
+                "properties": {
+                    "exists": {
+                        "type": "boolean"
+                    },
+                    "existingFile": {
+                        "$ref": "#/components/schemas/FileUploadResponse"
+                    }
+                }
+            },
+            "FileMetadata": {
+                "type": "object",
+                "properties": {
+                    "duration": {
+                        "type": "integer",
+                        "description": "视频时长（秒）",
+                        "format": "int32",
+                        "example": 120
+                    },
+                    "width": {
+                        "type": "integer",
+                        "description": "视频宽度",
+                        "format": "int32",
+                        "example": 1920
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "视频高度",
+                        "format": "int32",
+                        "example": 1080
+                    },
+                    "frameRate": {
+                        "type": "number",
+                        "description": "帧率",
+                        "format": "double",
+                        "example": 30
+                    },
+                    "bitrate": {
+                        "type": "integer",
+                        "description": "比特率",
+                        "format": "int64",
+                        "example": 5000
+                    },
+                    "codec": {
+                        "type": "string",
+                        "description": "编码格式",
+                        "example": "H.264"
+                    },
+                    "sampleRate": {
+                        "type": "integer",
+                        "description": "音频采样率",
+                        "format": "int32",
+                        "example": 44100
+                    },
+                    "channels": {
+                        "type": "integer",
+                        "description": "音频通道数",
+                        "format": "int32",
+                        "example": 2
+                    },
+                    "dpi": {
+                        "type": "integer",
+                        "description": "图片DPI",
+                        "format": "int32",
+                        "example": 300
+                    },
+                    "colorSpace": {
+                        "type": "string",
+                        "description": "颜色空间",
+                        "example": "RGB"
+                    }
+                },
+                "description": "文件元数据"
+            },
+            "FileUploadResponse": {
+                "type": "object",
+                "properties": {
+                    "fileId": {
+                        "type": "string",
+                        "description": "文件ID",
+                        "example": "file_123456789"
+                    },
+                    "originalFilename": {
+                        "type": "string",
+                        "description": "原始文件名",
+                        "example": "video.mp4"
+                    },
+                    "fileSize": {
+                        "type": "integer",
+                        "description": "文件大小（字节）",
+                        "format": "int64",
+                        "example": 1048576
+                    },
+                    "fileType": {
+                        "type": "string",
+                        "description": "文件类型",
+                        "example": "VIDEO"
+                    },
+                    "mimeType": {
+                        "type": "string",
+                        "description": "MIME类型",
+                        "example": "video/mp4"
+                    },
+                    "md5Hash": {
+                        "type": "string",
+                        "description": "文件MD5哈希值",
+                        "example": "d41d8cd98f00b204e9800998ecf8427e"
+                    },
+                    "storagePath": {
+                        "type": "string",
+                        "description": "存储路径",
+                        "example": "/files/2024/01/video.mp4"
+                    },
+                    "accessUrl": {
+                        "type": "string",
+                        "description": "访问URL",
+                        "example": "https://cdn.example.com/files/video.mp4"
+                    },
+                    "thumbnailUrl": {
+                        "type": "string",
+                        "description": "缩略图URL",
+                        "example": "https://cdn.example.com/thumbs/video_thumb.jpg"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "上传状态",
+                        "example": "SUCCESS",
+                        "enum": [
+                            "PENDING",
+                            "UPLOADING",
+                            "SUCCESS",
+                            "FAILED",
+                            "CANCELLED"
+                        ]
+                    },
+                    "taskId": {
+                        "type": "string",
+                        "description": "上传任务ID",
+                        "example": "task_123456789"
+                    },
+                    "transcodingTaskId": {
+                        "type": "string",
+                        "description": "转码任务ID",
+                        "example": "transcode_123456789"
+                    },
+                    "uploadTime": {
+                        "type": "string",
+                        "description": "上传时间",
+                        "format": "date-time"
+                    },
+                    "metadata": {
+                        "$ref": "#/components/schemas/FileMetadata"
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "description": "错误信息"
+                    },
+                    "instantUpload": {
+                        "type": "boolean",
+                        "description": "是否为秒传（文件已存在）",
+                        "example": false
+                    }
+                },
+                "description": "文件上传响应"
+            },
+            "FileTypeInfo": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "description": "文件类型分类",
+                        "example": "VIDEO"
+                    },
+                    "extensions": {
+                        "type": "array",
+                        "description": "支持的扩展名",
+                        "items": {
+                            "type": "string",
+                            "description": "支持的扩展名"
+                        }
+                    },
+                    "mimeTypes": {
+                        "type": "array",
+                        "description": "MIME类型",
+                        "items": {
+                            "type": "string",
+                            "description": "MIME类型"
+                        }
+                    },
+                    "maxSize": {
+                        "type": "integer",
+                        "description": "最大文件大小",
+                        "format": "int64"
+                    },
+                    "supportsTranscoding": {
+                        "type": "boolean",
+                        "description": "是否支持转码"
+                    },
+                    "supportsPreview": {
+                        "type": "boolean",
+                        "description": "是否支持预览"
+                    },
+                    "supportsThumbnail": {
+                        "type": "boolean",
+                        "description": "是否支持缩略图"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "文件类型描述"
+                    }
+                },
+                "description": "文件类型信息"
+            },
+            "SupportedFileTypesResponse": {
+                "type": "object",
+                "properties": {
+                    "supportedTypes": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/FileTypeInfo"
+                        },
+                        "description": "支持的文件类型"
+                    },
+                    "sizeLimits": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "description": "文件大小限制",
+                            "format": "int64"
+                        },
+                        "description": "文件大小限制"
+                    },
+                    "transcodingFormats": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "description": "支持的转码格式",
+                            "items": {
+                                "type": "string",
+                                "description": "支持的转码格式"
+                            }
+                        },
+                        "description": "支持的转码格式"
+                    },
+                    "systemConfig": {
+                        "$ref": "#/components/schemas/SystemConfig"
+                    }
+                },
+                "description": "支持的文件类型响应"
+            },
+            "SystemConfig": {
+                "type": "object",
+                "properties": {
+                    "maxConcurrentUploads": {
+                        "type": "integer",
+                        "description": "最大并发上传数",
+                        "format": "int32"
+                    },
+                    "recommendedChunkSize": {
+                        "type": "integer",
+                        "description": "推荐分块大小",
+                        "format": "int64"
+                    },
+                    "storageStrategies": {
+                        "type": "array",
+                        "description": "支持的存储策略",
+                        "items": {
+                            "type": "string",
+                            "description": "支持的存储策略"
+                        }
+                    },
+                    "tempFileRetentionDays": {
+                        "type": "integer",
+                        "description": "临时文件保留时间",
+                        "format": "int32"
+                    },
+                    "virusScanEnabled": {
+                        "type": "boolean",
+                        "description": "是否启用病毒扫描"
+                    },
+                    "contentRecognitionEnabled": {
+                        "type": "boolean",
+                        "description": "是否启用内容识别"
+                    }
+                },
+                "description": "系统配置"
+            },
+            "FileUploadStatistics": {
+                "type": "object",
+                "properties": {
+                    "organizationId": {
+                        "type": "string"
+                    },
+                    "totalFiles": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalSize": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "todayUploads": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "thisWeekUploads": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "thisMonthUploads": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "QualityMetrics": {
+                "type": "object",
+                "properties": {
+                    "avgSpeed": {
+                        "type": "integer",
+                        "description": "平均上传速度",
+                        "format": "int64"
+                    },
+                    "maxSpeed": {
+                        "type": "integer",
+                        "description": "最大上传速度",
+                        "format": "int64"
+                    },
+                    "minSpeed": {
+                        "type": "integer",
+                        "description": "最小上传速度",
+                        "format": "int64"
+                    },
+                    "stability": {
+                        "type": "number",
+                        "description": "连接稳定性",
+                        "format": "double"
+                    },
+                    "retransmissionRate": {
+                        "type": "number",
+                        "description": "重传率",
+                        "format": "double"
+                    }
+                },
+                "description": "上传质量指标"
+            },
+            "UploadProgressResponse": {
+                "type": "object",
+                "properties": {
+                    "uploadId": {
+                        "type": "string",
+                        "description": "上传ID"
+                    },
+                    "fileName": {
+                        "type": "string",
+                        "description": "文件名"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "上传状态",
+                        "example": "UPLOADING"
+                    },
+                    "progress": {
+                        "type": "number",
+                        "description": "上传进度百分比",
+                        "format": "double"
+                    },
+                    "uploadedSize": {
+                        "type": "integer",
+                        "description": "已上传大小",
+                        "format": "int64"
+                    },
+                    "totalSize": {
+                        "type": "integer",
+                        "description": "总文件大小",
+                        "format": "int64"
+                    },
+                    "uploadSpeed": {
+                        "type": "integer",
+                        "description": "上传速度",
+                        "format": "int64"
+                    },
+                    "estimatedTimeRemaining": {
+                        "type": "integer",
+                        "description": "预计剩余时间",
+                        "format": "int64"
+                    },
+                    "uploadedChunks": {
+                        "type": "integer",
+                        "description": "已上传分块数",
+                        "format": "int32"
+                    },
+                    "totalChunks": {
+                        "type": "integer",
+                        "description": "总分块数",
+                        "format": "int32"
+                    },
+                    "failedChunks": {
+                        "type": "array",
+                        "description": "失败分块列表",
+                        "items": {
+                            "type": "integer",
+                            "description": "失败分块列表",
+                            "format": "int32"
+                        }
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "description": "上传开始时间",
+                        "format": "date-time"
+                    },
+                    "lastUpdateTime": {
+                        "type": "string",
+                        "description": "最后更新时间",
+                        "format": "date-time"
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "description": "错误信息"
+                    },
+                    "retryCount": {
+                        "type": "integer",
+                        "description": "重试次数",
+                        "format": "int32"
+                    },
+                    "qualityMetrics": {
+                        "$ref": "#/components/schemas/QualityMetrics"
+                    }
+                },
+                "description": "上传进度响应"
+            }
+        }
+    }
+}

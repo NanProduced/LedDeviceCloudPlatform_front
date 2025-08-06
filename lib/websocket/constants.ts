@@ -114,6 +114,12 @@ export const LEVEL_UI_CONFIG = {
     color: 'error',
     icon: '✕',
   },
+  [Level.IGNORE]: {
+    type: 'none' as const,
+    duration: 0, // 不显示
+    color: 'default',
+    icon: '',
+  },
 } as const;
 
 /**
@@ -151,6 +157,8 @@ export const MESSAGE_TYPE_DISPLAY_NAMES = {
   [MessageType.COMMAND_FEEDBACK]: '命令反馈',
   [MessageType.SYSTEM_NOTIFICATION]: '系统通知',
   [MessageType.USER_MESSAGE]: '用户消息',
+  [MessageType.CONNECTION_STATUS]: '连接状态',
+  [MessageType.TOPIC_SUBSCRIBE_FEEDBACK]: '订阅反馈',
 } as const;
 
 /**
