@@ -14,6 +14,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { MaterialTree } from "@/components/ui/material-tree"
@@ -52,6 +64,12 @@ export default function FileManagementContent() {
   const [initializing, setInitializing] = useState<boolean>(true)
   const [treeData, setTreeData] = useState<MaterialTreeNode[]>([])
   const [treeLoading, setTreeLoading] = useState<boolean>(true)
+  
+  // 创建文件夹对话框相关状态
+  const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState<boolean>(false)
+  const [folderName, setFolderName] = useState<string>("")
+  const [folderDescription, setFolderDescription] = useState<string>("")
+  const [creatingFolder, setCreatingFolder] = useState<boolean>(false)
 
   // 从树数据中查找节点名称
   const findNodeInTree = (nodeId: string, nodes: MaterialTreeNode[]): MaterialTreeNode | null => {
@@ -189,6 +207,81 @@ export default function FileManagementContent() {
     }
   }, [includeSub])
 
+  // 创建文件夹处理函数
+  const handleCreateFolder = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!folderName.trim()) {
+      setError("请输入文件夹名称")
+      return
+    }
+    
+    try {
+      setCreatingFolder(true)
+      setError("")
+      
+      // 根据当前选中的节点确定创建参数
+      const { apiType, params } = MaterialTreeAdapter.getApiCallParams(selectedNode)
+      
+      let createRequest: any = {
+        folderName: folderName.trim(),
+        description: folderDescription.trim() || undefined
+      }
+      
+      // 根据节点类型设置ugid或fid
+      if (apiType === 'user') {
+        if (params.fid) {
+          // 在文件夹下创建
+          createRequest.fid = params.fid
+        } else {
+          // 在用户组根目录下创建
+          createRequest.ugid = params.ugid
+        }
+      } else {
+        // 对于公共资源和分享文件夹，暂时不支持创建
+        throw new Error("当前位置不支持创建文件夹")
+      }
+      
+      await MaterialAPI.createFolder(createRequest)
+      
+      // 创建成功后重置表单并关闭对话框
+      setFolderName("")
+      setFolderDescription("")
+      setCreateFolderDialogOpen(false)
+      
+      // 刷新树结构
+      const apiData = await MaterialAPI.initMaterialTree()
+      const transformedData = MaterialTreeAdapter.transformMaterialTree(apiData)
+      setTreeData(transformedData)
+      
+      // 重新加载当前文件夹的材料列表
+      await loadMaterials(selectedNode)
+      
+    } catch (error) {
+      console.error('Failed to create folder:', error)
+      const errorMsg = error instanceof Error ? error.message : '未知错误'
+      setError(`创建文件夹失败: ${errorMsg}`)
+    } finally {
+      setCreatingFolder(false)
+    }
+  }
+
+  // 打开创建文件夹对话框
+  const handleOpenCreateFolderDialog = () => {
+    // 检查是否可以在当前位置创建文件夹
+    try {
+      const { apiType } = MaterialTreeAdapter.getApiCallParams(selectedNode)
+      if (apiType !== 'user') {
+        setError("当前位置不支持创建文件夹，请选择用户组或文件夹")
+        return
+      }
+      setError("")
+      setCreateFolderDialogOpen(true)
+    } catch (error) {
+      setError("无法在当前位置创建文件夹")
+    }
+  }
+
   const getFileIcon = (type: string) => {
     switch (type) {
       case "video":
@@ -251,10 +344,76 @@ export default function FileManagementContent() {
               loading={treeLoading}
             />
 
-            <Button variant="ghost" className="w-full justify-start gap-2 mt-4">
-              <FolderPlus className="w-4 h-4" />
-              新建文件夹
-            </Button>
+            <Dialog open={createFolderDialogOpen} onOpenChange={setCreateFolderDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start gap-2 mt-4"
+                  onClick={handleOpenCreateFolderDialog}
+                >
+                  <FolderPlus className="w-4 h-4" />
+                  新建文件夹
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <form onSubmit={handleCreateFolder}>
+                  <DialogHeader>
+                    <DialogTitle>新建文件夹</DialogTitle>
+                    <DialogDescription>
+                      在 "{selectedFolderName}" 中创建新的文件夹
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="folder-name">文件夹名称 *</Label>
+                      <Input
+                        id="folder-name"
+                        value={folderName}
+                        onChange={(e) => setFolderName(e.target.value)}
+                        placeholder="请输入文件夹名称"
+                        disabled={creatingFolder}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="folder-description">描述</Label>
+                      <Textarea
+                        id="folder-description"
+                        value={folderDescription}
+                        onChange={(e) => setFolderDescription(e.target.value)}
+                        placeholder="可选的文件夹描述"
+                        disabled={creatingFolder}
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        disabled={creatingFolder}
+                      >
+                        取消
+                      </Button>
+                    </DialogClose>
+                    <Button 
+                      type="submit" 
+                      disabled={creatingFolder || !folderName.trim()}
+                    >
+                      {creatingFolder ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          创建中...
+                        </>
+                      ) : (
+                        "创建文件夹"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
 
