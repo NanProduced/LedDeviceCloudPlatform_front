@@ -268,6 +268,12 @@ export default function ProgramManagement() {
           <Button variant="default" size="sm">
             节目列表
           </Button>
+          <Link href="/dashboard/program-editor/create">
+            <Button variant="outline" size="sm" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 hover:from-blue-600 hover:to-purple-700">
+              <Edit className="w-4 h-4" />
+              可视化编辑器
+            </Button>
+          </Link>
           <Link href="/program-management/create">
             <Button variant="outline" size="sm">
               创建节目
@@ -374,10 +380,12 @@ export default function ProgramManagement() {
                   </div>
                   <CardContent className="px-4 pb-4">
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" className="flex-1 gap-2 bg-transparent">
-                        <Edit className="w-3 h-3" />
-                        编辑
-                      </Button>
+                      <Link href={`/dashboard/program-editor/edit/${program.id}`} className="flex-1">
+                        <Button size="sm" variant="outline" className="w-full gap-2 bg-transparent">
+                          <Edit className="w-3 h-3" />
+                          编辑
+                        </Button>
+                      </Link>
                       <Button size="sm" className="flex-1 gap-2">
                         <Send className="w-3 h-3" />
                         发布
@@ -498,10 +506,12 @@ export default function ProgramManagement() {
               <Button variant="outline" onClick={() => setIsProgramDetailOpen(false)}>
                 关闭
               </Button>
-              <Button className="gap-2">
-                <Edit className="w-4 h-4" />
-                编辑节目
-              </Button>
+              <Link href={`/dashboard/program-editor/edit/${selectedProgram?.id}`}>
+                <Button className="gap-2">
+                  <Edit className="w-4 h-4" />
+                  编辑节目
+                </Button>
+              </Link>
               <Button className="gap-2">
                 <Send className="w-4 h-4" />
                 发布节目
