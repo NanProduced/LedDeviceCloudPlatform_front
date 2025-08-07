@@ -1,5 +1,5 @@
 /**
- * 任务列表内容组件
+ * 任务列表页面
  * 
  * 负责展示任务列表模块的内容，包括：
  * - 任务统计卡片
@@ -62,9 +62,9 @@ interface FilterParams {
 }
 
 /**
- * 任务列表内容组件
+ * 任务列表页面组件
  */
-export default function TaskListContent() {
+export default function TaskListPage() {
   const { 
     subscribeTaskProgress, 
     unsubscribeTaskProgress, 
@@ -360,13 +360,6 @@ export default function TaskListContent() {
     refreshData();
   }, []);
 
-  // 监听全局刷新事件
-  useEffect(() => {
-    const handleRefresh = () => refreshData();
-    window.addEventListener('refreshMessageCenter', handleRefresh);
-    return () => window.removeEventListener('refreshMessageCenter', handleRefresh);
-  }, [refreshData]);
-
   // 清理订阅
   useEffect(() => {
     return () => {
@@ -376,7 +369,15 @@ export default function TaskListContent() {
   }, [unsubscribeAllTasks]);
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
+      {/* 页面标题 */}
+      <div className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight">任务列表</h1>
+        <p className="text-muted-foreground">
+          管理和监控系统任务执行状态
+        </p>
+      </div>
+
       {/* 统计卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>

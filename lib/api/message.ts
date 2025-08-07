@@ -177,21 +177,24 @@ export class RealtimeMessageAPI {
    * 获取用户实时消息列表
    */
   static async getMessageList(params: PageRequest<QueryRealtimeMessageRequest>): Promise<PageResponse<RealtimeMessageResponse>> {
-    return api.post('/core/realtime/message/list', params);
+    const response = await api.post('/core/api/realtime/message/list', params);
+    return response.data;
   }
 
   /**
    * 获取用户未读消息数量
    */
   static async getUnreadCount(): Promise<number> {
-    return api.get('/core/realtime/message/unread');
+    const response = await api.get('/core/api/realtime/message/unread');
+    return response.data;
   }
 
   /**
    * 获取用户未读消息统计（按类型分类）
    */
   static async getUnreadCountByType(): Promise<Record<string, number>> {
-    return api.get('/core/realtime/message/count');
+    const response = await api.get('/core/api/realtime/message/count');
+    return response.data;
   }
 
   /**
@@ -209,7 +212,8 @@ export class RealtimeMessageAPI {
    */
   static async batchOperation(request: BatchOperationRequest): Promise<void> {
     // 待后端API提供
-    return api.post('/core/realtime/message/batch', request);
+    const response = await api.post('/core/api/realtime/message/batch', request);
+    return response.data;
   }
 }
 
@@ -224,28 +228,32 @@ export class BroadcastMessageAPI {
    * 获取用户广播消息列表
    */
   static async getMessageList(params: PageRequest<QueryBroadcastMessageRequest>): Promise<PageResponse<BroadcastMessageResponse>> {
-    return api.post('/core/broadcast/message/list', params);
+    const response = await api.post('/core/api/broadcast/message/list', params);
+    return response.data;
   }
 
   /**
    * 获取用户未读广播消息数量
    */
   static async getUnreadCount(): Promise<number> {
-    return api.get('/core/broadcast/message/unread/count');
+    const response = await api.get('/core/api/broadcast/message/unread/count');
+    return response.data;
   }
 
   /**
    * 按类型获取用户未读广播消息数量
    */
   static async getUnreadCountByType(): Promise<Record<string, number>> {
-    return api.get('/core/broadcast/message/unread/count-by-type');
+    const response = await api.get('/core/api/broadcast/message/unread/count-by-type');
+    return response.data;
   }
 
   /**
    * 获取广播消息详情
    */
   static async getMessageDetail(messageId: string): Promise<BroadcastMessageResponse> {
-    return api.get(`/core/broadcast/message/detail/${messageId}`);
+    const response = await api.get(`/core/api/broadcast/message/detail/${messageId}`);
+    return response.data;
   }
 
   /**
@@ -261,7 +269,8 @@ export class BroadcastMessageAPI {
    */
   static async batchOperation(request: BatchOperationRequest): Promise<void> {
     // 待后端API提供
-    return api.post('/core/broadcast/message/batch', request);
+    const response = await api.post('/core/api/broadcast/message/batch', request);
+    return response.data;
   }
 }
 

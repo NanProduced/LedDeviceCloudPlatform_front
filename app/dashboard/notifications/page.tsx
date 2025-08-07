@@ -1,5 +1,5 @@
 /**
- * 广播通知内容组件
+ * 广播通知页面
  * 
  * 负责展示广播通知模块的内容，包括：
  * - 通知统计卡片
@@ -58,9 +58,9 @@ interface FilterParams {
 }
 
 /**
- * 广播通知内容组件
+ * 广播通知页面组件
  */
-export default function BroadcastNotificationsContent() {
+export default function NotificationsPage() {
   const { acknowledgeMessage, batchAcknowledgeMessages, isConnected } = useMessageCenterWebSocket();
   
   // 状态管理
@@ -315,15 +315,16 @@ export default function BroadcastNotificationsContent() {
     refreshData();
   }, []);
 
-  // 监听全局刷新事件
-  useEffect(() => {
-    const handleRefresh = () => refreshData();
-    window.addEventListener('refreshMessageCenter', handleRefresh);
-    return () => window.removeEventListener('refreshMessageCenter', handleRefresh);
-  }, [refreshData]);
-
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
+      {/* 页面标题 */}
+      <div className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight">广播通知</h1>
+        <p className="text-muted-foreground">
+          管理和查看系统广播通知
+        </p>
+      </div>
+
       {/* 统计卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
