@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -20,57 +21,239 @@ import {
   Type, 
   Eye,
   Layers,
-  Clock
+  Clock,
+  Image,
+  Video,
+  Globe,
+  Thermometer,
+  ArrowUp,
+  ArrowDown,
+  Maximize,
+  MoreHorizontal
 } from 'lucide-react';
+
+import { fabric } from 'fabric';
+import { useEditorStore } from '../managers/editor-state-manager';
+import { useMaterialStore } from '../managers/material-ref-manager';
+import { 
+  ItemType, 
+  EditorItem, 
+  ItemProperties,
+  MaterialReference,
+  ITEM_TYPE_MAP
+} from '../types';
 
 interface PropertyPanelProps {
   className?: string;
-  selectedObjects?: any[]; // Fabric.js 对象数组
+  selectedObjects?: fabric.Object[]; // Fabric.js 对象数组
 }
 
-// 模拟选中的对象数据
-const MOCK_SELECTED_OBJECT = {
-  id: 'obj_1',
-  type: 'text',
-  name: '文本对象',
-  properties: {
-    left: 100,
-    top: 50,
-    width: 200,
-    height: 40,
-    angle: 0,
-    opacity: 1,
-    visible: true,
-    // 文本特有属性
-    text: '示例文本',
-    fontSize: 24,
-    fontFamily: 'Arial',
-    fontWeight: 'normal',
-    textColor: '#000000',
-    textAlign: 'left',
-    // 素材属性
-    materialId: null,
-    duration: 5000,
-    zIndex: 1
-  }
-};
+// 字体选项
+const FONT_OPTIONS = [
+  { value: 'Arial', label: 'Arial' },
+  { value: 'Microsoft YaHei', label: '微软雅黑' },
+  { value: 'SimHei', label: '黑体' },
+  { value: 'SimSun', label: '宋体' },
+  { value: 'Times New Roman', label: 'Times New Roman' },
+  { value: 'Helvetica', label: 'Helvetica' },
+  { value: 'Georgia', label: 'Georgia' }
+];
+
+// 对齐方式选项
+const TEXT_ALIGN_OPTIONS = [
+  { value: 0, label: '左对齐' },
+  { value: 1, label: '居中' },
+  { value: 2, label: '右对齐' }
+];
+
+// 字体粗细选项
+const FONT_WEIGHT_OPTIONS = [
+  { value: 'normal', label: '正常' },
+  { value: 'bold', label: '粗体' },
+  { value: '100', label: '极细' },
+  { value: '300', label: '细' },
+  { value: '500', label: '中等' },
+  { value: '700', label: '粗' },
+  { value: '900', label: '极粗' }
+];
+
+// 获取对象类型图标
+function getTypeIcon(type: ItemType) {
+  const iconMap = {
+    [ItemType.IMAGE]: Image,
+    [ItemType.VIDEO]: Video,
+    [ItemType.GIF]: Image,
+    [ItemType.SINGLE_LINE_TEXT]: Type,
+    [ItemType.MULTI_LINE_TEXT]: Type,
+    [ItemType.SINGLE_COLUMN_TEXT]: Type,
+    [ItemType.WEB_STREAM]: Globe,
+    [ItemType.CLOCK]: Clock,
+    [ItemType.EXQUISITE_CLOCK]: Clock,
+    [ItemType.WEATHER]: Thermometer,
+    [ItemType.HUMIDITY]: Thermometer,
+    [ItemType.TEMPERATURE]: Thermometer,
+    [ItemType.NOISE]: Thermometer,
+    [ItemType.AIR_QUALITY]: Thermometer,
+    [ItemType.SMOKE]: Thermometer,
+    [ItemType.SENSOR_TIP]: Thermometer,
+    [ItemType.SENSOR_INITIAL]: Thermometer,
+    [ItemType.TIMER]: Clock
+  };
+  return iconMap[type] || Settings;
+}
+
+// 获取对象类型名称
+function getTypeName(type: ItemType): string {
+  return ITEM_TYPE_MAP[type]?.label || '未知对象';
+}
 
 export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanelProps) {
-  const [selectedObject, setSelectedObject] = React.useState(MOCK_SELECTED_OBJECT);
-  const hasSelection = selectedObjects.length > 0 || true; // 临时用true显示内容
+  // 状态管理
+  const {
+    selectedObjectIds,
+    currentPageIndex,
+    pages,
+    updateItemProperties,
+    updateItemPosition,
+    updateItemSize,
+    moveItemToTop,
+    moveItemToBottom,
+    moveItemUp,
+    moveItemDown,
+    getCanvas
+  } = useEditorStore();
 
-  // 更新对象属性
-  const updateProperty = (key: string, value: any) => {
-    setSelectedObject(prev => ({
-      ...prev,
-      properties: {
-        ...prev.properties,
-        [key]: value
+  const { getMaterialRef } = useMaterialStore();
+
+  // 获取当前选中的编辑器对象
+  const selectedEditorItems = useMemo(() => {
+    if (selectedObjectIds.length === 0 || !pages[currentPageIndex]) return [];
+    
+    const currentPage = pages[currentPageIndex];
+    const selectedItems: EditorItem[] = [];
+    
+    for (const region of currentPage.regions) {
+      for (const item of region.items) {
+        if (selectedObjectIds.includes(item.id)) {
+          selectedItems.push(item);
+        }
       }
-    }));
-  };
+    }
+    
+    return selectedItems;
+  }, [selectedObjectIds, pages, currentPageIndex]);
 
-  if (!hasSelection) {
+  // 获取主要选中对象（第一个）
+  const primarySelectedItem = selectedEditorItems[0];
+  const primarySelectedObject = selectedObjects[0];
+
+  // 更新Fabric.js对象属性
+  const updateFabricObjectProperty = useCallback((property: string, value: any) => {
+    if (!primarySelectedObject) return;
+
+    const canvas = getCanvas();
+    if (!canvas) return;
+
+    // 更新Fabric.js对象
+    primarySelectedObject.set(property, value);
+    canvas.renderAll();
+
+    // 同步到编辑器状态
+    if (primarySelectedItem) {
+      updateItemProperties(primarySelectedItem.id, {
+        ...primarySelectedItem.properties,
+        [property]: value
+      });
+    }
+  }, [primarySelectedObject, primarySelectedItem, updateItemProperties, getCanvas]);
+
+  // 更新编辑器对象属性
+  const updateEditorProperty = useCallback((property: string, value: any) => {
+    if (!primarySelectedItem) return;
+
+    // 更新编辑器状态
+    updateItemProperties(primarySelectedItem.id, {
+      ...primarySelectedItem.properties,
+      [property]: value
+    });
+
+    // 同步到Fabric.js对象
+    if (primarySelectedObject) {
+      const canvas = getCanvas();
+      if (canvas) {
+        // 根据属性类型进行映射
+        if (property === 'textColor') {
+          primarySelectedObject.set('fill', value);
+        } else if (property === 'font') {
+          const fontProps = value as any;
+          primarySelectedObject.set({
+            fontSize: fontProps.size,
+            fontFamily: fontProps.family,
+            fontWeight: fontProps.weight,
+            fontStyle: fontProps.italic ? 'italic' : 'normal',
+            underline: fontProps.underline || false
+          });
+        } else {
+          primarySelectedObject.set(property, value);
+        }
+        canvas.renderAll();
+      }
+    }
+  }, [primarySelectedItem, primarySelectedObject, updateItemProperties, getCanvas]);
+
+  // 位置和尺寸更新
+  const updateTransform = useCallback((property: 'left' | 'top' | 'width' | 'height' | 'angle', value: number) => {
+    if (!primarySelectedObject || !primarySelectedItem) return;
+
+    const canvas = getCanvas();
+    if (!canvas) return;
+
+    // 更新Fabric.js对象
+    primarySelectedObject.set(property, value);
+    canvas.renderAll();
+
+    // 更新编辑器状态
+    if (property === 'left' || property === 'top') {
+      updateItemPosition(primarySelectedItem.id, {
+        x: property === 'left' ? value : primarySelectedItem.position.x,
+        y: property === 'top' ? value : primarySelectedItem.position.y
+      });
+    } else if (property === 'width' || property === 'height') {
+      updateItemSize(primarySelectedItem.id, {
+        width: property === 'width' ? value : primarySelectedItem.size.width,
+        height: property === 'height' ? value : primarySelectedItem.size.height
+      });
+    }
+  }, [primarySelectedObject, primarySelectedItem, updateItemPosition, updateItemSize, getCanvas]);
+
+  // 层级操作
+  const handleLayerOperation = useCallback((operation: 'top' | 'bottom' | 'up' | 'down') => {
+    if (!primarySelectedItem) return;
+
+    switch (operation) {
+      case 'top':
+        moveItemToTop(primarySelectedItem.id);
+        break;
+      case 'bottom':
+        moveItemToBottom(primarySelectedItem.id);
+        break;
+      case 'up':
+        moveItemUp(primarySelectedItem.id);
+        break;
+      case 'down':
+        moveItemDown(primarySelectedItem.id);
+        break;
+    }
+  }, [primarySelectedItem, moveItemToTop, moveItemToBottom, moveItemUp, moveItemDown]);
+
+  // 获取素材引用
+  const materialRef = useMemo(() => {
+    if (!primarySelectedItem?.materialRef) return null;
+    return getMaterialRef(primarySelectedItem.materialRef.materialId);
+  }, [primarySelectedItem?.materialRef, getMaterialRef]);
+
+  // 没有选中对象时的空状态
+  if (selectedObjects.length === 0 && selectedEditorItems.length === 0) {
     return (
       <div className={`flex flex-col h-full ${className}`}>
         <div className="p-4 border-b">
@@ -87,17 +270,24 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
     );
   }
 
+  const TypeIcon = primarySelectedItem ? getTypeIcon(primarySelectedItem.type) : Settings;
+
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* 头部 */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold">属性面板</h2>
-          <Badge variant="secondary">{selectedObjects.length || 1} 个对象</Badge>
+          <Badge variant="secondary">{selectedEditorItems.length} 个对象</Badge>
         </div>
-        <p className="text-sm text-muted-foreground truncate">
-          {selectedObject.name}
-        </p>
+        {primarySelectedItem && (
+          <div className="flex items-center gap-2">
+            <TypeIcon className="w-4 h-4 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground truncate">
+              {primarySelectedItem.name || getTypeName(primarySelectedItem.type)}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 属性编辑区域 */}
@@ -112,6 +302,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
 
             {/* 变换属性 */}
             <TabsContent value="transform" className="space-y-4">
+              {/* 位置和大小 */}
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
@@ -126,8 +317,8 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Input
                         id="left"
                         type="number"
-                        value={selectedObject.properties.left}
-                        onChange={(e) => updateProperty('left', parseInt(e.target.value))}
+                        value={primarySelectedObject?.left || primarySelectedItem?.position.x || 0}
+                        onChange={(e) => updateTransform('left', parseInt(e.target.value) || 0)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -135,8 +326,8 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Input
                         id="top"
                         type="number"
-                        value={selectedObject.properties.top}
-                        onChange={(e) => updateProperty('top', parseInt(e.target.value))}
+                        value={primarySelectedObject?.top || primarySelectedItem?.position.y || 0}
+                        onChange={(e) => updateTransform('top', parseInt(e.target.value) || 0)}
                       />
                     </div>
                   </div>
@@ -147,8 +338,8 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Input
                         id="width"
                         type="number"
-                        value={selectedObject.properties.width}
-                        onChange={(e) => updateProperty('width', parseInt(e.target.value))}
+                        value={primarySelectedObject?.width || primarySelectedItem?.size.width || 100}
+                        onChange={(e) => updateTransform('width', parseInt(e.target.value) || 100)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -156,8 +347,8 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Input
                         id="height"
                         type="number"
-                        value={selectedObject.properties.height}
-                        onChange={(e) => updateProperty('height', parseInt(e.target.value))}
+                        value={primarySelectedObject?.height || primarySelectedItem?.size.height || 50}
+                        onChange={(e) => updateTransform('height', parseInt(e.target.value) || 50)}
                       />
                     </div>
                   </div>
@@ -165,11 +356,11 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <RotateCw className="w-4 h-4" />
-                      <Label htmlFor="angle">旋转角度: {selectedObject.properties.angle}°</Label>
+                      <Label htmlFor="angle">旋转角度: {Math.round(primarySelectedObject?.angle || 0)}°</Label>
                     </div>
                     <Slider
-                      value={[selectedObject.properties.angle]}
-                      onValueChange={([value]) => updateProperty('angle', value)}
+                      value={[primarySelectedObject?.angle || 0]}
+                      onValueChange={([value]) => updateTransform('angle', value)}
                       max={360}
                       min={-360}
                       step={1}
@@ -177,10 +368,59 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                   </div>
                 </CardContent>
               </Card>
+
+              {/* 层级控制 */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4" />
+                    <CardTitle className="text-base">层级控制</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleLayerOperation('top')}
+                    >
+                      <Maximize className="w-4 h-4 mr-1" />
+                      置顶
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleLayerOperation('bottom')}
+                    >
+                      <Maximize className="w-4 h-4 mr-1 rotate-180" />
+                      置底
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleLayerOperation('up')}
+                    >
+                      <ArrowUp className="w-4 h-4 mr-1" />
+                      上移
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleLayerOperation('down')}
+                    >
+                      <ArrowDown className="w-4 h-4 mr-1" />
+                      下移
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* 外观属性 */}
             <TabsContent value="appearance" className="space-y-4">
+              {/* 可见性和透明度 */}
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
@@ -193,16 +433,18 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                     <Label htmlFor="visible">显示对象</Label>
                     <Switch
                       id="visible"
-                      checked={selectedObject.properties.visible}
-                      onCheckedChange={(checked) => updateProperty('visible', checked)}
+                      checked={primarySelectedObject?.visible !== false}
+                      onCheckedChange={(checked) => updateFabricObjectProperty('visible', checked)}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="opacity">不透明度: {Math.round(selectedObject.properties.opacity * 100)}%</Label>
+                    <Label htmlFor="opacity">
+                      不透明度: {Math.round((primarySelectedObject?.opacity || 1) * 100)}%
+                    </Label>
                     <Slider
-                      value={[selectedObject.properties.opacity]}
-                      onValueChange={([value]) => updateProperty('opacity', value)}
+                      value={[primarySelectedObject?.opacity || 1]}
+                      onValueChange={([value]) => updateFabricObjectProperty('opacity', value)}
                       max={1}
                       min={0}
                       step={0.01}
@@ -211,125 +453,311 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4" />
-                    <CardTitle className="text-base">层级</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="zIndex">Z-Index</Label>
-                    <Input
-                      id="zIndex"
-                      type="number"
-                      value={selectedObject.properties.zIndex}
-                      onChange={(e) => updateProperty('zIndex', parseInt(e.target.value))}
-                    />
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      置顶
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      置底
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* 颜色和样式 */}
+              {primarySelectedItem && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Palette className="w-4 h-4" />
+                      <CardTitle className="text-base">颜色和样式</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* 背景色（适用于矩形等） */}
+                    {(primarySelectedItem.type === ItemType.WEB_STREAM || 
+                      primarySelectedObject?.type === 'rect') && (
+                      <div className="space-y-2">
+                        <Label htmlFor="backgroundColor">背景色</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="backgroundColor"
+                            type="color"
+                            value={primarySelectedItem.properties.backColor || '#FFFFFF'}
+                            onChange={(e) => updateEditorProperty('backColor', e.target.value)}
+                            className="w-12 h-10 p-1"
+                          />
+                          <Input
+                            value={primarySelectedItem.properties.backColor || '#FFFFFF'}
+                            onChange={(e) => updateEditorProperty('backColor', e.target.value)}
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Alpha透明度（VSN特有） */}
+                    {(primarySelectedItem.type === ItemType.IMAGE || 
+                      primarySelectedItem.type === ItemType.VIDEO ||
+                      primarySelectedItem.type === ItemType.GIF) && (
+                      <div className="space-y-2">
+                        <Label htmlFor="alpha">
+                          Alpha值: {primarySelectedItem.properties.alpha ?? 1}
+                        </Label>
+                        <Slider
+                          value={[primarySelectedItem.properties.alpha ?? 1]}
+                          onValueChange={([value]) => updateEditorProperty('alpha', value)}
+                          max={1}
+                          min={0}
+                          step={0.01}
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             {/* 内容属性 */}
             <TabsContent value="content" className="space-y-4">
-              {selectedObject.type === 'text' && (
-                <>
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-2">
-                        <Type className="w-4 h-4" />
-                        <CardTitle className="text-base">文本内容</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="text">文本</Label>
+              {/* 文本属性 */}
+              {primarySelectedItem && [ItemType.SINGLE_LINE_TEXT, ItemType.MULTI_LINE_TEXT, ItemType.SINGLE_COLUMN_TEXT].includes(primarySelectedItem.type) && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Type className="w-4 h-4" />
+                      <CardTitle className="text-base">文本内容</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="text">文本</Label>
+                      {primarySelectedItem.type === ItemType.MULTI_LINE_TEXT ? (
+                        <Textarea
+                          id="text"
+                          value={primarySelectedItem.properties.text || ''}
+                          onChange={(e) => updateEditorProperty('text', e.target.value)}
+                          placeholder="输入文本内容..."
+                          rows={3}
+                        />
+                      ) : (
                         <Input
                           id="text"
-                          value={selectedObject.properties.text}
-                          onChange={(e) => updateProperty('text', e.target.value)}
+                          value={primarySelectedItem.properties.text || ''}
+                          onChange={(e) => updateEditorProperty('text', e.target.value)}
                           placeholder="输入文本内容..."
                         />
-                      </div>
+                      )}
+                    </div>
 
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label htmlFor="fontSize">字体大小</Label>
                         <Input
                           id="fontSize"
                           type="number"
-                          value={selectedObject.properties.fontSize}
-                          onChange={(e) => updateProperty('fontSize', parseInt(e.target.value))}
+                          min="8"
+                          max="200"
+                          value={primarySelectedItem.properties.font?.size || 24}
+                          onChange={(e) => updateEditorProperty('font', {
+                            ...primarySelectedItem.properties.font,
+                            size: parseInt(e.target.value) || 24
+                          })}
                         />
                       </div>
-
                       <div className="space-y-2">
-                        <Label htmlFor="fontFamily">字体</Label>
+                        <Label htmlFor="fontWeight">字体粗细</Label>
                         <Select
-                          value={selectedObject.properties.fontFamily}
-                          onValueChange={(value) => updateProperty('fontFamily', value)}
+                          value={primarySelectedItem.properties.font?.weight || 'normal'}
+                          onValueChange={(value) => updateEditorProperty('font', {
+                            ...primarySelectedItem.properties.font,
+                            weight: value
+                          })}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Arial">Arial</SelectItem>
-                            <SelectItem value="Microsoft YaHei">微软雅黑</SelectItem>
-                            <SelectItem value="SimHei">黑体</SelectItem>
-                            <SelectItem value="SimSun">宋体</SelectItem>
+                            {FONT_WEIGHT_OPTIONS.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="textColor">文字颜色</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id="textColor"
-                            type="color"
-                            value={selectedObject.properties.textColor}
-                            onChange={(e) => updateProperty('textColor', e.target.value)}
-                            className="w-12 h-10 p-1"
-                          />
-                          <Input
-                            value={selectedObject.properties.textColor}
-                            onChange={(e) => updateProperty('textColor', e.target.value)}
-                            className="flex-1"
-                          />
-                        </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fontFamily">字体</Label>
+                      <Select
+                        value={primarySelectedItem.properties.font?.family || 'Arial'}
+                        onValueChange={(value) => updateEditorProperty('font', {
+                          ...primarySelectedItem.properties.font,
+                          family: value
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FONT_OPTIONS.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="textColor">文字颜色</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="textColor"
+                          type="color"
+                          value={primarySelectedItem.properties.textColor || '#000000'}
+                          onChange={(e) => updateEditorProperty('textColor', e.target.value)}
+                          className="w-12 h-10 p-1"
+                        />
+                        <Input
+                          value={primarySelectedItem.properties.textColor || '#000000'}
+                          onChange={(e) => updateEditorProperty('textColor', e.target.value)}
+                          className="flex-1"
+                        />
                       </div>
+                    </div>
 
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label htmlFor="textAlign">对齐方式</Label>
                         <Select
-                          value={selectedObject.properties.textAlign}
-                          onValueChange={(value) => updateProperty('textAlign', value)}
+                          value={(primarySelectedItem.properties.textAlign || 0).toString()}
+                          onValueChange={(value) => updateEditorProperty('textAlign', parseInt(value))}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="left">左对齐</SelectItem>
-                            <SelectItem value="center">居中</SelectItem>
-                            <SelectItem value="right">右对齐</SelectItem>
+                            {TEXT_ALIGN_OPTIONS.map(option => (
+                              <SelectItem key={option.value} value={option.value.toString()}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    </CardContent>
-                  </Card>
-                </>
+                      <div className="space-y-2">
+                        <Label htmlFor="letterSpacing">字符间距</Label>
+                        <Input
+                          id="letterSpacing"
+                          type="number"
+                          step="0.1"
+                          value={primarySelectedItem.properties.letterSpacing || 0}
+                          onChange={(e) => updateEditorProperty('letterSpacing', parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="italic">斜体</Label>
+                      <Switch
+                        id="italic"
+                        checked={primarySelectedItem.properties.font?.italic || false}
+                        onCheckedChange={(checked) => updateEditorProperty('font', {
+                          ...primarySelectedItem.properties.font,
+                          italic: checked
+                        })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="underline">下划线</Label>
+                      <Switch
+                        id="underline"
+                        checked={primarySelectedItem.properties.font?.underline || false}
+                        onCheckedChange={(checked) => updateEditorProperty('font', {
+                          ...primarySelectedItem.properties.font,
+                          underline: checked
+                        })}
+                      />
+                    </div>
+
+                    {/* 滚动文本属性 */}
+                    <Separator />
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="isScroll">启用滚动</Label>
+                        <Switch
+                          id="isScroll"
+                          checked={primarySelectedItem.properties.isScroll || false}
+                          onCheckedChange={(checked) => updateEditorProperty('isScroll', checked)}
+                        />
+                      </div>
+
+                      {primarySelectedItem.properties.isScroll && (
+                        <>
+                          <div className="space-y-2">
+                            <Label htmlFor="scrollSpeed">滚动速度</Label>
+                            <Input
+                              id="scrollSpeed"
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={primarySelectedItem.properties.scrollSpeed || 5}
+                              onChange={(e) => updateEditorProperty('scrollSpeed', parseInt(e.target.value) || 5)}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="isHeadConnectTail">首尾相接</Label>
+                            <Switch
+                              id="isHeadConnectTail"
+                              checked={primarySelectedItem.properties.isHeadConnectTail || false}
+                              onCheckedChange={(checked) => updateEditorProperty('isHeadConnectTail', checked)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="repeatCount">重复次数</Label>
+                            <Input
+                              id="repeatCount"
+                              type="number"
+                              min="1"
+                              value={primarySelectedItem.properties.repeatCount || 1}
+                              onChange={(e) => updateEditorProperty('repeatCount', parseInt(e.target.value) || 1)}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
+              {/* 网页/流媒体属性 */}
+              {primarySelectedItem && primarySelectedItem.type === ItemType.WEB_STREAM && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      <CardTitle className="text-base">网页设置</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="url">网址或流媒体地址</Label>
+                      <Input
+                        id="url"
+                        type="url"
+                        value={primarySelectedItem.properties.url || ''}
+                        onChange={(e) => updateEditorProperty('url', e.target.value)}
+                        placeholder="https://example.com"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="isLocal">本地文件</Label>
+                      <Switch
+                        id="isLocal"
+                        checked={primarySelectedItem.properties.isLocal || false}
+                        onCheckedChange={(checked) => updateEditorProperty('isLocal', checked)}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* 播放设置 */}
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
@@ -343,12 +771,68 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                     <Input
                       id="duration"
                       type="number"
-                      value={selectedObject.properties.duration}
-                      onChange={(e) => updateProperty('duration', parseInt(e.target.value))}
+                      min="100"
+                      value={primarySelectedItem?.properties.duration || 5000}
+                      onChange={(e) => updateEditorProperty('duration', parseInt(e.target.value) || 5000)}
                     />
                   </div>
+
+                  {/* 视频特有属性 */}
+                  {primarySelectedItem && [ItemType.VIDEO, ItemType.GIF].includes(primarySelectedItem.type) && (
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="reserveAS">保留纵横比</Label>
+                      <Switch
+                        id="reserveAS"
+                        checked={primarySelectedItem.properties.reserveAS || false}
+                        onCheckedChange={(checked) => updateEditorProperty('reserveAS', checked)}
+                      />
+                    </div>
+                  )}
+
+                  {/* GIF特有属性 */}
+                  {primarySelectedItem && primarySelectedItem.type === ItemType.GIF && (
+                    <div className="space-y-2">
+                      <Label htmlFor="playTimes">播放次数</Label>
+                      <Input
+                        id="playTimes"
+                        type="number"
+                        min="1"
+                        value={primarySelectedItem.properties.playTimes || 1}
+                        onChange={(e) => updateEditorProperty('playTimes', parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+
+              {/* 素材信息 */}
+              {materialRef && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">素材信息</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="text-sm">
+                      <span className="font-medium">名称：</span>
+                      {materialRef.name}
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">格式：</span>
+                      {materialRef.format}
+                    </div>
+                    {materialRef.dimensions && (
+                      <div className="text-sm">
+                        <span className="font-medium">尺寸：</span>
+                        {materialRef.dimensions.width} × {materialRef.dimensions.height}
+                      </div>
+                    )}
+                    <div className="text-sm">
+                      <span className="font-medium">大小：</span>
+                      {(materialRef.fileSize / 1024 / 1024).toFixed(2)} MB
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
         </div>

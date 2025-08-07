@@ -1,7 +1,20 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { fabric } from 'fabric';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Loader2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+import { useEditorStore } from './managers/editor-state-manager';
+import { useMaterialStore } from './managers/material-ref-manager';
+import { FabricSerializer } from './converters/fabric-serializer';
+import { 
+  MaterialInfo, 
+  EditorItem, 
+  ItemType, 
+  ITEM_TYPE_MAP 
+} from './types';
 
 interface ProgramCanvasProps {
   width?: number;
@@ -12,7 +25,7 @@ interface ProgramCanvasProps {
 
 /**
  * 节目编辑画布组件
- * 基于Fabric.js实现可视化编辑功能
+ * 基于Fabric.js实现可视化编辑功能，支持素材拖拽、对象创建等
  */
 export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
   width = 1920,
@@ -22,6 +35,26 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isCreatingObject, setIsCreatingObject] = useState(false);
+  const [zoom, setZoom] = useState(1);
+
+  // 状态管理
+  const {
+    currentPageIndex,
+    pages,
+    selectObjects,
+    addItem,
+    updateCanvasState,
+    updateItemPosition,
+    updateItemSize,
+    getCanvas,
+    setCanvas
+  } = useEditorStore();
+
+  const { getMaterialRef } = useMaterialStore();
 
   // 初始化Fabric.js画布
   const initCanvas = useCallback(() => {
@@ -34,7 +67,10 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       backgroundColor: '#000000',
       selection: true,
       preserveObjectStacking: true,
-      imageSmoothingEnabled: false,
+      imageSmoothingEnabled: true,
+      allowTouchScrolling: false,
+      // 启用缩放和平移
+      enableRetinaScaling: true,
     });
 
     // 设置画布配置
@@ -45,35 +81,122 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       cssOnly: true,
     });
 
-    // 事件监听
+    // 选择事件监听
     canvas.on('selection:created', (e) => {
       const selectedObjects = canvas.getActiveObjects();
+      const selectedIds = selectedObjects.map(obj => (obj as any).id).filter(Boolean);
+      selectObjects(selectedIds);
       onSelectionChange?.(selectedObjects);
     });
 
     canvas.on('selection:updated', (e) => {
       const selectedObjects = canvas.getActiveObjects();
+      const selectedIds = selectedObjects.map(obj => (obj as any).id).filter(Boolean);
+      selectObjects(selectedIds);
       onSelectionChange?.(selectedObjects);
     });
 
     canvas.on('selection:cleared', () => {
+      selectObjects([]);
       onSelectionChange?.([]);
     });
 
     // 对象修改事件
     canvas.on('object:modified', (e) => {
-      console.log('Object modified:', e.target);
-      // TODO: 触发状态更新
+      const target = e.target;
+      if (!target || !(target as any).id) return;
+
+      const itemId = (target as any).id;
+      
+      // 更新位置
+      updateItemPosition(itemId, {
+        x: target.left || 0,
+        y: target.top || 0
+      });
+
+      // 更新尺寸
+      updateItemSize(itemId, {
+        width: target.getScaledWidth(),
+        height: target.getScaledHeight()
+      });
+
+      // 更新画布状态
+      updateCanvasStateFromCanvas(canvas);
+    });
+
+    // 对象移动事件
+    canvas.on('object:moving', (e) => {
+      const target = e.target;
+      if (!target || !(target as any).id) return;
+
+      const itemId = (target as any).id;
+      updateItemPosition(itemId, {
+        x: target.left || 0,
+        y: target.top || 0
+      });
+    });
+
+    // 缩放事件
+    canvas.on('mouse:wheel', (opt) => {
+      const delta = opt.e.deltaY;
+      let zoom = canvas.getZoom();
+      zoom *= 0.999 ** delta;
+      if (zoom > 20) zoom = 20;
+      if (zoom < 0.01) zoom = 0.01;
+      
+      const point = new fabric.Point(opt.e.offsetX, opt.e.offsetY);
+      canvas.zoomToPoint(point, zoom);
+      setZoom(zoom);
+      opt.e.preventDefault();
+      opt.e.stopPropagation();
+    });
+
+    // 平移功能
+    let isPanning = false;
+    canvas.on('mouse:down', (opt) => {
+      const evt = opt.e;
+      if (evt.altKey === true) {
+        isPanning = true;
+        canvas.selection = false;
+        canvas.defaultCursor = 'grab';
+      }
+    });
+
+    canvas.on('mouse:move', (opt) => {
+      if (isPanning && opt.e) {
+        const delta = new fabric.Point(opt.e.movementX, opt.e.movementY);
+        canvas.relativePan(delta);
+      }
+    });
+
+    canvas.on('mouse:up', () => {
+      canvas.defaultCursor = 'default';
+      canvas.selection = true;
+      isPanning = false;
     });
 
     // 保存引用
     fabricCanvasRef.current = canvas;
+    setCanvas(canvas);
 
     // 通知父组件画布已准备就绪
     onCanvasReady?.(canvas);
 
     return canvas;
-  }, [width, height, onCanvasReady, onSelectionChange]);
+  }, [width, height, onCanvasReady, onSelectionChange, selectObjects, updateItemPosition, updateItemSize, setCanvas]);
+
+  // 更新画布状态到store
+  const updateCanvasStateFromCanvas = useCallback((canvas: fabric.Canvas) => {
+    const viewport = canvas.viewportTransform;
+    const canvasState = {
+      objects: [], // 这里不需要保存对象，因为我们有EditorState
+      zoom: canvas.getZoom(),
+      panX: viewport ? viewport[4] : 0,
+      panY: viewport ? viewport[5] : 0
+    };
+    
+    updateCanvasState(currentPageIndex, canvasState);
+  }, [currentPageIndex, updateCanvasState]);
 
   // 组件挂载时初始化画布
   useEffect(() => {
@@ -88,49 +211,249 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     };
   }, [initCanvas]);
 
-  // 添加测试元素的方法
-  const addTestImage = useCallback(() => {
-    if (!fabricCanvasRef.current) return;
+  // 创建EditorItem
+  const createEditorItem = useCallback((material: MaterialInfo, position: { x: number, y: number }): EditorItem => {
+    const itemType = getItemTypeFromMaterial(material);
+    const itemId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 根据素材类型设置默认尺寸
+    let defaultSize = { width: 200, height: 150 };
+    if (material.metadata.dimensions) {
+      defaultSize = {
+        width: Math.min(material.metadata.dimensions.width, 400),
+        height: Math.min(material.metadata.dimensions.height, 300)
+      };
+    }
 
-    // 添加一个测试矩形
-    const rect = new fabric.Rect({
-      left: 100,
-      top: 100,
-      width: 200,
-      height: 150,
-      fill: 'rgba(255, 0, 0, 0.8)',
-      stroke: '#fff',
-      strokeWidth: 2,
-      rx: 10,
-      ry: 10,
-    });
+    // 创建基础属性
+    const baseProperties: any = {
+      duration: 5000,
+      visible: true,
+      locked: false
+    };
 
-    fabricCanvasRef.current.add(rect);
-    fabricCanvasRef.current.setActiveObject(rect);
-    fabricCanvasRef.current.renderAll();
+    // 根据类型添加特定属性
+    switch (itemType) {
+      case ItemType.IMAGE:
+        baseProperties.alpha = 1;
+        baseProperties.reserveAS = true;
+        break;
+      case ItemType.VIDEO:
+        baseProperties.alpha = 1;
+        baseProperties.reserveAS = true;
+        break;
+      case ItemType.GIF:
+        baseProperties.alpha = 1;
+        baseProperties.playTimes = 1;
+        break;
+      case ItemType.SINGLE_LINE_TEXT:
+        baseProperties.text = '文本内容';
+        baseProperties.textColor = '#FFFFFF';
+        baseProperties.font = {
+          size: 24,
+          family: 'Arial',
+          weight: 'normal',
+          italic: false,
+          underline: false
+        };
+        baseProperties.textAlign = 0; // 左对齐
+        defaultSize = { width: 200, height: 50 };
+        break;
+      case ItemType.WEB_STREAM:
+        baseProperties.url = 'https://example.com';
+        baseProperties.backColor = '#FFFFFF';
+        baseProperties.isLocal = false;
+        break;
+    }
+
+    return {
+      id: itemId,
+      type: itemType,
+      name: material.name,
+      position,
+      size: defaultSize,
+      properties: baseProperties,
+      materialRef: {
+        materialId: material.id,
+        filePath: material.filePath || '',
+        accessUrl: material.accessUrl,
+        md5Hash: material.md5Hash || '',
+        isRelative: material.isRelative || false,
+        originName: material.originName || material.name
+      }
+    };
   }, []);
 
-  // 添加测试文本
-  const addTestText = useCallback(() => {
-    if (!fabricCanvasRef.current) return;
+  // 根据素材推断ItemType
+  const getItemTypeFromMaterial = useCallback((material: MaterialInfo): ItemType => {
+    switch (material.category) {
+      case 'image':
+        return material.metadata.format?.toLowerCase() === 'gif' ? ItemType.GIF : ItemType.IMAGE;
+      case 'video':
+        return ItemType.VIDEO;
+      case 'text':
+        return ItemType.SINGLE_LINE_TEXT;
+      case 'web':
+        return ItemType.WEB_STREAM;
+      default:
+        return ItemType.IMAGE;
+    }
+  }, []);
 
-    const text = new fabric.Text('测试文本', {
-      left: 300,
-      top: 200,
-      fontSize: 48,
-      fill: '#ffffff',
-      fontFamily: 'Arial',
-      stroke: '#000000',
-      strokeWidth: 1,
-    });
+  // 从素材创建Fabric.js对象
+  const createFabricObjectFromMaterial = useCallback(async (item: EditorItem): Promise<fabric.Object | null> => {
+    setIsCreatingObject(true);
+    
+    try {
+      const materialRef = item.materialRef;
+      const fabricObject = await FabricSerializer.createFabricObjectFromEditorItem(item, materialRef);
+      
+      if (fabricObject) {
+        // 设置自定义属性
+        (fabricObject as any).id = item.id;
+        (fabricObject as any).itemType = item.type;
+        (fabricObject as any).editorProperties = item.properties;
+        (fabricObject as any).materialRef = materialRef;
+      }
+      
+      return fabricObject;
+    } catch (error) {
+      console.error('创建Fabric.js对象失败:', error);
+      return null;
+    } finally {
+      setIsCreatingObject(false);
+    }
+  }, []);
 
-    fabricCanvasRef.current.add(text);
-    fabricCanvasRef.current.setActiveObject(text);
-    fabricCanvasRef.current.renderAll();
+  // 拖拽事件处理
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // 只有当离开整个容器时才设置为false
+    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    try {
+      const data = e.dataTransfer.getData('application/json');
+      if (!data) return;
+
+      const dropData = JSON.parse(data);
+      if (dropData.type !== 'material') return;
+
+      const material: MaterialInfo = dropData.data;
+      if (!material) return;
+
+      const canvas = fabricCanvasRef.current;
+      if (!canvas) return;
+
+      // 计算相对于画布的位置
+      const canvasElement = canvasRef.current;
+      if (!canvasElement) return;
+
+      const rect = canvasElement.getBoundingClientRect();
+      const canvasX = (e.clientX - rect.left) / canvas.getZoom() - canvas.viewportTransform![4] / canvas.getZoom();
+      const canvasY = (e.clientY - rect.top) / canvas.getZoom() - canvas.viewportTransform![5] / canvas.getZoom();
+
+      // 创建EditorItem
+      const editorItem = createEditorItem(material, { x: canvasX, y: canvasY });
+
+      // 添加到状态管理
+      addItem(editorItem);
+
+      // 创建Fabric.js对象
+      const fabricObject = await createFabricObjectFromMaterial(editorItem);
+      if (fabricObject) {
+        canvas.add(fabricObject);
+        canvas.setActiveObject(fabricObject);
+        canvas.renderAll();
+
+        // 更新画布状态
+        updateCanvasStateFromCanvas(canvas);
+      }
+
+    } catch (error) {
+      console.error('处理拖拽失败:', error);
+    }
+  }, [createEditorItem, addItem, createFabricObjectFromMaterial, updateCanvasStateFromCanvas]);
+
+  // 缩放控制
+  const handleZoomIn = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const newZoom = Math.min(zoom * 1.2, 20);
+    canvas.setZoom(newZoom);
+    setZoom(newZoom);
+    canvas.renderAll();
+  }, [zoom]);
+
+  const handleZoomOut = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const newZoom = Math.max(zoom / 1.2, 0.01);
+    canvas.setZoom(newZoom);
+    setZoom(newZoom);
+    canvas.renderAll();
+  }, [zoom]);
+
+  const handleResetZoom = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    canvas.setZoom(1);
+    canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+    setZoom(1);
+    canvas.renderAll();
   }, []);
 
   return (
-    <div className="relative w-full h-full bg-gray-900 overflow-hidden">
+    <div 
+      ref={containerRef}
+      className="relative w-full h-full bg-gray-900 overflow-hidden"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* 拖拽覆盖层 */}
+      {isDragOver && (
+        <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary z-50 flex items-center justify-center">
+          <Card className="p-6 bg-background/90 backdrop-blur-sm">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                <ZoomIn className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">释放以添加素材</h3>
+              <p className="text-sm text-muted-foreground">
+                素材将添加到画布中的当前位置
+              </p>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* 对象创建加载层 */}
+      {isCreatingObject && (
+        <div className="absolute inset-0 bg-black/50 z-40 flex items-center justify-center">
+          <Card className="p-6 bg-background/90 backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>正在创建对象...</span>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* 画布容器 */}
       <div className="absolute inset-0">
         <canvas
@@ -144,25 +467,59 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
         />
       </div>
 
-      {/* 临时测试按钮 - 后续会移除 */}
-      <div className="absolute top-4 left-4 flex gap-2 z-10">
-        <button
-          onClick={addTestImage}
-          className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-        >
-          添加矩形
-        </button>
-        <button
-          onClick={addTestText}
-          className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-        >
-          添加文本
-        </button>
+      {/* 缩放控制 */}
+      <div className="absolute top-4 right-4 z-30">
+        <Card className="p-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleZoomOut}
+              className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
+              title="缩小"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <Badge variant="outline" className="text-xs min-w-[60px] text-center">
+              {Math.round(zoom * 100)}%
+            </Badge>
+            <button
+              onClick={handleZoomIn}
+              className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
+              title="放大"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleResetZoom}
+              className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
+              title="重置缩放"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
+        </Card>
       </div>
 
       {/* 画布信息显示 */}
-      <div className="absolute bottom-4 left-4 text-white text-sm bg-black bg-opacity-50 px-2 py-1 rounded">
-        {width} × {height}
+      <div className="absolute bottom-4 left-4 z-30">
+        <Card className="px-3 py-2">
+          <div className="flex items-center gap-4 text-sm">
+            <span className="text-muted-foreground">画布尺寸:</span>
+            <Badge variant="outline">{width} × {height}</Badge>
+            <span className="text-muted-foreground">|</span>
+            <span className="text-muted-foreground">缩放:</span>
+            <Badge variant="outline">{Math.round(zoom * 100)}%</Badge>
+          </div>
+        </Card>
+      </div>
+
+      {/* 操作提示 */}
+      <div className="absolute bottom-4 right-4 z-30">
+        <Card className="px-3 py-2">
+          <div className="text-xs text-muted-foreground space-y-1">
+            <div>拖拽素材到画布创建对象</div>
+            <div>滚轮缩放 | Alt+拖拽平移</div>
+          </div>
+        </Card>
       </div>
     </div>
   );
