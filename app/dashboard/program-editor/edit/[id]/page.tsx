@@ -2,8 +2,13 @@
 
 import React, { useState, useCallback } from 'react';
 import { fabric } from 'fabric';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ProgramCanvas } from '@/components/program-editor/ProgramCanvas';
 import { CanvasToolbar } from '@/components/program-editor/CanvasToolbar';
+import { MaterialLibraryPanel } from '@/components/program-editor/panels/MaterialLibraryPanel';
+import { PropertyPanel } from '@/components/program-editor/panels/PropertyPanel';
+import { LayerPanel } from '@/components/program-editor/panels/LayerPanel';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface EditProgramPageProps {
   params: {
@@ -114,14 +119,58 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
         onDelete={handleDelete}
       />
       
-      {/* 画布区域 */}
+      {/* 主要内容区域 - 三栏式布局 */}
       <div className="flex-1 overflow-hidden">
-        <ProgramCanvas
-          width={1920}
-          height={1080}
-          onCanvasReady={handleCanvasReady}
-          onSelectionChange={handleSelectionChange}
-        />
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          {/* 左侧面板 - 素材库 */}
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+            <MaterialLibraryPanel className="h-full border-r" />
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle />
+          
+          {/* 中间面板 - 画布区域 */}
+          <ResizablePanel defaultSize={60} minSize={40}>
+            <div className="h-full flex flex-col">
+              <ProgramCanvas
+                width={1920}
+                height={1080}
+                onCanvasReady={handleCanvasReady}
+                onSelectionChange={handleSelectionChange}
+              />
+            </div>
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle />
+          
+          {/* 右侧面板 - 属性和图层 */}
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+            <div className="h-full border-l">
+              <Tabs defaultValue="properties" className="h-full flex flex-col">
+                <div className="border-b">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="properties">属性</TabsTrigger>
+                    <TabsTrigger value="layers">图层</TabsTrigger>
+                  </TabsList>
+                </div>
+                
+                <TabsContent value="properties" className="flex-1 mt-0">
+                  <PropertyPanel 
+                    className="h-full" 
+                    selectedObjects={selectedObjects}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="layers" className="flex-1 mt-0">
+                  <LayerPanel 
+                    className="h-full"
+                    selectedObjects={selectedObjects.map(obj => obj.id || 'unknown')}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
     </div>
   );

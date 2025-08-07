@@ -1,0 +1,256 @@
+---
+description: 节目模块开发规则
+globs:
+alwaysApply: false
+---
+# 节目编辑器开发规范
+
+## 概述
+
+节目编辑器是一个基于Fabric.js的可视化节目制作工具，支持生成符合VSN格式的节目文件。本文档定义了开发过程中必须遵守的规范和约定。
+
+## VSN格式规范要点
+
+### 核心约束
+- **必填字段强制性**：VSN格式中标记为"必填"的字段必须有值，否则节目无法播放
+- **数据类型严格性**：VSN格式中所有数值都必须转换为String类型
+- **层级结构完整性**：必须保持Programs->Program->Information+Pages->Page->Regions->Region->Items->Item的层级结构
+
+### 关键规则
+1. **LoopType规则**：当LoopType为"0"时，AppointDuration必须指定，否则节目无法播放
+2. **Region矩形规则**：Region的Rect必须包含X、Y、Width、Height、BorderWidth字段
+3. **字体规则**：LogFont中的lfHeight字段是必需的，不能为空
+4. **同步窗口规则**：同步窗口(Name="sync_program")只能添加图片、视频、GIF(type=2,3,6)
+5. **颜色格式规则**：颜色必须转换为8位十六进制整数字符串格式
+
+### 素材类型映射
+```typescript
+const ITEM_TYPE_MAP = {
+  2: '图片',
+  3: '视频', 
+  4: '单行文本',
+  5: '多行文本',
+  6: 'GIF',
+  8: '电视卡/采集卡/摄像头',
+  9: '普通时钟',
+  14: '气象',
+  15: '计时器',
+  16: '精美时钟',
+  21: '湿度',
+  22: '温度',
+  23: '噪音',
+  24: '空气质量',
+  27: '网页/流媒体',
+  28: '烟雾',
+  29: '传感器提示文字',
+  30: '传感器初始值',
+  102: '单列文本'
+} as const;
+```
+
+## 双数据模型设计原则
+
+### EditorState (前端编辑状态)
+- **目的**：便于前端编辑和Fabric.js操作
+- **特点**：使用数值类型、嵌套对象结构、包含UI状态
+- **用途**：画布操作、属性编辑、状态保存
+
+### VSNData (VSN格式数据)  
+- **目的**：严格符合VSN规范，用于节目播放
+- **特点**：全String类型、扁平结构、完整必填字段
+- **用途**：后端存储、XML生成、设备播放
+
+### 转换原则
+1. **无损转换**：EditorState ↔ VSNData 必须可以无损双向转换
+2. **验证完整性**：转换为VSNData时必须验证所有必填字段
+3. **默认值填充**：缺失的必填字段使用合理默认值
+4. **类型转换**：数值->字符串、颜色格式转换、坐标四舍五入
+
+## 开发约定和最佳实践
+
+### 文件组织结构
+```
+components/program-editor/
+├── types/                    # 类型定义
+│   ├── editor-state.ts      # EditorState相关类型
+│   ├── vsn-data.ts          # VSNData相关类型
+│   └── material-ref.ts      # 素材引用类型
+├── converters/              # 数据转换器
+│   ├── vsn-converter.ts     # VSN格式转换
+│   ├── color-converter.ts   # 颜色格式转换
+│   └── fabric-serializer.ts # Fabric.js序列化
+├── validators/              # 验证器
+│   ├── vsn-validator.ts     # VSN格式验证
+│   └── material-validator.ts # 素材引用验证
+├── managers/                # 状态管理
+│   ├── editor-state-manager.ts # 编辑状态管理
+│   └── material-ref-manager.ts # 素材引用管理
+├── panels/                  # UI面板组件
+│   ├── MaterialLibraryPanel.tsx
+│   ├── PropertyPanel.tsx
+│   └── LayerPanel.tsx
+├── canvas/                  # 画布相关
+│   ├── ProgramCanvas.tsx
+│   ├── CanvasToolbar.tsx
+│   └── canvas-utils.ts
+└── items/                   # 素材项组件
+    ├── ImageItem.tsx
+    ├── TextItem.tsx
+    └── VideoItem.tsx
+```
+
+### 命名约定
+- **类型定义**：使用PascalCase，如`EditorState`、`VSNData`
+- **接口定义**：使用PascalCase，如`MaterialReference`、`ItemProperties`
+- **组件名称**：使用PascalCase，如`ProgramCanvas`、`MaterialLibraryPanel`
+- **函数名称**：使用camelCase，如`convertToVSN`、`validateMaterialRefs`
+- **常量定义**：使用UPPER_SNAKE_CASE，如`ITEM_TYPE_MAP`、`DEFAULT_CANVAS_SIZE`
+
+### 类型定义标准
+```typescript
+// 所有接口必须导出
+export interface EditorState {
+  // 使用明确的类型，避免any
+  program: ProgramInfo;
+  pages: EditorPage[];
+  currentPageIndex: number;
+  canvasStates: Record<string, CanvasState>;
+}
+
+// 使用联合类型限制取值范围
+export type LoopType = 0 | 1;
+export type ItemType = 2 | 3 | 4 | 5 | 6 | 9 | 14 | 15 | 16 | 21 | 22 | 23 | 24 | 27 | 28 | 29 | 30 | 102;
+
+// 使用泛型提高复用性
+export interface ItemProperties<T extends ItemType = ItemType> {
+  type: T;
+  // 根据类型条件化属性
+  properties: T extends 2 ? ImageProperties : 
+              T extends 3 ? VideoProperties :
+              T extends 4 | 5 ? TextProperties :
+              BaseProperties;
+}
+```
+
+## 错误处理策略
+
+### 验证错误处理
+```typescript
+// 统一的验证结果接口
+interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  warnings?: ValidationWarning[];
+}
+
+// 分级错误处理
+enum ErrorLevel {
+  ERROR = 'error',    // 阻止保存/播放
+  WARNING = 'warning', // 可以保存但提示用户
+  INFO = 'info'       // 仅提示信息
+}
+```
+
+### 素材引用错误处理
+1. **加载时验证**：检查素材是否存在、是否可访问
+2. **占位符策略**：素材失效时显示占位图/文本
+3. **降级处理**：复杂素材类型降级为简单类型
+4. **用户提示**：明确提示哪些素材需要重新选择
+
+### 数据转换错误处理
+1. **类型转换失败**：使用默认值并记录警告
+2. **必填字段缺失**：自动填充默认值并提示用户
+3. **格式不匹配**：尝试格式转换，失败时使用安全默认值
+
+## 性能优化要求
+
+### 状态管理优化
+- **页面级缓存**：每个页面的画布状态独立缓存
+- **懒加载**：大文件素材按需加载
+- **防抖处理**：属性变更使用防抖，避免频繁更新
+
+### 内存管理
+- **对象复用**：Fabric.js对象的创建和销毁管理
+- **图片缓存**：已加载的图片进行缓存
+- **状态清理**：页面切换时清理不需要的状态
+
+## 测试要求
+
+### 单元测试覆盖
+- **转换器测试**：VSN转换的正确性和完整性
+- **验证器测试**：各种边界条件和错误情况
+- **状态管理测试**：状态的保存和恢复
+
+### 集成测试要求
+- **端到端测试**：完整的节目创建、保存、加载流程
+- **兼容性测试**：生成的VSN文件在设备上的播放测试
+- **性能测试**：大型节目的加载和编辑性能
+
+### 测试数据要求
+```typescript
+// 提供标准测试数据
+export const TEST_EDITOR_STATE: EditorState = {
+  program: { name: 'Test Program', width: 1920, height: 1080 },
+  pages: [/* 标准页面数据 */],
+  currentPageIndex: 0,
+  canvasStates: {}
+};
+
+export const TEST_VSN_DATA: VSNData = {
+  information: { width: '1920', height: '1080' },
+  pages: [/* 标准VSN页面数据 */]
+};
+```
+
+## 版本兼容性
+
+### 向后兼容原则
+- **数据结构升级**：新版本必须能加载旧版本数据
+- **字段添加**：新增字段使用可选类型，提供默认值
+- **废弃字段**：标记为deprecated，保持一段时间后移除
+
+### 迁移策略
+```typescript
+// 版本迁移接口
+interface DataMigration {
+  fromVersion: string;
+  toVersion: string;
+  migrate(data: any): any;
+}
+
+// 版本检测和迁移
+class DataMigrator {
+  static migrate(data: any, targetVersion: string): any {
+    // 检测数据版本，执行相应的迁移策略
+  }
+}
+```
+
+## 调试和日志
+
+### 日志级别
+- **DEBUG**：详细的调试信息
+- **INFO**：一般信息，如状态变更
+- **WARN**：警告信息，如数据格式问题
+- **ERROR**：错误信息，如转换失败
+
+### 调试工具
+- **状态查看器**：实时查看EditorState和VSNData
+- **转换预览**：预览VSN转换结果
+- **验证报告**：显示详细的验证结果
+
+## 安全性要求
+
+### 数据验证
+- **输入验证**：所有用户输入必须验证
+- **类型检查**：运行时类型检查，防止类型错误
+- **边界检查**：数值范围、字符串长度等边界检查
+
+### 错误边界
+- **React错误边界**：防止组件错误导致整个应用崩溃
+- **异步错误处理**：Promise和async/await的错误处理
+- **资源加载失败**：图片、视频等资源加载失败的处理
+
+---
+
+**重要提醒**：本规范是节目编辑器开发的核心指导文档，所有开发人员必须严格遵守。任何对规范的修改都需要团队评审和文档更新。
