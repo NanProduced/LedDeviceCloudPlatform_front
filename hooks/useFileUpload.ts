@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useUser } from '@/contexts/UserContext'
 import { subscriptionManager } from '@/lib/websocket/subscription'
 import { FileUploadAPI, FileUploadUtils } from '@/lib/api/fileUpload'
 import { 
@@ -86,6 +87,9 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
   // 引用管理
   const currentTaskId = useRef<string | null>(null)
   const router = useRouter()
+  
+  // 用户上下文
+  const { user } = useUser()
 
   /**
    * 初始化上传功能，获取支持的文件类型
@@ -211,9 +215,13 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
       const md5Hash = await FileUploadUtils.calculateMD5(file)
       
       // 检查文件是否已存在
+      if (!user) {
+        throw new Error('用户信息不可用，请重新登录')
+      }
+      
       const duplicateCheck = await FileUploadAPI.checkFileDuplicate({
         md5Hash,
-        organizationId: 'current' // 应该从用户上下文获取
+        organizationId: user.oid.toString()
       })
 
       if (duplicateCheck.exists && duplicateCheck.existingFile) {
@@ -262,7 +270,7 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
         errorMessage
       })
     }
-  }, [supportedTypes, subscribeToProgress])
+  }, [supportedTypes, subscribeToProgress, user])
 
   /**
    * 取消上传

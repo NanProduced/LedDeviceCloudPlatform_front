@@ -9,6 +9,7 @@ import {
   FileUploadStatistics,
   FileTypeInfo
 } from '../types'
+import CryptoJS from 'crypto-js'
 
 /**
  * 文件上传API类
@@ -104,23 +105,14 @@ export class FileUploadUtils {
    * @param file 文件对象
    */
   static async calculateMD5(file: File): Promise<string> {
-    // 使用第三方库或者简化的哈希计算
-    // 注意：crypto.subtle.digest 不支持MD5，需要使用其他方案
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
-      reader.onload = async (e) => {
+      reader.onload = (e) => {
         try {
           const arrayBuffer = e.target?.result as ArrayBuffer
-          // 这里应该使用专门的MD5库，比如crypto-js
-          // 为了演示，我们使用一个简化的哈希（实际应该用真正的MD5）
-          const uint8Array = new Uint8Array(arrayBuffer)
-          let hash = 0
-          for (let i = 0; i < uint8Array.length; i++) {
-            hash = ((hash << 5) - hash + uint8Array[i]) & 0xffffffff
-          }
-          // 转换为16进制字符串
-          const hashHex = Math.abs(hash).toString(16).padStart(8, '0')
-          resolve(hashHex)
+          const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer)
+          const md5Hash = CryptoJS.MD5(wordArray).toString()
+          resolve(md5Hash)
         } catch (error) {
           reject(error)
         }
