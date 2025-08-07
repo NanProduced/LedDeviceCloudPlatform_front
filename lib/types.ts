@@ -231,4 +231,143 @@ export interface SharedMaterial extends Material {
   sharedByUserName: string
   sharedTime: string
   resourceType: number
+}
+
+// ========== 文件上传相关类型定义 ==========
+
+// 文件上传请求类型
+export interface FileUploadRequest {
+  folderId?: string      // 目标文件夹ID
+  materialName?: string  // 素材名称，最大200字符
+  description?: string   // 文件描述，最大500字符
+}
+
+// 文件存在性检查请求
+export interface FileExistenceCheckRequest {
+  md5Hash: string
+  organizationId: string
+}
+
+// 文件元数据类型
+export interface FileMetadata {
+  duration?: number      // 视频时长（秒）
+  width?: number        // 视频宽度
+  height?: number       // 视频高度
+  frameRate?: number    // 帧率
+  bitrate?: number      // 比特率
+  codec?: string        // 编码格式
+  sampleRate?: number   // 音频采样率
+  channels?: number     // 音频通道数
+  dpi?: number          // 图片DPI
+  colorSpace?: string   // 颜色空间
+}
+
+// 文件上传响应类型
+export interface FileUploadResponse {
+  fileId: string
+  originalFilename: string
+  fileSize: number
+  fileType: string
+  mimeType: string
+  md5Hash: string
+  storagePath: string
+  accessUrl: string
+  thumbnailUrl?: string
+  status: 'PENDING' | 'UPLOADING' | 'SUCCESS' | 'FAILED' | 'CANCELLED'
+  taskId: string
+  transcodingTaskId?: string
+  uploadTime: string
+  metadata?: FileMetadata
+  errorMessage?: string
+  instantUpload: boolean  // 是否为秒传
+}
+
+// 文件存在性检查响应
+export interface FileExistenceCheckResponse {
+  exists: boolean
+  existingFile?: FileUploadResponse
+}
+
+// 任务初始化响应
+export interface TaskInitResponse {
+  taskId: string
+  taskType: string
+  status: string
+  filename: string
+  fileSize: number
+  organizationId: string
+  userId: string
+  estimatedDuration: string
+  createTime: string
+  progressSubscriptionUrl: string
+  message: string
+}
+
+// 文件类型信息
+export interface FileTypeInfo {
+  category: string
+  extensions: string[]
+  mimeTypes: string[]
+  maxSize: number
+  supportsTranscoding: boolean
+  supportsPreview: boolean
+  supportsThumbnail: boolean
+  description: string
+}
+
+// 系统配置信息
+export interface SystemConfig {
+  maxConcurrentUploads: number
+  recommendedChunkSize: number
+  storageStrategies: string[]
+  tempFileRetentionDays: number
+  virusScanEnabled: boolean
+  contentRecognitionEnabled: boolean
+}
+
+// 支持的文件类型响应
+export interface SupportedFileTypesResponse {
+  supportedTypes: Record<string, FileTypeInfo>
+  sizeLimits: Record<string, number>
+  transcodingFormats: Record<string, string[]>
+  systemConfig: SystemConfig
+}
+
+// 上传质量指标
+export interface QualityMetrics {
+  avgSpeed: number     // 平均上传速度
+  maxSpeed: number     // 最大上传速度
+  minSpeed: number     // 最小上传速度
+  stability: number    // 连接稳定性
+  retransmissionRate: number  // 重传率
+}
+
+// 上传进度响应
+export interface UploadProgressResponse {
+  uploadId: string
+  fileName: string
+  status: string
+  progress: number            // 上传进度百分比
+  uploadedSize: number       // 已上传大小
+  totalSize: number          // 总文件大小
+  uploadSpeed: number        // 上传速度
+  estimatedTimeRemaining: number  // 预计剩余时间
+  uploadedChunks: number     // 已上传分块数
+  totalChunks: number        // 总分块数
+  failedChunks: number[]     // 失败分块列表
+  startTime: string          // 上传开始时间
+  lastUpdateTime: string     // 最后更新时间
+  errorMessage?: string      // 错误信息
+  retryCount: number         // 重试次数
+  qualityMetrics: QualityMetrics
+}
+
+// 文件上传统计
+export interface FileUploadStatistics {
+  organizationId: string
+  totalFiles: number
+  totalSize: number
+  todayUploads: number
+  thisWeekUploads: number
+  thisMonthUploads: number
 } 
