@@ -11,6 +11,8 @@ import {
   MessageType
 } from '@/lib/types'
 
+
+
 /**
  * 上传状态枚举
  */
@@ -130,9 +132,10 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
         })
       }
 
-      // 处理状态变更
-      if (payload.status) {
-        switch (payload.status) {
+      // 处理状态变更 - 兼容 status 和 eventType 字段
+      const statusValue = payload.status || payload.eventType
+      if (statusValue) {
+        switch (statusValue) {
           case 'SUCCESS':
           case 'COMPLETED':
             setStatus(UploadStatus.SUCCESS)
@@ -165,16 +168,21 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
   /**
    * 订阅任务进度（使用页面级订阅）
    */
-  const subscribeToProgress = useCallback(async (taskId: string) => {
+  const subscribeToProgress = useCallback(async (subscriptionUrl: string) => {
     try {
-      // 使用页面级订阅，自动管理生命周期
-      await subscriptionManager.subscribeForPage(
+      console.log('🔄 开始订阅进度topic:', subscriptionUrl)
+      console.log('📍 当前页面路径:', pagePath)
+      
+      const subscriptionId = await subscriptionManager.subscribeForPage(
         pagePath,
-        `/topic/task/${taskId}`,
+        subscriptionUrl,
         handleProgressMessage
       )
+      
+      console.log('✅ 进度订阅成功:', { subscriptionId, subscriptionUrl })
     } catch (err) {
-      console.error('Failed to subscribe to task progress:', err)
+      console.error('❌ 进度订阅失败:', err)
+      setError(`订阅进度失败: ${err instanceof Error ? err.message : '未知错误'}`)
     }
   }, [pagePath, handleProgressMessage])
 
@@ -212,7 +220,9 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
 
       // MD5去重检查
       setStatus(UploadStatus.CHECKING_DUPLICATE)
+      console.log('📄 开始计算文件MD5:', file.name, '大小:', FileUploadUtils.formatFileSize(file.size))
       const md5Hash = await FileUploadUtils.calculateMD5(file)
+      console.log('🔑 MD5计算完成:', md5Hash)
       
       // 检查文件是否已存在
       if (!user) {
@@ -248,9 +258,12 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
       setStatus(UploadStatus.UPLOADING)
       const uploadResponse = await FileUploadAPI.uploadSingleFile(file, uploadRequest)
       
+      console.log('📤 上传响应:', uploadResponse)
+      console.log('🎯 进度订阅URL:', uploadResponse.progressSubscriptionUrl)
+      
       // 保存任务ID并订阅进度
       currentTaskId.current = uploadResponse.taskId
-      await subscribeToProgress(uploadResponse.taskId)
+      await subscribeToProgress(uploadResponse.progressSubscriptionUrl)
 
       // 初始化进度
       setProgress({
@@ -262,7 +275,22 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
       })
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '上传失败'
+      console.error('❌ 文件上传失败:', err)
+      let errorMessage = '上传失败'
+      
+      if (err instanceof Error) {
+        errorMessage = err.message
+        
+        // 特殊错误处理
+        if (err.message.includes('Invalid array length')) {
+          errorMessage = '文件过大或内存不足，请尝试较小的文件'
+        } else if (err.message.includes('NetworkError')) {
+          errorMessage = '网络错误，请检查网络连接'
+        } else if (err.message.includes('timeout')) {
+          errorMessage = '上传超时，请重试'
+        }
+      }
+      
       setError(errorMessage)
       setStatus(UploadStatus.ERROR)
       setResult({

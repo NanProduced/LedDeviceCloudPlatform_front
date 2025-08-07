@@ -22,7 +22,7 @@ import {
 } from '../lib/websocket/types';
 import { WebSocketManager } from '../lib/websocket/manager';
 import { MessageProcessor } from '../lib/websocket/processor';
-import { SubscriptionManager } from '../lib/websocket/subscription';
+import { subscriptionManager } from '../lib/websocket/subscription';
 import { createLogger } from '../lib/websocket/utils';
 import { useUser } from './UserContext';
 
@@ -221,15 +221,14 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     // 创建管理器实例
     const manager = new WebSocketManager();
     const processor = new MessageProcessor();
-    const subscription = new SubscriptionManager();
     
     // 保存引用
     managerRef.current = manager;
     processorRef.current = processor;
-    subscriptionRef.current = subscription;
+    subscriptionRef.current = subscriptionManager; // 使用单例
     
     // 设置管理器之间的关联
-    subscription.setWebSocketManager(manager);
+    subscriptionManager.setWebSocketManager(manager);
     
     // 设置连接状态回调
     manager.onConnectionStateChanged((connectionState) => {
@@ -253,7 +252,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     });
     
     // 设置订阅变化回调
-    subscription.onSubscriptionChanged((subscriptions) => {
+    subscriptionManager.onSubscriptionChanged((subscriptions) => {
       // 清空并重新添加订阅
       dispatch({ type: 'CLEAR_SUBSCRIPTIONS' });
       subscriptions.forEach(sub => {
@@ -266,16 +265,14 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       logger.info('Destroying WebSocket managers');
       manager.destroy();
       processor.destroy();
-      subscription.destroy();
+      // 注意：不要销毁单例的subscriptionManager
     };
   }, []);
 
   // ========== 用户变化处理 ==========
   
   useEffect(() => {
-    if (subscriptionRef.current) {
-      subscriptionRef.current.setCurrentUser(user);
-    }
+    subscriptionManager.setCurrentUser(user);
   }, [user]);
 
   // ========== 自动连接 ==========
@@ -295,9 +292,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   // ========== 连接状态变化处理 ==========
   
   useEffect(() => {
-    if (state.connectionState === ConnectionState.CONNECTED && subscriptionRef.current) {
+    if (state.connectionState === ConnectionState.CONNECTED) {
       // 连接成功后恢复订阅
-      subscriptionRef.current.restoreSubscriptions().catch(error => {
+      subscriptionManager.restoreSubscriptions().catch(error => {
         logger.error('Failed to restore subscriptions:', error);
       });
     }

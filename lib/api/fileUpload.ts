@@ -76,6 +76,22 @@ export class FileUploadAPI {
     }
     
     const responseData = await response.json()
+    
+    // 处理统一的API响应结构
+    if (responseData && typeof responseData === 'object') {
+      // 检查响应状态
+      if ('code' in responseData) {
+        if (responseData.code !== 0 && responseData.code !== 200) {
+          throw new Error(responseData.msg || `上传失败: 代码 ${responseData.code}`)
+        }
+      }
+      
+      // 如果有data字段，返回data内容
+      if ('data' in responseData) {
+        return responseData.data
+      }
+    }
+    
     return responseData
   }
 
@@ -101,25 +117,68 @@ export class FileUploadAPI {
  */
 export class FileUploadUtils {
   /**
-   * 计算文件的MD5哈希值
+   * 计算文件的MD5哈希值（支持大文件）
    * @param file 文件对象
    */
   static async calculateMD5(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        try {
-          const arrayBuffer = e.target?.result as ArrayBuffer
-          const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer)
-          const md5Hash = CryptoJS.MD5(wordArray).toString()
-          resolve(md5Hash)
-        } catch (error) {
-          reject(error)
+    // 对于大文件（>100MB），使用分块计算
+    const chunkSize = 10 * 1024 * 1024; // 10MB chunks
+    const maxFileSize = 100 * 1024 * 1024; // 100MB threshold
+    
+    if (file.size <= maxFileSize) {
+      // 小文件直接计算
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          try {
+            const arrayBuffer = e.target?.result as ArrayBuffer
+            const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer)
+            const md5Hash = CryptoJS.MD5(wordArray).toString()
+            resolve(md5Hash)
+          } catch (error) {
+            reject(error)
+          }
         }
-      }
-      reader.onerror = () => reject(new Error('读取文件失败'))
-      reader.readAsArrayBuffer(file)
-    })
+        reader.onerror = () => reject(new Error('读取文件失败'))
+        reader.readAsArrayBuffer(file)
+      })
+    } else {
+      // 大文件分块计算
+      return new Promise((resolve, reject) => {
+        const hash = CryptoJS.algo.MD5.create()
+        let currentChunk = 0
+        const chunks = Math.ceil(file.size / chunkSize)
+        
+        const loadNext = () => {
+          const start = currentChunk * chunkSize
+          const end = Math.min(start + chunkSize, file.size)
+          const chunk = file.slice(start, end)
+          
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            try {
+              const arrayBuffer = e.target?.result as ArrayBuffer
+              const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer)
+              hash.update(wordArray)
+              
+              currentChunk++
+              if (currentChunk < chunks) {
+                loadNext()
+              } else {
+                const md5Hash = hash.finalize().toString()
+                resolve(md5Hash)
+              }
+            } catch (error) {
+              reject(error)
+            }
+          }
+          reader.onerror = () => reject(new Error('读取文件失败'))
+          reader.readAsArrayBuffer(chunk)
+        }
+        
+        loadNext()
+      })
+    }
   }
 
   /**

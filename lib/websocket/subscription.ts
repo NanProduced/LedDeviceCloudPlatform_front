@@ -88,8 +88,29 @@ export class SubscriptionManager {
     callback?: (message: UnifiedMessage) => void,
     config?: Partial<SubscriptionConfig>
   ): Promise<string> {
-    if (!this.wsManager || !this.wsManager.isConnected()) {
-      throw new Error('WebSocket not connected');
+    if (!this.wsManager) {
+      throw new Error('WebSocket manager not initialized');
+    }
+
+    // 如果WebSocket未连接，等待连接
+    if (!this.wsManager.isConnected()) {
+      this.logger.warn('WebSocket not connected, waiting for connection...');
+      
+      // 等待连接，最多等待5秒
+      const maxWaitTime = 5000;
+      const checkInterval = 100;
+      let waitedTime = 0;
+      
+      while (!this.wsManager.isConnected() && waitedTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        waitedTime += checkInterval;
+      }
+      
+      if (!this.wsManager.isConnected()) {
+        throw new Error('WebSocket connection timeout');
+      }
+      
+      this.logger.info('WebSocket connected, proceeding with subscription');
     }
 
     if (!isValidTopic(destination)) {
