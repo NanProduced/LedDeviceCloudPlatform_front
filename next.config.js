@@ -17,6 +17,10 @@ const nextConfig = {
         destination: 'http://192.168.1.222:8082/message/api/:path*',
       },
       {
+        source: '/file/api/:path*',
+        destination: 'http://192.168.1.222:8082/file/api/:path*',
+      },
+      {
         source: '/oauth2/:path*',
         destination: 'http://192.168.1.222:8082/oauth2/:path*',
       },

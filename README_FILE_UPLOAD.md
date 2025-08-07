@@ -40,7 +40,8 @@
 
 ### API集成
 
-- **文件服务前缀**: `/file/api`
+- **文件服务前缀**: `/file/api`（通过网关访问）
+- **完整路径格式**: `/file/api/file` + API文档路径（例如：`/file/api/file/upload/supported-types`）
 - **任务进度订阅**: `/topic/task/{taskId}`
 - **素材树接口**: `/core/api/material/tree/init`
 

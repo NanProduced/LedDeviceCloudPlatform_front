@@ -1,4 +1,4 @@
-import { api } from '../api'
+import { fetchApi } from '../api'
 import {
   FileUploadRequest,
   FileExistenceCheckRequest,
@@ -6,7 +6,8 @@ import {
   TaskInitResponse,
   SupportedFileTypesResponse,
   UploadProgressResponse,
-  FileUploadStatistics
+  FileUploadStatistics,
+  FileTypeInfo
 } from '../types'
 
 /**
@@ -24,8 +25,7 @@ export class FileUploadAPI {
    * 获取支持的文件类型和系统配置
    */
   static async getSupportedFileTypes(): Promise<SupportedFileTypesResponse> {
-    const response = await api.get('/file/api/upload/supported-types')
-    return response.data
+    return await fetchApi('/file/api/file/upload/supported-types')
   }
 
   /**
@@ -33,8 +33,10 @@ export class FileUploadAPI {
    * @param request 文件存在性检查请求
    */
   static async checkFileDuplicate(request: FileExistenceCheckRequest): Promise<FileExistenceCheckResponse> {
-    const response = await api.post('/file/api/upload/check-duplicate', request)
-    return response.data
+    return await fetchApi('/file/api/file/upload/check-duplicate', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
   }
 
   /**
@@ -49,26 +51,31 @@ export class FileUploadAPI {
     const formData = new FormData()
     formData.append('file', file)
 
-    // 将uploadRequest作为query参数
-    const params = new URLSearchParams()
+    // 根据API文档，uploadRequest应该作为query参数，但实际应该是form data
+    // 将参数添加到formData中
     if (uploadRequest.folderId) {
-      params.append('folderId', uploadRequest.folderId)
+      formData.append('folderId', uploadRequest.folderId)
     }
     if (uploadRequest.materialName) {
-      params.append('materialName', uploadRequest.materialName)
+      formData.append('materialName', uploadRequest.materialName)
     }
     if (uploadRequest.description) {
-      params.append('description', uploadRequest.description)
+      formData.append('description', uploadRequest.description)
     }
 
-    const url = `/file/api/upload/single${params.toString() ? '?' + params.toString() : ''}`
-    
-    const response = await api.post(url, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+    // 直接使用fetch，避免api.post的JSON处理
+    const response = await fetch('/file/api/file/upload/single', {
+      method: 'POST',
+      credentials: 'include', // 发送Cookie
+      body: formData // FormData会自动设置正确的Content-Type
     })
-    return response.data
+    
+    if (!response.ok) {
+      throw new Error(`上传失败: ${response.status} - ${response.statusText}`)
+    }
+    
+    const responseData = await response.json()
+    return responseData
   }
 
   /**
@@ -76,8 +83,7 @@ export class FileUploadAPI {
    * @param taskId 上传任务ID
    */
   static async getUploadProgress(taskId: string): Promise<UploadProgressResponse> {
-    const response = await api.get(`/file/api/upload/progress/${taskId}`)
-    return response.data
+    return await fetchApi(`/file/api/file/upload/progress/${taskId}`)
   }
 
   /**
@@ -85,8 +91,7 @@ export class FileUploadAPI {
    * @param organizationId 组织ID
    */
   static async getUploadStatistics(organizationId: string): Promise<FileUploadStatistics> {
-    const response = await api.get(`/file/api/upload/statistics/${organizationId}`)
-    return response.data
+    return await fetchApi(`/file/api/file/upload/statistics/${organizationId}`)
   }
 }
 
@@ -141,7 +146,7 @@ export class FileUploadUtils {
 
     // 查找匹配的文件类型
     let matchedCategory: string | undefined
-    let matchedTypeInfo: any = undefined
+    let matchedTypeInfo: FileTypeInfo | undefined
 
     for (const [category, typeInfo] of Object.entries(supportedTypes.supportedTypes)) {
       if (typeInfo.extensions.includes(fileExtension) || 

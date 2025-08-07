@@ -1018,11 +1018,13 @@
                 }
             }
         },
-        "/api/v1/broadcast/message/list": {
+        "/broadcast/message/list": {
             "post": {
                 "tags": [
+                    "通知消息",
                     "广播消息管理",
-                    "广播消息API"
+                    "广播消息API",
+                    "通用接口"
                 ],
                 "summary": "获取用户广播消息列表",
                 "description": "分页查询当前用户的广播消息，支持类型筛选和已读状态筛选",
@@ -1584,11 +1586,13 @@
                 }
             }
         },
-        "/api/v1/broadcast/message/unread/count": {
+        "/broadcast/message/unread/count": {
             "get": {
                 "tags": [
+                    "通知消息",
                     "广播消息管理",
-                    "广播消息API"
+                    "广播消息API",
+                    "通用接口"
                 ],
                 "summary": "获取用户未读广播消息数量",
                 "description": "获取当前用户未读的广播消息总数",
@@ -1608,11 +1612,13 @@
                 }
             }
         },
-        "/api/v1/broadcast/message/unread/count-by-type": {
+        "/broadcast/message/unread/count-by-type": {
             "get": {
                 "tags": [
+                    "通知消息",
                     "广播消息管理",
-                    "广播消息API"
+                    "广播消息API",
+                    "通用接口"
                 ],
                 "summary": "按类型获取用户未读广播消息数量",
                 "description": "获取当前用户按消息类型分组的未读消息数量",
@@ -1635,11 +1641,13 @@
                 }
             }
         },
-        "/api/v1/broadcast/message/detail/{messageId}": {
+        "/broadcast/message/detail/{messageId}": {
             "get": {
                 "tags": [
+                    "通知消息",
                     "广播消息管理",
-                    "广播消息API"
+                    "广播消息API",
+                    "通用接口"
                 ],
                 "summary": "获取广播消息详情",
                 "description": "根据消息ID获取广播消息的详细信息",
@@ -3027,15 +3035,6 @@
                     "scope": {
                         "type": "string",
                         "description": "消息范围（SYSTEM/ORG）"
-                    },
-                    "targetOid": {
-                        "type": "array",
-                        "description": "目标组织列表",
-                        "items": {
-                            "type": "integer",
-                            "description": "目标组织列表",
-                            "format": "int64"
-                        }
                     },
                     "title": {
                         "type": "string",

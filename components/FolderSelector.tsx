@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { MaterialTree } from "@/components/ui/material-tree"
+import { FolderTree } from "@/components/ui/folder-tree"
 import MaterialAPI from "@/lib/api/material"
 import MaterialTreeAdapter from "@/lib/utils/materialTreeAdapter"
 import { MaterialTreeNode } from "@/lib/types"
@@ -64,8 +64,11 @@ export function FolderSelector({
   const loadTreeData = async () => {
     try {
       setLoading(true)
+      console.log('开始加载素材树数据...')
       const response = await MaterialAPI.initMaterialTree()
-      const treeNodes = MaterialTreeAdapter.convertToTreeNodes(response)
+      console.log('API响应数据:', response)
+      const treeNodes = MaterialTreeAdapter.transformMaterialTree(response)
+      console.log('转换后的树节点:', treeNodes)
       setTreeData(treeNodes)
     } catch (error) {
       console.error('Failed to load material tree:', error)
@@ -228,7 +231,7 @@ export function FolderSelector({
                 <div className="text-slate-500">加载中...</div>
               </div>
             ) : filteredTreeData.length > 0 ? (
-              <MaterialTree
+              <FolderTree
                 data={filteredTreeData}
                 onSelect={handleNodeSelect}
                 selectedNode={selectedNode}
