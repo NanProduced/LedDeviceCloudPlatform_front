@@ -130,7 +130,7 @@ const navigationItems = [
     icon: FileVideo,
     items: [
       { title: "节目列表", path: "/dashboard/program-management", icon: FileVideo },
-      { title: "创建节目", path: "/dashboard/program-management/create", icon: Plus },
+      { title: "创建节目", path: "/dashboard/program-editor/create", icon: Plus },
       { title: "节目发布", path: "/dashboard/program-management/publish", icon: Send },
       { title: "排程管理", path: "/dashboard/program-management/schedule", icon: Calendar },
     ],

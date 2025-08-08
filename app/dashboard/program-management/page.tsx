@@ -264,32 +264,7 @@ export default function ProgramManagement() {
           <p className="text-slate-600 dark:text-slate-400 mt-1">创建、管理和发布LED显示节目内容</p>
         </div>
 
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="default" size="sm">
-            节目列表
-          </Button>
-          <Link href="/dashboard/program-editor/create">
-            <Button variant="outline" size="sm" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 hover:from-blue-600 hover:to-purple-700">
-              <Edit className="w-4 h-4" />
-              可视化编辑器
-            </Button>
-          </Link>
-          <Link href="/program-management/create">
-            <Button variant="outline" size="sm">
-              创建节目
-            </Button>
-          </Link>
-          <Link href="/program-management/publish">
-            <Button variant="outline" size="sm">
-              节目发布
-            </Button>
-          </Link>
-          <Link href="/program-management/schedule">
-            <Button variant="outline" size="sm">
-              排程管理
-            </Button>
-          </Link>
-        </div>
+        {/* 顶部页面跳转按钮移除，统一由左侧菜单导航 */}
 
         {/* 节目列表 */}
         <Card className="border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
