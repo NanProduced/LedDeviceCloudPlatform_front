@@ -80,7 +80,7 @@ interface EditorStateStore extends EditorState {
   duplicateRegion: (pageId: string, regionId: string) => string;
   
   // 操作方法 - 素材项管理
-  addItem: (pageId: string, regionId: string, item: Partial<EditorItem>) => string;
+   addItem: (pageId: string, regionId: string, item: Partial<EditorItem>) => string;
   removeItem: (pageId: string, regionId: string, itemId: string) => void;
   updateItem: (pageId: string, regionId: string, itemId: string, updates: Partial<EditorItem>) => void;
   duplicateItem: (pageId: string, regionId: string, itemId: string) => string;

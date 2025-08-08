@@ -52,7 +52,8 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     updateItemPosition,
     updateItemSize,
     getCanvas,
-    setCanvas
+    setCanvas,
+    getCurrentPage,
   } = useEditorStore();
 
   const { getMaterialRef } = useMaterialStore();
@@ -196,9 +197,11 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       panX: viewport ? viewport[4] : 0,
       panY: viewport ? viewport[5] : 0
     };
-    
-    updateCanvasState(currentPageIndex, canvasState);
-  }, [currentPageIndex, updateCanvasState]);
+    const page = pages[currentPageIndex];
+    if (page) {
+      updateCanvasState(page.id, canvasState);
+    }
+  }, [currentPageIndex, pages, updateCanvasState]);
 
   // 组件挂载时初始化画布
   useEffect(() => {
@@ -383,8 +386,17 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       // 创建EditorItem
       const editorItem = createEditorItem(material, { x: canvasX, y: canvasY });
 
+      // 选择落点区域：优先当前页第一个区域
+      const page = pages[currentPageIndex];
+      if (!page) return;
+      let targetRegionId = page.regions?.[0]?.id;
+      if (!targetRegionId) {
+        // 无区域则忽略添加（T0 简化：后续提供在空白区域新建Region的交互）
+        return;
+      }
+
       // 添加到状态管理
-      addItem(editorItem);
+      addItem(page.id, targetRegionId, editorItem);
 
       // 创建Fabric.js对象
       const fabricObject = await createFabricObjectFromMaterial(editorItem);
@@ -400,7 +412,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     } catch (error) {
       console.error('处理拖拽失败:', error);
     }
-  }, [createEditorItem, addItem, createFabricObjectFromMaterial, updateCanvasStateFromCanvas]);
+  }, [createEditorItem, addItem, createFabricObjectFromMaterial, updateCanvasStateFromCanvas, pages, currentPageIndex]);
 
   // 缩放控制
   const handleZoomIn = useCallback(() => {
@@ -432,6 +444,52 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     setZoom(1);
     canvas.renderAll();
   }, []);
+
+  // 切换页面时重建画布对象
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabricLib) return;
+    const page = pages[currentPageIndex];
+    if (!page) return;
+
+    // 清空并设置背景
+    canvas.clear();
+    try {
+      canvas.setBackgroundColor(page.bgColor || '#000000', () => {});
+    } catch {
+      // 颜色容错
+      canvas.setBackgroundColor('#000000', () => {});
+    }
+
+    // 逐项渲染
+    const render = async () => {
+      for (const region of page.regions || []) {
+        for (const item of region.items || []) {
+          try {
+            const fabricObject = await FabricSerializer.createFabricObjectFromEditorItem(item as any, item.materialRef);
+            if (fabricObject) {
+              (fabricObject as any).id = item.id;
+              (fabricObject as any).itemType = item.type;
+              (fabricObject as any).editorProperties = item.properties;
+              (fabricObject as any).materialRef = item.materialRef;
+              // 位置与尺寸
+              fabricObject.set({ left: item.position.x, top: item.position.y });
+              const scaleX = item.size.width / (fabricObject.width || item.size.width);
+              const scaleY = item.size.height / (fabricObject.height || item.size.height);
+              fabricObject.scaleX = scaleX;
+              fabricObject.scaleY = scaleY;
+              canvas.add(fabricObject);
+            }
+          } catch (e) {
+            console.error('渲染对象失败', e);
+          }
+        }
+      }
+      canvas.renderAll();
+      updateCanvasStateFromCanvas(canvas);
+    };
+    render();
+  }, [currentPageIndex, pages, fabricLib, updateCanvasStateFromCanvas]);
 
   return (
     <div 

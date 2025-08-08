@@ -33,6 +33,7 @@ interface CanvasToolbarProps {
   onDelete?: () => void;
   onCopy?: () => void;
   onPaste?: () => void;
+  onAddRegion?: () => void;
 }
 
 /**
@@ -52,6 +53,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onDelete,
   onCopy,
   onPaste,
+  onAddRegion,
 }) => {
   const handleToolClick = (tool: string) => {
     onToolSelect?.(tool);
@@ -60,7 +62,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   const toolButtons = [
     { id: 'select', icon: MousePointer2, label: '选择工具', group: 'basic' },
     { id: 'pan', icon: Hand, label: '拖拽画布', group: 'basic' },
-    { id: 'rectangle', icon: Square, label: '矩形', group: 'shapes' },
+    { id: 'rectangle', icon: Square, label: '新建区域', group: 'shapes' },
     { id: 'text', icon: Type, label: '文本', group: 'shapes' },
     { id: 'image', icon: Image, label: '图片', group: 'media' },
     { id: 'video', icon: Video, label: '视频', group: 'media' },
@@ -92,8 +94,22 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
       {/* 形状工具 */}
       <div className="flex items-center gap-1">
+        {/* 新建区域按钮 */}
+        <Button
+          variant={activeTool === 'rectangle' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => {
+            handleToolClick('rectangle');
+            onAddRegion?.();
+          }}
+          title="新建区域"
+          className="h-8 w-8 p-0"
+        >
+          <Square className="h-4 w-4" />
+        </Button>
+        {/* 其他形状（预留） */}
         {toolButtons
-          .filter(tool => tool.group === 'shapes')
+          .filter(tool => tool.group === 'shapes' && tool.id !== 'rectangle')
           .map(renderToolButton)}
       </div>
 

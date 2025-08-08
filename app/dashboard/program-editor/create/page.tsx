@@ -9,6 +9,7 @@ import { MaterialLibraryPanel } from '@/components/program-editor/panels/Materia
 import { PropertyPanel } from '@/components/program-editor/panels/PropertyPanel';
 import { LayerPanel } from '@/components/program-editor/panels/LayerPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageBar } from '@/components/program-editor/PageBar';
 
 /**
  * 创建新节目页面
@@ -123,6 +124,10 @@ export default function CreateProgramPage() {
         </div>
       </div>
 
+      {/* 顶部：页签 + 工具栏 */}
+      <div className="border-b">
+        <PageBar className="rounded-none" />
+      </div>
       {/* 工具栏 */}
       <CanvasToolbar
         activeTool={activeTool}
@@ -136,6 +141,10 @@ export default function CreateProgramPage() {
         onResetZoom={handleResetZoom}
         onDelete={handleDelete}
         onCopy={handleCopy}
+        onAddRegion={() => {
+          // T0: 简化为在当前页添加一个全屏区域（若不存在任何区域）
+          console.log('Add Region');
+        }}
       />
       
       {/* 主要内容区域 - 三栏式布局 */}
