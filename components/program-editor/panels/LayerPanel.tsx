@@ -411,6 +411,9 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
         canvas.renderAll();
       }
     }
+    try {
+      (useEditorStore.getState() as any).saveToHistory?.(newVisibility ? '显示对象' : '隐藏对象');
+    } catch {}
   }, [currentPageItems, updateItemProperties, getCanvas]);
 
   // 切换锁定状态
@@ -438,6 +441,9 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
         canvas.renderAll();
       }
     }
+    try {
+      (useEditorStore.getState() as any).saveToHistory?.(newLockState ? '锁定对象' : '解锁对象');
+    } catch {}
   }, [currentPageItems, updateItemProperties, getCanvas]);
 
   // 复制对象
@@ -458,6 +464,9 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
         canvas.renderAll();
       }
     }
+    try {
+      (useEditorStore.getState() as any).saveToHistory?.('删除对象');
+    } catch {}
   }, [deleteItem, getCanvas]);
 
   // 层级操作
@@ -473,6 +482,9 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
         canvas.renderAll();
       }
     }
+    try {
+      (useEditorStore.getState() as any).saveToHistory?.('上移图层');
+    } catch {}
   }, [moveItemUp, getCanvas]);
 
   const handleMoveDown = useCallback((itemId: string) => {
@@ -487,6 +499,9 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
         canvas.renderAll();
       }
     }
+    try {
+      (useEditorStore.getState() as any).saveToHistory?.('下移图层');
+    } catch {}
   }, [moveItemDown, getCanvas]);
 
   return (

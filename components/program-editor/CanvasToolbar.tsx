@@ -18,6 +18,7 @@ import {
   Trash2,
   Copy,
   Layers,
+  PlayCircle,
 } from 'lucide-react';
 
 interface CanvasToolbarProps {
@@ -34,6 +35,7 @@ interface CanvasToolbarProps {
   onCopy?: () => void;
   onPaste?: () => void;
   onAddRegion?: () => void;
+  onPreview?: () => void;
 }
 
 /**
@@ -54,7 +56,8 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onCopy,
   onPaste,
   onAddRegion,
-}) => {
+  onPreview,
+  }) => {
   const handleToolClick = (tool: string) => {
     onToolSelect?.(tool);
   };
@@ -216,6 +219,15 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
           className="h-8 w-8 p-0"
         >
           <Layers className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          title="预览"
+          className="h-8 w-8 p-0"
+          onClick={onPreview}
+        >
+          <PlayCircle className="h-4 w-4" />
         </Button>
       </div>
     </div>

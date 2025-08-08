@@ -16,6 +16,7 @@ import {
   ItemType, 
   ITEM_TYPE_MAP 
 } from './types';
+import { toast } from '@/components/ui/sonner';
 
 interface ProgramCanvasProps {
   width?: number;
@@ -425,6 +426,18 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
         });
         targetRegionId = newRegionId;
       }
+
+      // sync_program 防呆：仅允许 2/3/6
+      try {
+        const targetRegion = page.regions.find(r => r.id === (targetRegionId as string));
+        if (targetRegion && targetRegion.name === 'sync_program') {
+          const allowed = [ItemType.IMAGE, ItemType.VIDEO, ItemType.GIF];
+          if (!allowed.includes(editorItem.type)) {
+            toast.error('同步窗口仅允许 图片/视频/GIF');
+            return;
+          }
+        }
+      } catch {}
 
       // 添加到状态管理
       addItem(page.id, targetRegionId, editorItem);

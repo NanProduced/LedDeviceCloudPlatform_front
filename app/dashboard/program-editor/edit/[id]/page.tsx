@@ -15,6 +15,7 @@ import { toast } from '@/components/ui/sonner';
 import { useEditorStore } from '@/components/program-editor/managers/editor-state-manager';
 import { ProgramAPI } from '@/lib/api/program';
 import { VSNConverter } from '@/components/program-editor/converters/vsn-converter';
+import { VSNValidator } from '@/components/program-editor/converters/validation-utils';
 import { computeProgramDuration } from '@/components/program-editor/utils/duration';
 import { FabricSerializer } from '@/components/program-editor/converters/fabric-serializer';
 import { VersionPickerDialog } from '@/components/program-editor/VersionPickerDialog';
@@ -194,7 +195,14 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       setSaving(true);
       const duration = computeProgramDuration({ program, pages, currentPageIndex, canvasStates: {} } as any);
       const editorState = { program, pages, currentPageIndex, canvasStates: {} } as any;
-      const { vsnData } = VSNConverter.convertToVSN(editorState);
+      const { vsnData, validation } = VSNConverter.convertToVSN(editorState);
+      // 强校验阻断保存
+      const result = validation?.isValid ? validation : VSNValidator.validate(vsnData);
+      if (!result.isValid) {
+        const first = result.errors[0];
+        toast.error(first?.message || 'VSN校验失败');
+        return;
+      }
       const vsnDataStr = JSON.stringify(vsnData);
       const contentDataStr = buildContentData();
       await ProgramAPI.updateProgram(params.id, {
@@ -284,6 +292,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onDelete={handleDelete}
+        onPreview={() => toast.info('预览功能开发中（T2）')}
         onAddRegion={() => {
           const page = pages[currentPageIndex];
           if (!page) return;

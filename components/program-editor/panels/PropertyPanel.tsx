@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useCallback, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -147,6 +147,19 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
   const primarySelectedItem = selectedEditorItems[0];
   const primarySelectedObject = selectedObjects[0];
 
+  // 入历史防抖
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveHistoryDebounced = useCallback((desc: string) => {
+    try {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(() => {
+        try {
+          (useEditorStore.getState() as any).saveToHistory?.(desc);
+        } catch {}
+      }, 300);
+    } catch {}
+  }, []);
+
   // 更新Fabric.js对象属性
   const updateFabricObjectProperty = useCallback((property: string, value: any) => {
     if (!primarySelectedObject) return;
@@ -164,6 +177,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
         ...primarySelectedItem.properties,
         [property]: value
       });
+      saveHistoryDebounced('更新对象属性');
     }
   }, [primarySelectedObject, primarySelectedItem, updateItemProperties, getCanvas]);
 
@@ -198,6 +212,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
         }
         canvas.renderAll();
       }
+      saveHistoryDebounced('更新对象属性');
     }
   }, [primarySelectedItem, primarySelectedObject, updateItemProperties, getCanvas]);
 
@@ -224,6 +239,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
         height: property === 'height' ? value : primarySelectedItem.size.height
       });
     }
+    saveHistoryDebounced('更新位置/尺寸/旋转');
   }, [primarySelectedObject, primarySelectedItem, updateItemPosition, updateItemSize, getCanvas]);
 
   // 层级操作

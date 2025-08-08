@@ -204,6 +204,7 @@ export default function CreateProgramPage() {
         onResetZoom={handleResetZoom}
         onDelete={handleDelete}
         onCopy={handleCopy}
+        onPreview={() => toast.info('预览功能开发中（T2）')}
         onAddRegion={() => {
           const page = pages[currentPageIndex];
           if (!page) return;
