@@ -46,6 +46,8 @@ interface EditorStateStore extends EditorState {
   isLoading: boolean;
   isSaving: boolean;
   isDirty: boolean; // 是否有未保存的更改
+  // 画布实例
+  canvasInstance: any | null;
   
   // 历史记录
   history: HistoryItem[];
@@ -82,13 +84,26 @@ interface EditorStateStore extends EditorState {
   removeItem: (pageId: string, regionId: string, itemId: string) => void;
   updateItem: (pageId: string, regionId: string, itemId: string, updates: Partial<EditorItem>) => void;
   duplicateItem: (pageId: string, regionId: string, itemId: string) => string;
+  // 便捷：通过 itemId 操作
+  updateItemProperties: (itemId: string, properties: any) => void;
+  updateItemPosition: (itemId: string, position: { x: number; y: number }) => void;
+  updateItemSize: (itemId: string, size: { width: number; height: number }) => void;
+  duplicateItemById: (itemId: string) => string | null;
+  deleteItemById: (itemId: string) => void;
+  moveItemUp: (itemId: string) => void;
+  moveItemDown: (itemId: string) => void;
+  moveItemToTop: (itemId: string) => void;
+  moveItemToBottom: (itemId: string) => void;
   moveItem: (fromPageId: string, fromRegionId: string, itemId: string, toPageId: string, toRegionId: string) => void;
   
   // 操作方法 - 画布状态管理
   updateCanvasState: (pageId: string, canvasState: Partial<CanvasState>) => void;
   getCanvasState: (pageId: string) => CanvasState | null;
+  setCanvas: (canvas: any | null) => void;
+  getCanvas: () => any | null;
   
   // 操作方法 - 选择管理
+  selectObjects: (objectIds: string[]) => void;
   setSelectedObjects: (objectIds: string[]) => void;
   addSelectedObject: (objectId: string) => void;
   removeSelectedObject: (objectId: string) => void;
@@ -154,6 +169,7 @@ export const useEditorStore = create<EditorStateStore>()(
         isLoading: false,
         isSaving: false,
         isDirty: false,
+        canvasInstance: null,
         
         // 历史记录
         history: [],
@@ -426,6 +442,119 @@ export const useEditorStore = create<EditorStateStore>()(
           
           return itemId;
         },
+
+        // 便捷：通过 itemId 操作
+        updateItemProperties: (itemId, properties) => {
+          set((state) => {
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const item = region.items.find(i => i.id === itemId);
+                if (item) {
+                  item.properties = { ...(item.properties || {}), ...(properties || {}) };
+                  state.isDirty = true;
+                  return;
+                }
+              }
+            }
+          });
+        },
+        updateItemPosition: (itemId, position) => {
+          set((state) => {
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const item = region.items.find(i => i.id === itemId);
+                if (item) {
+                  item.position = { ...item.position, ...position };
+                  state.isDirty = true;
+                  return;
+                }
+              }
+            }
+          });
+        },
+        updateItemSize: (itemId, size) => {
+          set((state) => {
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const item = region.items.find(i => i.id === itemId);
+                if (item) {
+                  item.size = { ...item.size, ...size };
+                  state.isDirty = true;
+                  return;
+                }
+              }
+            }
+          });
+        },
+        duplicateItemById: (itemId) => {
+          let newId: string | null = null;
+          set((state) => {
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const idx = region.items.findIndex(i => i.id === itemId);
+                if (idx !== -1) {
+                  const item = region.items[idx];
+                  const copy = { ...JSON.parse(JSON.stringify(item)), id: generateId('item') } as EditorItem;
+                  region.items.splice(idx + 1, 0, copy);
+                  state.isDirty = true;
+                  newId = copy.id;
+                  return;
+                }
+              }
+            }
+          });
+          return newId;
+        },
+        deleteItemById: (itemId) => {
+          set((state) => {
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const idx = region.items.findIndex(i => i.id === itemId);
+                if (idx !== -1) {
+                  region.items.splice(idx, 1);
+                  state.isDirty = true;
+                  return;
+                }
+              }
+            }
+          });
+        },
+        moveItemUp: (itemId) => {
+          set((state) => {
+            const canvas = state.canvasInstance;
+            if (canvas) {
+              const obj = canvas.getObjects().find((o: any) => o.id === itemId);
+              if (obj) canvas.bringForward(obj);
+            }
+          });
+        },
+        moveItemDown: (itemId) => {
+          set((state) => {
+            const canvas = state.canvasInstance;
+            if (canvas) {
+              const obj = canvas.getObjects().find((o: any) => o.id === itemId);
+              if (obj) canvas.sendBackwards(obj);
+            }
+          });
+        },
+        moveItemToTop: (itemId) => {
+          set((state) => {
+            const canvas = state.canvasInstance;
+            if (canvas) {
+              const obj = canvas.getObjects().find((o: any) => o.id === itemId);
+              if (obj) canvas.bringToFront(obj);
+            }
+          });
+        },
+        moveItemToBottom: (itemId) => {
+          set((state) => {
+            const canvas = state.canvasInstance;
+            if (canvas) {
+              const obj = canvas.getObjects().find((o: any) => o.id === itemId);
+              if (obj) canvas.sendToBack(obj);
+            }
+          });
+        },
         
         removeItem: (pageId, regionId, itemId) => {
           set((state) => {
@@ -536,8 +665,21 @@ export const useEditorStore = create<EditorStateStore>()(
         getCanvasState: (pageId) => {
           return get().canvasStates[pageId] || null;
         },
+        setCanvas: (canvas) => {
+          set((state) => {
+            state.canvasInstance = canvas;
+          });
+        },
+        getCanvas: () => {
+          return get().canvasInstance;
+        },
         
         // 选择管理方法
+        selectObjects: (objectIds) => {
+          set((state) => {
+            state.selectedObjectIds = [...objectIds];
+          });
+        },
         setSelectedObjects: (objectIds) => {
           set((state) => {
             state.selectedObjectIds = [...objectIds];

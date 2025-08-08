@@ -554,8 +554,8 @@ export const useMaterialStore = create<MaterialRefStore>()(
   )
 );
 
-// 导出状态选择器，便于组件使用
-export const useMaterialList = () => useMaterialStore(state => Object.values(state.materials));
+// 导出状态选择器（返回稳定引用，避免返回新数组导致无限循环）
+export const useMaterialsMap = () => useMaterialStore(state => state.materials);
 export const useSelectedCategory = () => useMaterialStore(state => state.selectedCategory);
 export const useMaterialCategories = () => useMaterialStore(state => state.categories);
 export const useMaterialLoading = () => useMaterialStore(state => state.isLoading);

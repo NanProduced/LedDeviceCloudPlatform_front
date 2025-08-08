@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { fabric } from 'fabric';
+import type { fabric as FabricNamespace } from 'fabric';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Loader2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
@@ -34,8 +34,9 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
   onSelectionChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
+  const fabricCanvasRef = useRef<FabricNamespace.Canvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [fabricLib, setFabricLib] = useState<FabricNamespace | null>(null);
   
   const [isDragOver, setIsDragOver] = useState(false);
   const [isCreatingObject, setIsCreatingObject] = useState(false);
@@ -59,9 +60,10 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
   // 初始化Fabric.js画布
   const initCanvas = useCallback(() => {
     if (!canvasRef.current) return;
+    if (!fabricLib) return;
 
     // 创建Fabric.js画布实例
-    const canvas = new fabric.Canvas(canvasRef.current, {
+    const canvas = new fabricLib.Canvas(canvasRef.current as any, {
       width,
       height,
       backgroundColor: '#000000',
@@ -137,14 +139,14 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     });
 
     // 缩放事件
-    canvas.on('mouse:wheel', (opt) => {
+    canvas.on('mouse:wheel', (opt: any) => {
       const delta = opt.e.deltaY;
       let zoom = canvas.getZoom();
       zoom *= 0.999 ** delta;
       if (zoom > 20) zoom = 20;
       if (zoom < 0.01) zoom = 0.01;
       
-      const point = new fabric.Point(opt.e.offsetX, opt.e.offsetY);
+      const point = new fabricLib.Point(opt.e.offsetX, opt.e.offsetY);
       canvas.zoomToPoint(point, zoom);
       setZoom(zoom);
       opt.e.preventDefault();
@@ -162,9 +164,9 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       }
     });
 
-    canvas.on('mouse:move', (opt) => {
+    canvas.on('mouse:move', (opt: any) => {
       if (isPanning && opt.e) {
-        const delta = new fabric.Point(opt.e.movementX, opt.e.movementY);
+        const delta = new fabricLib.Point(opt.e.movementX, opt.e.movementY);
         canvas.relativePan(delta);
       }
     });
@@ -183,10 +185,10 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     onCanvasReady?.(canvas);
 
     return canvas;
-  }, [width, height, onCanvasReady, onSelectionChange, selectObjects, updateItemPosition, updateItemSize, setCanvas]);
+  }, [width, height, onCanvasReady, onSelectionChange, selectObjects, updateItemPosition, updateItemSize, setCanvas, fabricLib]);
 
   // 更新画布状态到store
-  const updateCanvasStateFromCanvas = useCallback((canvas: fabric.Canvas) => {
+  const updateCanvasStateFromCanvas = useCallback((canvas: FabricNamespace.Canvas) => {
     const viewport = canvas.viewportTransform;
     const canvasState = {
       objects: [], // 这里不需要保存对象，因为我们有EditorState
@@ -210,6 +212,20 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       }
     };
   }, [initCanvas]);
+
+  // 动态加载 fabric，仅在客户端
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const mod = await import('fabric');
+        if (mounted) setFabricLib(mod.fabric);
+      } catch (e) {
+        console.error('加载 fabric 失败:', e);
+      }
+    })();
+    return () => { mounted = false };
+  }, []);
 
   // 创建EditorItem
   const createEditorItem = useCallback((material: MaterialInfo, position: { x: number, y: number }): EditorItem => {
@@ -301,7 +317,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
   }, []);
 
   // 从素材创建Fabric.js对象
-  const createFabricObjectFromMaterial = useCallback(async (item: EditorItem): Promise<fabric.Object | null> => {
+  const createFabricObjectFromMaterial = useCallback(async (item: EditorItem): Promise<FabricNamespace.Object | null> => {
     setIsCreatingObject(true);
     
     try {

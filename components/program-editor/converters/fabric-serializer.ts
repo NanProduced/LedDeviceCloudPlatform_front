@@ -1,3 +1,4 @@
+"use client";
 /**
  * Fabric.js 序列化器
  * 
@@ -65,21 +66,8 @@ const DEFAULT_DESERIALIZATION_OPTIONS: DeserializationOptions = {
   strict: false
 };
 
-/**
- * Fabric.js对象类型映射
- */
-const FABRIC_TYPE_MAP = {
-  'image': fabric.Image,
-  'text': fabric.Text,
-  'i-text': fabric.IText,
-  'textbox': fabric.Textbox,
-  'rect': fabric.Rect,
-  'circle': fabric.Circle,
-  'line': fabric.Line,
-  'polygon': fabric.Polygon,
-  'path': fabric.Path,
-  'group': fabric.Group
-} as const;
+// 注意：不要在模块顶层直接访问 fabric.*，以避免在SSR阶段因未定义而报错。
+// 如果需要类型映射，请在运行时（函数内部）访问。
 
 /**
  * 编辑器对象类型到Fabric.js类型的映射
@@ -164,13 +152,13 @@ export class FabricSerializer {
           canvas.viewportTransform[5] = canvasState.panY || 0;
         }
 
-        // 反序列化对象
-        const promises = canvasState.objects.map(objData => 
-          this.deserializeObject(objData, opts)
-        );
+        // 反序列化对象（确保不在SSR中执行）
+        const promises = (typeof window !== 'undefined')
+          ? canvasState.objects.map(objData => this.deserializeObject(objData, opts))
+          : Promise.resolve([] as fabric.Object[]);
 
         Promise.all(promises)
-          .then(objects => {
+          .then((objects: any) => {
             // 添加对象到画布
             objects.forEach(obj => {
               if (obj) {
@@ -332,6 +320,11 @@ export class FabricSerializer {
       }
 
       // 创建图片对象
+      // 在客户端环境中再访问 fabric.Image
+      if (typeof window === 'undefined') {
+        resolve(null);
+        return;
+      }
       fabric.Image.fromURL(imageUrl, (img) => {
         if (img) {
           // 应用属性
@@ -550,6 +543,10 @@ export class FabricSerializer {
           '图片'
         );
 
+      if (typeof window === 'undefined') {
+        resolve(null);
+        return;
+      }
       fabric.Image.fromURL(imageUrl, (img) => {
         if (img) {
           img.set({

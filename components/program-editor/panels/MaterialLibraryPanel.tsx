@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +26,7 @@ import {
 
 import { 
   useMaterialStore, 
-  useMaterialList, 
+  useMaterialsMap, 
   useMaterialCategories, 
   useMaterialLoading, 
   useMaterialError,
@@ -251,17 +251,21 @@ export function MaterialLibraryPanel({ className }: MaterialLibraryPanelProps) {
     clearCompletedUploads
   } = useMaterialStore();
 
-  const materials = useMaterialList();
+  const materialsMap = useMaterialsMap();
   const categories = useMaterialCategories();
   const isLoading = useMaterialLoading();
   const error = useMaterialError();
   const uploadProgress = useUploadProgress();
 
-  // 初始化加载
+  // 初始化加载（严格模式下防重复）
+  const initRanRef = useRef(false);
   useEffect(() => {
-    loadCategories();
-    loadMaterials();
-  }, [loadCategories, loadMaterials]);
+    if (initRanRef.current) return;
+    initRanRef.current = true;
+    // 直接从 store 调用，避免依赖函数引用变化导致重复执行
+    void useMaterialStore.getState().loadCategories();
+    void useMaterialStore.getState().loadMaterials();
+  }, []);
 
   // 搜索处理
   const handleSearch = useCallback(async (keyword: string) => {
@@ -275,13 +279,17 @@ export function MaterialLibraryPanel({ className }: MaterialLibraryPanelProps) {
 
   // 分类过滤
   const handleCategoryFilter = useCallback(async (category: string) => {
-    setSelectedCategory(category);
+    // 避免重复设置导致的二次渲染
+    setSelectedCategory((prev) => {
+      if (prev === category) return prev;
+      return category;
+    });
     if (category === 'all') {
-      await loadMaterials();
+      await useMaterialStore.getState().loadMaterials();
     } else {
-      await filterByCategory(category);
+      await useMaterialStore.getState().filterByCategory(category);
     }
-  }, [filterByCategory, loadMaterials]);
+  }, []);
 
   // 素材选择
   const handleMaterialSelect = useCallback((material: MaterialInfo) => {
@@ -319,7 +327,8 @@ export function MaterialLibraryPanel({ className }: MaterialLibraryPanelProps) {
   }, [uploadMaterial, selectedCategory, loadMaterials]);
 
   // 过滤素材
-  const filteredMaterials = materials.filter(material => {
+  const materials = React.useMemo(() => Object.values(materialsMap), [materialsMap]);
+  const filteredMaterials = materials.filter((material) => {
     const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || material.category === selectedCategory;
     return matchesSearch && matchesCategory;
