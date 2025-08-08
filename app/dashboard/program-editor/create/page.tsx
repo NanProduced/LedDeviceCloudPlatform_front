@@ -10,6 +10,7 @@ import { PropertyPanel } from '@/components/program-editor/panels/PropertyPanel'
 import { LayerPanel } from '@/components/program-editor/panels/LayerPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageBar } from '@/components/program-editor/PageBar';
+import { useEditorStore } from '@/components/program-editor/managers/editor-state-manager';
 
 /**
  * 创建新节目页面
@@ -18,6 +19,7 @@ export default function CreateProgramPage() {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<fabric.Object[]>([]);
   const [activeTool, setActiveTool] = useState('select');
+  const { pages, currentPageIndex, addRegion, program } = useEditorStore();
 
   // 画布准备就绪回调
   const handleCanvasReady = useCallback((fabricCanvas: fabric.Canvas) => {
@@ -142,8 +144,27 @@ export default function CreateProgramPage() {
         onDelete={handleDelete}
         onCopy={handleCopy}
         onAddRegion={() => {
-          // T0: 简化为在当前页添加一个全屏区域（若不存在任何区域）
-          console.log('Add Region');
+          const page = pages[currentPageIndex];
+          if (!page) return;
+          const hasRegion = page.regions && page.regions.length > 0;
+          const canvasW = program?.width || 1920;
+          const canvasH = program?.height || 1080;
+          const rect = hasRegion
+            ? { // 居中半屏默认
+                x: Math.floor(canvasW * 0.25),
+                y: Math.floor(canvasH * 0.25),
+                width: Math.floor(canvasW * 0.5),
+                height: Math.floor(canvasH * 0.5),
+                borderWidth: 0,
+              }
+            : { // 全屏
+                x: 0,
+                y: 0,
+                width: canvasW,
+                height: canvasH,
+                borderWidth: 0,
+              };
+          addRegion(page.id, { name: hasRegion ? `区域${page.regions.length + 1}` : '主区域', rect });
         }}
       />
       

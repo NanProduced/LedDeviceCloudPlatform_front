@@ -22,6 +22,8 @@ import {
   ApiResponse,
   PaginationParams
 } from '../types';
+import MaterialAPI, { ListMaterialResponse } from '@/lib/api/material';
+import FileUploadAPI from '@/lib/api/fileUpload';
 
 /**
  * 素材查询参数
@@ -124,74 +126,78 @@ const DEFAULT_QUERY: MaterialQuery = {
 /**
  * API调用函数（这些需要根据实际后端接口实现）
  */
+const mapToMaterialInfo = (m: ListMaterialResponse): MaterialInfo => {
+  const lower = m.fileExtension?.toLowerCase() || '';
+  const isImage = ['jpg','jpeg','png','bmp','webp','gif'].includes(lower);
+  const isVideo = ['mp4','avi','mov','mkv','flv','wmv','m4v'].includes(lower);
+  const category: MaterialCategory = isImage ? 'image' : isVideo ? 'video' : 'other';
+  const type: ItemType = isImage ? ItemType.IMAGE : isVideo ? ItemType.VIDEO : ItemType.DOC;
+  // 预览URL（若服务未提供该接口，图片会走占位渲染，不影响拖拽使用）
+  const accessUrl = isImage ? `/file/api/file/preview/${m.fileId}` : '';
+  return {
+    id: String(m.mid),
+    name: m.materialName,
+    type,
+    category,
+    filePath: '',
+    accessUrl,
+    md5Hash: '',
+    originName: m.materialName,
+    fileSize: m.fileSize,
+    metadata: {
+      format: lower.toUpperCase(),
+      dimensions: undefined,
+      duration: undefined
+    },
+    createdAt: m.createTime,
+    updatedAt: m.updateTime,
+    createdBy: String(m.uploadedBy),
+    tags: [],
+    description: m.description,
+    status: m.fileStatus === 0 ? MaterialStatus.READY : (m.fileStatus === 1 ? MaterialStatus.PROCESSING : MaterialStatus.ERROR),
+    processingProgress: m.processProgress,
+    errorMessage: m.fileStatus === 2 ? m.fileStatusDesc : undefined
+  };
+};
+
 const materialApi = {
-  // 获取素材列表
+  // 获取素材列表（整库）
   async getMaterials(query: MaterialQuery): Promise<ApiResponse<{ items: MaterialInfo[]; categories: MaterialCategory[] }>> {
-    // TODO: 实现实际的API调用
-    // 这里返回模拟数据
-    return {
-      success: true,
-      data: {
-        items: [],
-        categories: []
-      },
-      meta: {
-        total: 0,
-        page: query.page || 1,
-        pageSize: query.pageSize || 20,
-        timestamp: new Date().toISOString()
-      }
-    };
+    try {
+      const list = await MaterialAPI.listAllMaterials();
+      const items = list.map(mapToMaterialInfo);
+      return {
+        success: true,
+        data: { items, categories: [] },
+        meta: { total: items.length, page: query.page || 1, pageSize: query.pageSize || 20, timestamp: new Date().toISOString() }
+      };
+    } catch (e:any) {
+      return { success: false, error: { code: 'ERR_MATERIAL_LIST', message: e?.message || '加载素材失败' }, meta: { timestamp: new Date().toISOString() } } as any;
+    }
   },
-  
-  // 获取素材详情
+  // 获取素材详情（暂未实现，留空）
   async getMaterialDetails(materialId: string): Promise<ApiResponse<MaterialInfo>> {
-    // TODO: 实现实际的API调用
-    throw new Error('Material not found');
+    return { success: false, error: { code: 'ERR_NOT_IMPLEMENTED', message: '未实现' }, meta: { timestamp: new Date().toISOString() } } as any;
   },
-  
-  // 获取分类列表
+  // 获取分类列表（暂使用静态）
   async getCategories(): Promise<ApiResponse<MaterialCategory[]>> {
-    // TODO: 实现实际的API调用
-    return {
-      success: true,
-      data: [],
-      meta: {
-        timestamp: new Date().toISOString()
-      }
-    };
+    return { success: true, data: [], meta: { timestamp: new Date().toISOString() } };
   },
-  
-  // 上传素材
+  // 上传素材（调用文件服务）
   async uploadMaterial(file: File, options: any): Promise<ApiResponse<{ materialId: string }>> {
-    // TODO: 实现实际的API调用
-    return {
-      success: true,
-      data: {
-        materialId: `material_${Date.now()}`
-      },
-      meta: {
-        timestamp: new Date().toISOString()
-      }
-    };
+    await FileUploadAPI.uploadSingleFile(file, { folderId: '', materialName: options?.name || file.name, description: options?.description });
+    return { success: true, data: { materialId: `unknown_${Date.now()}` }, meta: { timestamp: new Date().toISOString() } };
   },
-  
-  // 验证素材引用
+  // 验证素材引用（直接返回有效）
   async validateMaterialRefs(materialRefs: MaterialReference[]): Promise<ApiResponse<MaterialRefsBatchValidationResult>> {
-    // TODO: 实现实际的API调用
     return {
       success: true,
       data: {
-        results: materialRefs.map(ref => ({
-          materialId: ref.materialId,
-          isValid: true
-        })),
+        results: materialRefs.map(ref => ({ materialId: ref.materialId, isValid: true })),
         validCount: materialRefs.length,
         invalidCount: 0
       },
-      meta: {
-        timestamp: new Date().toISOString()
-      }
+      meta: { timestamp: new Date().toISOString() }
     };
   }
 };

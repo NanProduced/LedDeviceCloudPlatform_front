@@ -9,6 +9,7 @@ import { Loader2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { useEditorStore } from './managers/editor-state-manager';
 import { useMaterialStore } from './managers/material-ref-manager';
 import { FabricSerializer } from './converters/fabric-serializer';
+import { useEditorStore as useStore } from './managers/editor-state-manager';
 import { 
   MaterialInfo, 
   EditorItem, 
@@ -48,6 +49,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     pages,
     selectObjects,
     addItem,
+    addRegion,
     updateCanvasState,
     updateItemPosition,
     updateItemSize,
@@ -386,13 +388,28 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       // 创建EditorItem
       const editorItem = createEditorItem(material, { x: canvasX, y: canvasY });
 
-      // 选择落点区域：优先当前页第一个区域
+      // 选择落点区域：优先命中区域；否则当前页第一个区域；若无区域则自动创建全屏区域
       const page = pages[currentPageIndex];
       if (!page) return;
       let targetRegionId = page.regions?.[0]?.id;
-      if (!targetRegionId) {
-        // 无区域则忽略添加（T0 简化：后续提供在空白区域新建Region的交互）
-        return;
+
+      // 命中检测
+      if (page.regions && page.regions.length > 0) {
+        for (let i = page.regions.length - 1; i >= 0; i--) {
+          const r = page.regions[i];
+          const { x, y, width: w, height: h } = r.rect;
+          if (canvasX >= x && canvasX <= x + w && canvasY >= y && canvasY <= y + h) {
+            targetRegionId = r.id;
+            break;
+          }
+        }
+      } else {
+        // 无区域时自动创建全屏区域
+        const newRegionId = addRegion(page.id, {
+          name: '主区域',
+          rect: { x: 0, y: 0, width, height, borderWidth: 0 },
+        });
+        targetRegionId = newRegionId;
       }
 
       // 添加到状态管理
@@ -412,7 +429,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     } catch (error) {
       console.error('处理拖拽失败:', error);
     }
-  }, [createEditorItem, addItem, createFabricObjectFromMaterial, updateCanvasStateFromCanvas, pages, currentPageIndex]);
+  }, [createEditorItem, addItem, addRegion, createFabricObjectFromMaterial, updateCanvasStateFromCanvas, pages, currentPageIndex, width, height]);
 
   // 缩放控制
   const handleZoomIn = useCallback(() => {
@@ -461,7 +478,29 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       canvas.setBackgroundColor('#000000', () => {});
     }
 
-    // 逐项渲染
+    // 先渲染 Region 边框
+    for (const region of page.regions || []) {
+      const rect = new fabricLib.Rect({
+        left: region.rect.x,
+        top: region.rect.y,
+        width: region.rect.width,
+        height: region.rect.height,
+        fill: 'transparent',
+        stroke: '#00D1FF',
+        strokeDashArray: [6, 4],
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        rx: 0,
+        ry: 0,
+      }) as any;
+      rect.isRegionFrame = true;
+      rect.regionId = region.id;
+      canvas.add(rect);
+      canvas.sendToBack(rect);
+    }
+
+    // 再渲染素材对象
     const render = async () => {
       for (const region of page.regions || []) {
         for (const item of region.items || []) {
