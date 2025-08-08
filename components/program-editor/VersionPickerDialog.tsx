@@ -14,7 +14,7 @@ import { ProgramAPI, ProgramVersionFrontend } from '@/lib/api/program'
 import { format } from 'date-fns'
 
 interface VersionPickerDialogProps {
-  programId: string
+  programId?: string
   onLoadVersion: (versionId: string) => Promise<void> | void
 }
 
@@ -25,7 +25,7 @@ export function VersionPickerDialog({ programId, onLoadVersion }: VersionPickerD
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!open || !programId) return
     setLoading(true)
     setError(null)
     ProgramAPI.listVersions(programId)
@@ -41,7 +41,7 @@ export function VersionPickerDialog({ programId, onLoadVersion }: VersionPickerD
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">版本</Button>
+        <Button variant="outline" size="sm" disabled={!programId}>版本</Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>

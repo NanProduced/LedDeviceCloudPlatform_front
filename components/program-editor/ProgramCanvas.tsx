@@ -56,6 +56,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     getCanvas,
     setCanvas,
     getCurrentPage,
+    getCanvasState,
   } = useEditorStore();
 
   const { getMaterialRef } = useMaterialStore();
@@ -127,6 +128,15 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
 
       // 更新画布状态
       updateCanvasStateFromCanvas(canvas);
+      // 记录历史
+      try {
+        // 延迟让状态更新先入store
+        setTimeout(() => {
+          try {
+            (useStore.getState() as any).saveToHistory?.('修改对象');
+          } catch {}
+        }, 0);
+      } catch {}
     });
 
     // 对象移动事件
@@ -139,6 +149,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
         x: target.left || 0,
         y: target.top || 0
       });
+      // 实时移动时不入历史，避免爆量；仅在 modified/added 时入历史
     });
 
     // 缩放事件
@@ -186,6 +197,9 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
 
     // 通知父组件画布已准备就绪
     onCanvasReady?.(canvas);
+    try {
+      (useStore.getState() as any).saveToHistory?.('初始化画布');
+    } catch {}
 
     return canvas;
   }, [width, height, onCanvasReady, onSelectionChange, selectObjects, updateItemPosition, updateItemSize, setCanvas, fabricLib]);
@@ -424,6 +438,14 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
 
         // 更新画布状态
         updateCanvasStateFromCanvas(canvas);
+        // 记录历史
+        try {
+          setTimeout(() => {
+            try {
+              (useStore.getState() as any).saveToHistory?.('添加对象');
+            } catch {}
+          }, 0);
+        } catch {}
       }
 
     } catch (error) {
@@ -477,6 +499,23 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       // 颜色容错
       canvas.setBackgroundColor('#000000', () => {});
     }
+
+    // 恢复持久化视图（缩放/平移）
+    try {
+      const persisted = getCanvasState(page.id);
+      if (persisted) {
+        canvas.setZoom(persisted.zoom || 1);
+        const vt = canvas.viewportTransform;
+        if (vt) {
+          vt[4] = persisted.panX || 0;
+          vt[5] = persisted.panY || 0;
+        }
+      } else {
+        // 默认视图
+        canvas.setZoom(1);
+        canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+      }
+    } catch {}
 
     // 先渲染 Region 边框
     for (const region of page.regions || []) {

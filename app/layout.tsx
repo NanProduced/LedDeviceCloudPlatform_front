@@ -4,6 +4,7 @@ import "./globals.css";
 import { UserProvider } from "@/contexts/UserContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { WebSocketProvider } from "@/components/websocket/WebSocketProvider";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,7 @@ export default function RootLayout({
               showConnectionStatus={true}
             >
               {children}
+              <Toaster />
             </WebSocketProvider>
           </UserProvider>
         </LanguageProvider>

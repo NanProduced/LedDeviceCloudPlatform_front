@@ -11,6 +11,7 @@ import { LayerPanel } from '@/components/program-editor/panels/LayerPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Maximize2 } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
 import { useEditorStore } from '@/components/program-editor/managers/editor-state-manager';
 import { ProgramAPI } from '@/lib/api/program';
 import { VSNConverter } from '@/components/program-editor/converters/vsn-converter';
@@ -43,6 +44,13 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
     loadProgram,
     updateProgramInfo,
     getCurrentPage,
+    getCanvasState,
+    saveToHistory,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    addRegion,
   } = useEditorStore();
 
   // 画布准备就绪回调
@@ -134,32 +142,48 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       selectedObjects.forEach(obj => canvas.remove(obj));
       canvas.discardActiveObject();
       canvas.renderAll();
+      saveToHistory('删除对象');
     }
-  }, [canvas, selectedObjects]);
+  }, [canvas, selectedObjects, saveToHistory]);
 
   const buildContentData = useCallback(() => {
-    // 仅序列化当前页画布，后续可扩展为多页缓存
     const currentPage = getCurrentPage();
-    const canvasStates: any = {};
-    if (canvas && currentPage) {
-      try {
-        const state = FabricSerializer.serializeCanvas(canvas);
-        canvasStates[currentPage.id] = state;
-      } catch {}
+    const canvasStates: Record<string, any> = {};
+
+    // 为所有页面构建画布状态（当前页从实时canvas取，其他页从store或默认值）
+    if (pages && pages.length > 0) {
+      for (const page of pages) {
+        if (canvas && currentPage && page.id === currentPage.id) {
+          // 仅记录 viewport（对象由 EditorState 恢复）
+          try {
+            const vp = canvas.viewportTransform;
+            canvasStates[page.id] = {
+              objects: [],
+              zoom: canvas.getZoom(),
+              panX: vp ? vp[4] : 0,
+              panY: vp ? vp[5] : 0,
+            };
+          } catch {
+            canvasStates[page.id] = { objects: [], zoom: 1, panX: 0, panY: 0 };
+          }
+        } else {
+          const saved = getCanvasState(page.id);
+          canvasStates[page.id] = saved || { objects: [], zoom: 1, panX: 0, panY: 0 };
+        }
+      }
     }
+
     return JSON.stringify({ program, pages, currentPageIndex, canvasStates });
-  }, [canvas, program, pages, currentPageIndex, getCurrentPage]);
+  }, [canvas, program, pages, currentPageIndex, getCurrentPage, getCanvasState]);
 
   const handleSaveDraft = useCallback(async () => {
     try {
       setSaving(true);
       const contentDataStr = buildContentData();
       await ProgramAPI.saveDraft(params.id, contentDataStr);
-      // eslint-disable-next-line no-alert
-      alert('草稿已保存');
+      toast.success('草稿已保存');
     } catch (e:any) {
-      // eslint-disable-next-line no-alert
-      alert(`保存草稿失败：${e?.message || e}`);
+      toast.error(`保存草稿失败：${e?.message || e}`);
     } finally {
       setSaving(false);
     }
@@ -184,11 +208,9 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
         vsnData: vsnDataStr,
         contentData: contentDataStr,
       });
-      // eslint-disable-next-line no-alert
-      alert('保存成功');
+      toast.success('保存成功');
     } catch (e:any) {
-      // eslint-disable-next-line no-alert
-      alert(`保存失败：${e?.message || e}`);
+      toast.error(`保存失败：${e?.message || e}`);
     } finally {
       setSaving(false);
     }
@@ -199,11 +221,9 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       setSaving(true);
       await handleSave();
       const res = await ProgramAPI.publishProgram(params.id);
-      // eslint-disable-next-line no-alert
-      alert('发布成功');
+      toast.success('发布成功');
     } catch (e:any) {
-      // eslint-disable-next-line no-alert
-      alert(`发布失败：${e?.message || e}`);
+      toast.error(`发布失败：${e?.message || e}`);
     } finally {
       setSaving(false);
     }
@@ -256,12 +276,38 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       <CanvasToolbar
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
-        canUndo={false}
-        canRedo={false}
+        canUndo={canUndo()}
+        canRedo={canRedo()}
+        onUndo={() => undo()}
+        onRedo={() => redo()}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onDelete={handleDelete}
+        onAddRegion={() => {
+          const page = pages[currentPageIndex];
+          if (!page) return;
+          const hasRegion = page.regions && page.regions.length > 0;
+          const canvasW = program?.width || 1920;
+          const canvasH = program?.height || 1080;
+          const rect = hasRegion
+            ? {
+                x: Math.floor(canvasW * 0.25),
+                y: Math.floor(canvasH * 0.25),
+                width: Math.floor(canvasW * 0.5),
+                height: Math.floor(canvasH * 0.5),
+                borderWidth: 0,
+              }
+            : {
+                x: 0,
+                y: 0,
+                width: canvasW,
+                height: canvasH,
+                borderWidth: 0,
+              };
+          addRegion(page.id, { name: hasRegion ? `区域${page.regions.length + 1}` : '主区域', rect });
+          saveToHistory('新增区域');
+        }}
       />
       
       {/* 主要内容区域 - 三栏式布局 */}

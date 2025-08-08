@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { fabric } from 'fabric';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ProgramCanvas } from '@/components/program-editor/ProgramCanvas';
@@ -13,6 +14,8 @@ import { PageBar } from '@/components/program-editor/PageBar';
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Maximize2 } from 'lucide-react';
 import { useEditorStore } from '@/components/program-editor/managers/editor-state-manager';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/sonner';
+import { VersionPickerDialog } from '@/components/program-editor/VersionPickerDialog';
 import { ProgramAPI } from '@/lib/api/program';
 import { VSNConverter } from '@/components/program-editor/converters/vsn-converter';
 import { computeProgramDuration } from '@/components/program-editor/utils/duration';
@@ -21,6 +24,7 @@ import { computeProgramDuration } from '@/components/program-editor/utils/durati
  * 创建新节目页面
  */
 export default function CreateProgramPage() {
+  const router = useRouter();
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<fabric.Object[]>([]);
   const [activeTool, setActiveTool] = useState('select');
@@ -39,10 +43,10 @@ export default function CreateProgramPage() {
       // 3) 生成严格 VSN JSON 字符串
       const { vsnData } = VSNConverter.convertToVSN(editorState);
       const vsnDataStr = JSON.stringify(vsnData);
-      // 4) contentData 为前端编辑状态（当前我们最小集，后续接入 Fabric 序列化）
+      // 4) contentData 为前端编辑状态
       const contentDataStr = JSON.stringify(editorState);
       // 5) 调用创建节目
-      await ProgramAPI.createProgram({
+      const { programId } = await ProgramAPI.createProgram({
         name: program.name || '未命名节目',
         description: program.description || '',
         width: program.width,
@@ -53,12 +57,12 @@ export default function CreateProgramPage() {
         vsnData: vsnDataStr,
         contentData: contentDataStr,
       });
-      // TODO: 成功提示 & 标记干净
-      // eslint-disable-next-line no-alert
-      alert('保存成功');
+      toast.success('保存成功');
+      if (programId) {
+        router.push(`/dashboard/program-editor/edit/${programId}`);
+      }
     } catch (e:any) {
-      // eslint-disable-next-line no-alert
-      alert(`保存失败：${e?.message || e}`);
+      toast.error(`保存失败：${e?.message || e}`);
     } finally {
       setSaving(false);
     }
@@ -143,6 +147,7 @@ export default function CreateProgramPage() {
       selectedObjects.forEach(obj => canvas.remove(obj));
       canvas.discardActiveObject();
       canvas.renderAll();
+      // 创建页暂不接历史，后续进入编辑页由历史管理
     }
   }, [canvas, selectedObjects]);
 
@@ -174,6 +179,7 @@ export default function CreateProgramPage() {
             <span className="text-sm text-muted-foreground">
               选中对象: {selectedObjects.length}
             </span>
+            <VersionPickerDialog onLoadVersion={() => {}} />
             <Button size="sm" onClick={handleSave} disabled={isSaving}>
               {isSaving ? '保存中...' : '保存'}
             </Button>
