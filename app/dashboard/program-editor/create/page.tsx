@@ -10,7 +10,12 @@ import { PropertyPanel } from '@/components/program-editor/panels/PropertyPanel'
 import { LayerPanel } from '@/components/program-editor/panels/LayerPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageBar } from '@/components/program-editor/PageBar';
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Maximize2 } from 'lucide-react';
 import { useEditorStore } from '@/components/program-editor/managers/editor-state-manager';
+import { Button } from '@/components/ui/button';
+import { ProgramAPI } from '@/lib/api/program';
+import { VSNConverter } from '@/components/program-editor/converters/vsn-converter';
+import { computeProgramDuration } from '@/components/program-editor/utils/duration';
 
 /**
  * 创建新节目页面
@@ -19,7 +24,45 @@ export default function CreateProgramPage() {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<fabric.Object[]>([]);
   const [activeTool, setActiveTool] = useState('select');
-  const { pages, currentPageIndex, addRegion, program } = useEditorStore();
+  const { pages, currentPageIndex, addRegion, program, setSaving, isSaving } = useEditorStore();
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+  const [centerWide, setCenterWide] = useState(false);
+
+  const handleSave = useCallback(async () => {
+    try {
+      setSaving(true);
+      // 1) 计算总时长
+      const duration = computeProgramDuration({ program, pages, currentPageIndex, canvasStates: {} });
+      // 2) 构造 EditorState（最小集）
+      const editorState = { program, pages, currentPageIndex, canvasStates: {} } as any;
+      // 3) 生成严格 VSN JSON 字符串
+      const { vsnData } = VSNConverter.convertToVSN(editorState);
+      const vsnDataStr = JSON.stringify(vsnData);
+      // 4) contentData 为前端编辑状态（当前我们最小集，后续接入 Fabric 序列化）
+      const contentDataStr = JSON.stringify(editorState);
+      // 5) 调用创建节目
+      await ProgramAPI.createProgram({
+        name: program.name || '未命名节目',
+        description: program.description || '',
+        width: program.width,
+        height: program.height,
+        duration,
+        status: 'ready',
+        thumbnailUrl: '',
+        vsnData: vsnDataStr,
+        contentData: contentDataStr,
+      });
+      // TODO: 成功提示 & 标记干净
+      // eslint-disable-next-line no-alert
+      alert('保存成功');
+    } catch (e:any) {
+      // eslint-disable-next-line no-alert
+      alert(`保存失败：${e?.message || e}`);
+    } finally {
+      setSaving(false);
+    }
+  }, [program, pages, currentPageIndex, setSaving]);
 
   // 画布准备就绪回调
   const handleCanvasReady = useCallback((fabricCanvas: fabric.Canvas) => {
@@ -119,9 +162,21 @@ export default function CreateProgramPage() {
           <h1 className="text-lg font-semibold">创建新节目</h1>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setLeftOpen(v=>!v)} title={leftOpen ? '隐藏素材库' : '显示素材库'}>
+              {leftOpen ? <PanelLeft className="h-4 w-4"/> : <ChevronRight className="h-4 w-4"/>}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setRightOpen(v=>!v)} title={rightOpen ? '隐藏属性' : '显示属性'}>
+              {rightOpen ? <PanelRight className="h-4 w-4"/> : <ChevronLeft className="h-4 w-4"/>}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setCenterWide(v=>!v)} title={centerWide ? '还原布局' : '最大化画布'}>
+              <Maximize2 className="h-4 w-4"/>
+            </Button>
             <span className="text-sm text-muted-foreground">
               选中对象: {selectedObjects.length}
             </span>
+            <Button size="sm" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? '保存中...' : '保存'}
+            </Button>
           </div>
         </div>
       </div>
@@ -172,14 +227,16 @@ export default function CreateProgramPage() {
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* 左侧面板 - 素材库 */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <MaterialLibraryPanel className="h-full border-r" />
-          </ResizablePanel>
+          {leftOpen && (
+            <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+              <MaterialLibraryPanel className="h-full border-r" />
+            </ResizablePanel>
+          )}
           
-          <ResizableHandle withHandle />
+          {leftOpen && <ResizableHandle withHandle />}
           
           {/* 中间面板 - 画布区域 */}
-          <ResizablePanel defaultSize={60} minSize={40}>
+          <ResizablePanel defaultSize={centerWide ? 100 : 60} minSize={40}>
             <div className="h-full flex flex-col">
               <ProgramCanvas
                 width={1920}
@@ -190,35 +247,37 @@ export default function CreateProgramPage() {
             </div>
           </ResizablePanel>
           
-          <ResizableHandle withHandle />
+          {rightOpen && <ResizableHandle withHandle />}
           
           {/* 右侧面板 - 属性和图层 */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <div className="h-full border-l">
-              <Tabs defaultValue="properties" className="h-full flex flex-col">
-                <div className="border-b">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="properties">属性</TabsTrigger>
-                    <TabsTrigger value="layers">图层</TabsTrigger>
-                  </TabsList>
-                </div>
-                
-                <TabsContent value="properties" className="flex-1 mt-0">
-                  <PropertyPanel 
-                    className="h-full" 
-                    selectedObjects={selectedObjects}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="layers" className="flex-1 mt-0">
-                  <LayerPanel 
-                    className="h-full"
-                    selectedObjects={selectedObjects.map(obj => obj.id || 'unknown')}
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-          </ResizablePanel>
+          {rightOpen && (
+            <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+              <div className="h-full border-l">
+                <Tabs defaultValue="properties" className="h-full flex flex-col">
+                  <div className="border-b">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="properties">属性</TabsTrigger>
+                      <TabsTrigger value="layers">图层</TabsTrigger>
+                    </TabsList>
+                  </div>
+                  
+                  <TabsContent value="properties" className="flex-1 mt-0">
+                    <PropertyPanel 
+                      className="h-full" 
+                      selectedObjects={selectedObjects}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="layers" className="flex-1 mt-0">
+                    <LayerPanel 
+                      className="h-full"
+                      selectedObjects={selectedObjects.map(obj => obj.id || 'unknown')}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </ResizablePanel>
+          )}
         </ResizablePanelGroup>
       </div>
     </div>
