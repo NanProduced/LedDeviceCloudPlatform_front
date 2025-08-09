@@ -14,6 +14,8 @@ import { PageBar } from '@/components/program-editor/PageBar';
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Maximize2 } from 'lucide-react';
 import { useEditorStore } from '@/components/program-editor/managers/editor-state-manager';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/sonner';
 import { VersionPickerDialog } from '@/components/program-editor/VersionPickerDialog';
 import { ProgramAPI } from '@/lib/api/program';
@@ -28,7 +30,7 @@ export default function CreateProgramPage() {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<fabric.Object[]>([]);
   const [activeTool, setActiveTool] = useState('select');
-  const { pages, currentPageIndex, addRegion, program, setSaving, isSaving } = useEditorStore();
+  const { pages, currentPageIndex, addRegion, program, setSaving, isSaving, updateProgramInfo } = useEditorStore();
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [centerWide, setCenterWide] = useState(false);
@@ -189,6 +191,33 @@ export default function CreateProgramPage() {
 
       {/* 顶部：页签 + 工具栏 */}
       <div className="border-b">
+        <div className="px-4 py-3 flex items-end gap-4">
+          <div className="grid grid-cols-1 gap-2 w-64">
+            <Label htmlFor="program-name">节目名称</Label>
+            <Input id="program-name" placeholder="请输入节目名称" value={program.name}
+              onChange={(e) => updateProgramInfo({ name: e.target.value })}/>
+          </div>
+          <div className="grid grid-cols-2 gap-2 items-end">
+            <div className="grid gap-2 w-36">
+              <Label htmlFor="program-width">宽度(px)</Label>
+              <Input id="program-width" type="number" min={64} max={7680} step={1}
+                value={program.width}
+                onChange={(e)=>{
+                  const v = Number(e.target.value || 0);
+                  if (!Number.isNaN(v)) updateProgramInfo({ width: v });
+                }} />
+            </div>
+            <div className="grid gap-2 w-36">
+              <Label htmlFor="program-height">高度(px)</Label>
+              <Input id="program-height" type="number" min={64} max={4320} step={1}
+                value={program.height}
+                onChange={(e)=>{
+                  const v = Number(e.target.value || 0);
+                  if (!Number.isNaN(v)) updateProgramInfo({ height: v });
+                }} />
+            </div>
+          </div>
+        </div>
         <PageBar className="rounded-none" />
       </div>
       {/* 工具栏 */}
@@ -246,8 +275,8 @@ export default function CreateProgramPage() {
           <ResizablePanel defaultSize={centerWide ? 100 : 60} minSize={40}>
             <div className="h-full flex flex-col">
               <ProgramCanvas
-                width={1920}
-                height={1080}
+                width={program.width || 1920}
+                height={program.height || 1080}
                 onCanvasReady={handleCanvasReady}
                 onSelectionChange={handleSelectionChange}
               />
