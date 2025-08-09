@@ -196,6 +196,12 @@
                         "description": "目标文件夹ID",
                         "example": "folder001"
                     },
+                    "ugid": {
+                        "type": "integer",
+                        "description": "目标用户组根目录",
+                        "format": "int64",
+                        "example": 12
+                    },
                     "materialName": {
                         "maxLength": 200,
                         "minLength": 0,

@@ -632,6 +632,34 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
         />
       </div>
 
+      {/* 空态提示：无区域或无素材时给予引导 */}
+      {(() => {
+        const page = pages[currentPageIndex];
+        if (!page) return null;
+        const hasRegions = (page.regions || []).length > 0;
+        const hasItems = hasRegions && page.regions.some(r => (r.items || []).length > 0);
+        if (hasItems) return null;
+        return (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
+            <Card className="px-5 py-4 bg-background/95 backdrop-blur-sm border pointer-events-auto">
+              <div className="text-center space-y-1">
+                {!hasRegions ? (
+                  <>
+                    <h3 className="text-sm font-medium">新建区域或直接拖拽素材</h3>
+                    <p className="text-xs text-muted-foreground">点击上方方块按钮“新建区域”，或从左侧素材库拖拽到画布（将自动创建全屏区域）</p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-sm font-medium">将素材拖拽到蓝色虚线区域中</h3>
+                    <p className="text-xs text-muted-foreground">支持图片、视频、GIF、文本等类型；可在右侧“属性面板”调整样式</p>
+                  </>
+                )}
+              </div>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* 缩放控制 */}
       <div className="absolute top-4 right-4 z-30">
         <Card className="p-2">

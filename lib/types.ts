@@ -238,6 +238,7 @@ export interface SharedMaterial extends Material {
 // 文件上传请求类型
 export interface FileUploadRequest {
   folderId?: string      // 目标文件夹ID
+  ugid?: number          // 目标用户组根目录ID（当选择的是用户组根目录时传递）
   materialName?: string  // 素材名称，最大200字符
   description?: string   // 文件描述，最大500字符
 }

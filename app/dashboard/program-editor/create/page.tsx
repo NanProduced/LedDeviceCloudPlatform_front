@@ -180,8 +180,8 @@ export default function CreateProgramPage() {
               选中对象: {selectedObjects.length}
             </span>
             <VersionPickerDialog onLoadVersion={() => {}} />
-            <Button size="sm" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? '保存中...' : '保存'}
+            <Button size="sm" variant="default" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? '保存中...' : '保存并进入编辑'}
             </Button>
           </div>
         </div>

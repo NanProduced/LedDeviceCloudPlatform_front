@@ -27,7 +27,7 @@ export interface FolderSelectorProps {
   /** 当前选中的用户组ID */
   selectedUserGroupId?: number | null
   /** 文件夹选择变化回调 */
-  onFolderChange: (folderId: string | null, userGroupId: number | null, folderPath: string) => void
+  onFolderChange: (folderId: string | null, userGroupId: number | null, folderPath?: string) => void
   /** 触发器文本 */
   triggerText?: string
   /** 是否禁用 */
@@ -149,9 +149,11 @@ export function FolderSelector({
    * 获取显示文本
    */
   const getDisplayText = () => {
-    if (selectedPath) {
-      return selectedPath
-    }
+    if (selectedPath) return selectedPath
+
+    // 当外部已选择但本地selectedPath尚未建立时，根据外部值给出合理提示
+    if (selectedFolderId) return '已选择文件夹'
+    if (selectedUserGroupId) return '已选择用户组'
     return placeholder
   }
 
@@ -174,17 +176,13 @@ export function FolderSelector({
 
   // 根据当前选择更新显示路径
   useEffect(() => {
-    if (selectedFolderId || selectedUserGroupId) {
-      // 这里可以根据ID找到对应的节点并设置路径
-      // 简化处理，如果有选择就显示
-      if (selectedFolderId && selectedUserGroupId) {
-        setSelectedPath("已选择文件夹")
-      } else if (selectedUserGroupId) {
-        setSelectedPath("已选择用户组")
-      }
-    } else {
+    // 如果外部清空选择，则同步清空
+    if (!selectedFolderId && !selectedUserGroupId) {
+      setSelectedNode(null)
       setSelectedPath("")
     }
+    // 外部已选择但本地没有弹窗上下文时，不要覆盖用户刚刚在弹窗中做出的选择
+    // 显示文本交由 getDisplayText 基于外部值兜底
   }, [selectedFolderId, selectedUserGroupId])
 
   const filteredTreeData = filterTreeNodes(treeData, searchKeyword)

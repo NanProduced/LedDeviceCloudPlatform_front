@@ -300,19 +300,48 @@ export default function FileManagementContent() {
   }
 
   const getStatusBadge = (material: Material | SharedMaterial) => {
-    const statusMap: Record<number, { label: string; className: string }> = {
-      0: { label: "已完成", className: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" },
-      1: { label: "处理中", className: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400" },
-      2: { label: "失败", className: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400" },
+    // 优先使用后端返回的描述作为展示标签
+    const label = material.fileStatusDesc || ''
+
+    // 基于描述与进度的稳健配色规则
+    const desc = label.toLowerCase()
+    const progress = material.processProgress ?? undefined
+
+    const isSuccess = desc.includes('完成') || desc.includes('success') || progress === 100
+    const isProcessing = desc.includes('处理中') || desc.includes('转码') || desc.includes('上传') || (
+      progress !== undefined && progress > 0 && progress < 100
+    )
+    const isFailed = desc.includes('失败') || desc.includes('error') || desc.includes('fail')
+
+    let className = "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400"
+    if (isSuccess) className = "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+    else if (isFailed) className = "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+    else if (isProcessing) className = "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+    else {
+      // 如果描述为空，则做一次向后兼容的代码映射（以1=已完成为优先）
+      const fallbackMap: Record<number, { label: string; className: string }> = {
+        1: { label: '已完成', className: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" },
+        0: { label: '处理中', className: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400" },
+        2: { label: '失败', className: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400" },
+      }
+      const fb = fallbackMap[material.fileStatus]
+      if (fb) {
+        return (
+          <div className="flex items-center gap-2">
+            <Badge className={fb.className}>{fb.label}</Badge>
+            {progress !== undefined && material.fileStatus === 0 && (
+              <span className="text-xs text-slate-500">{progress}%</span>
+            )}
+          </div>
+        )
+      }
     }
-    
-    const status = statusMap[material.fileStatus] || { label: material.fileStatusDesc, className: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400" }
-    
+
     return (
       <div className="flex items-center gap-2">
-        <Badge className={status.className}>{status.label}</Badge>
-        {material.processProgress !== undefined && material.fileStatus === 1 && (
-          <span className="text-xs text-slate-500">{material.processProgress}%</span>
+        <Badge className={className}>{label || '未知'}</Badge>
+        {progress !== undefined && isProcessing && (
+          <span className="text-xs text-slate-500">{progress}%</span>
         )}
       </div>
     )

@@ -57,6 +57,9 @@ export class FileUploadAPI {
     if (uploadRequest.folderId) {
       formData.append('folderId', uploadRequest.folderId)
     }
+    if (uploadRequest.ugid !== undefined) {
+      formData.append('ugid', String(uploadRequest.ugid))
+    }
     if (uploadRequest.materialName) {
       formData.append('materialName', uploadRequest.materialName)
     }

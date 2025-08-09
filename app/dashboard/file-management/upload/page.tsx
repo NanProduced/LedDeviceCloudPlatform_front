@@ -17,7 +17,6 @@ export default function FileUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [selectedUserGroupId, setSelectedUserGroupId] = useState<number | null>(null)
-  const [selectedFolderPath, setSelectedFolderPath] = useState("请选择目标文件夹")
   const [materialName, setMaterialName] = useState("")
   const [description, setDescription] = useState("")
   const [dragActive, setDragActive] = useState(false)
@@ -70,10 +69,9 @@ export default function FileUpload() {
   }, [handleFileSelect])
 
   // 处理文件夹选择
-  const handleFolderChange = useCallback((folderId: string | null, userGroupId: number | null, folderPath: string) => {
+  const handleFolderChange = useCallback((folderId: string | null, userGroupId: number | null) => {
     setSelectedFolderId(folderId)
     setSelectedUserGroupId(userGroupId)
-    setSelectedFolderPath(folderPath)
   }, [])
 
   // 开始上传
@@ -91,6 +89,7 @@ export default function FileUpload() {
     try {
       await uploadFile(selectedFile, {
         folderId: selectedFolderId || undefined,
+        ugid: selectedFolderId ? undefined : (selectedUserGroupId ?? undefined),
         materialName: materialName.trim() || undefined,
         description: description.trim() || undefined
       })
@@ -253,7 +252,7 @@ export default function FileUpload() {
                   <FolderSelector
                     selectedFolderId={selectedFolderId}
                     selectedUserGroupId={selectedUserGroupId}
-                    onFolderChange={handleFolderChange}
+                    onFolderChange={(fid, ugid) => handleFolderChange(fid, ugid)}
                     placeholder="请选择目标文件夹"
                     disabled={status === UploadStatus.UPLOADING}
                   />

@@ -6,10 +6,9 @@ import { FileUploadAPI, FileUploadUtils } from '@/lib/api/fileUpload'
 import { 
   FileUploadRequest,
   TaskInitResponse,
-  SupportedFileTypesResponse,
-  UnifiedMessage,
-  MessageType
+  SupportedFileTypesResponse
 } from '@/lib/types'
+import { UnifiedMessage, MessageType } from '@/lib/websocket/types'
 
 
 
@@ -218,43 +217,7 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
         throw new Error(validation.error)
       }
 
-      // MD5去重检查
-      setStatus(UploadStatus.CHECKING_DUPLICATE)
-      console.log('📄 开始计算文件MD5:', file.name, '大小:', FileUploadUtils.formatFileSize(file.size))
-      const md5Hash = await FileUploadUtils.calculateMD5(file)
-      console.log('🔑 MD5计算完成:', md5Hash)
-      
-      // 检查文件是否已存在
-      if (!user) {
-        throw new Error('用户信息不可用，请重新登录')
-      }
-      
-      const duplicateCheck = await FileUploadAPI.checkFileDuplicate({
-        md5Hash,
-        organizationId: user.oid.toString()
-      })
-
-      if (duplicateCheck.exists && duplicateCheck.existingFile) {
-        // 文件已存在，直接返回结果（秒传）
-        setStatus(UploadStatus.SUCCESS)
-        setResult({
-          success: true,
-          fileId: duplicateCheck.existingFile.fileId,
-          fileUrl: duplicateCheck.existingFile.accessUrl,
-          thumbnailUrl: duplicateCheck.existingFile.thumbnailUrl,
-          instantUpload: true
-        })
-        setProgress({
-          progress: 100,
-          uploadedSize: duplicateCheck.existingFile.fileSize,
-          totalSize: duplicateCheck.existingFile.fileSize,
-          uploadSpeed: 0,
-          estimatedTimeRemaining: 0
-        })
-        return
-      }
-
-      // 开始上传
+      // 直接上传（后端包含去重/秒传逻辑）
       setStatus(UploadStatus.UPLOADING)
       const uploadResponse = await FileUploadAPI.uploadSingleFile(file, uploadRequest)
       

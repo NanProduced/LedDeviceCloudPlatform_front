@@ -42,7 +42,7 @@ export interface ListMaterialResponse {
   description?: string
   usageCount: number
   ugid: number
-  fid: number
+  fid: number | null
   uploadedBy: number
   uploaderName: string
   uploadTime: string
