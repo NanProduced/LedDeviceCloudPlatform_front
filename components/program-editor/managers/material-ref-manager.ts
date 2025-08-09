@@ -154,9 +154,22 @@ const mapToMaterialInfo = (m: ListMaterialResponse): MaterialInfo => {
     createdBy: String(m.uploadedBy),
     tags: [],
     description: m.description,
-    status: m.fileStatus === 0 ? MaterialStatus.READY : (m.fileStatus === 1 ? MaterialStatus.PROCESSING : MaterialStatus.ERROR),
+    // 与素材管理“列表页”保持一致：
+    // fileStatus: 0=处理中, 1=已完成, 2=失败（参照 .doc/core-service-api-doc.json）
+    // 但编辑器内部仍保留三态枚举，方便 UI 呈现
+    status: (() => {
+      const desc = (m.fileStatusDesc || '').toLowerCase();
+      const progress = m.processProgress ?? undefined;
+      const isSuccess = desc.includes('完成') || desc.includes('success') || progress === 100 || m.fileStatus === 1;
+      const isFailed = desc.includes('失败') || desc.includes('error') || desc.includes('fail') || m.fileStatus === 2;
+      if (isFailed) return MaterialStatus.ERROR;
+      if (isSuccess) return MaterialStatus.READY;
+      return MaterialStatus.PROCESSING;
+    })(),
     processingProgress: m.processProgress,
-    errorMessage: m.fileStatus === 2 ? m.fileStatusDesc : undefined
+    errorMessage: m.fileStatus === 2 ? m.fileStatusDesc : undefined,
+    fileStatus: m.fileStatus,
+    fileStatusDesc: m.fileStatusDesc
   };
 };
 

@@ -185,20 +185,34 @@ function MaterialItem({ material, onSelect, onDragStart }: MaterialItemProps) {
               )}
             </div>
             
-            {/* 状态指示 */}
-            {material.status === 'processing' && (
-              <div className="flex items-center gap-1 mt-1">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span className="text-xs text-muted-foreground">处理中...</span>
-              </div>
-            )}
-            
-            {material.status === 'error' && (
-              <div className="flex items-center gap-1 mt-1">
-                <AlertCircle className="w-3 h-3 text-red-500" />
-                <span className="text-xs text-red-500">处理失败</span>
-              </div>
-            )}
+            {/* 状态指示（与素材浏览列表一致的规则） */}
+            {(() => {
+              const label = (material.fileStatusDesc || '').toLowerCase();
+              const progress = material.processingProgress ?? undefined;
+              const isSuccess = label.includes('完成') || label.includes('success') || progress === 100 || material.fileStatus === 1 || material.status === 'ready';
+              const isProcessing = label.includes('处理中') || label.includes('转码') || label.includes('上传') || (
+                progress !== undefined && progress > 0 && progress < 100
+              ) || material.status === 'processing';
+              const isFailed = label.includes('失败') || label.includes('error') || label.includes('fail') || material.status === 'error' || material.fileStatus === 2;
+
+              if (isFailed) {
+                return (
+                  <div className="flex items-center gap-1 mt-1">
+                    <AlertCircle className="w-3 h-3 text-red-500" />
+                    <span className="text-xs text-red-500">{material.fileStatusDesc || '处理失败'}</span>
+                  </div>
+                );
+              }
+              if (isProcessing && !isSuccess) {
+                return (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span className="text-xs text-muted-foreground">处理中{progress !== undefined ? ` ${progress}%` : '...'}</span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
         </div>
       </CardContent>

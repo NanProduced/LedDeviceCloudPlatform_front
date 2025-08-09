@@ -189,6 +189,12 @@ export interface MaterialInfo {
   
   /** 错误信息 */
   errorMessage?: string;
+
+  /** 原始文件状态码（与素材管理列表对齐：0=处理中,1=已完成,2=失败 等后端定义） */
+  fileStatus?: number;
+
+  /** 原始文件状态描述（用于UI呈现的一致性判断） */
+  fileStatusDesc?: string;
 }
 
 /**
