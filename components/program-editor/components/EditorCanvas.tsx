@@ -345,8 +345,8 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
   } = useEditorStore();
 
   const currentPage = pages[currentPageIndex];
-  const canvasWidth = program.dimensions.width;
-  const canvasHeight = program.dimensions.height;
+  const canvasWidth = program.width;
+  const canvasHeight = program.height;
 
   // 处理画布点击（取消选择）
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {

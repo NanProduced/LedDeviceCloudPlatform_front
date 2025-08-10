@@ -5,7 +5,7 @@
  * 使用shadcn组件实现工具选择和快捷操作
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   MousePointer2, 
   Square, 
@@ -23,7 +23,9 @@ import {
   AlignRight,
   AlignHorizontalJustifyCenter,
   AlignVerticalJustifyCenter,
-  AlignHorizontalJustifyEnd
+  AlignHorizontalJustifyEnd,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 // shadcn组件
@@ -31,6 +33,10 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 // 状态管理和类型
 import { useEditorStore } from '../stores/editor-store';
@@ -104,12 +110,55 @@ export function EditorToolbar({
     updateItem,
     getCurrentPage,
     currentPageIndex,
+    pages,
+    setCurrentPage,
     addItem,
+    program,
+    updateProgramResolution,
   } = useEditorStore();
+
+  // 常用LED屏分辨率预设
+  const commonResolutions = [
+    { label: '1920 × 1080 (Full HD)', value: '1920x1080', width: 1920, height: 1080 },
+    { label: '1920 × 960 (LED 16:9)', value: '1920x960', width: 1920, height: 960 },
+    { label: '1280 × 720 (HD)', value: '1280x720', width: 1280, height: 720 },
+    { label: '1024 × 768 (4:3)', value: '1024x768', width: 1024, height: 768 },
+    { label: '800 × 600 (4:3)', value: '800x600', width: 800, height: 600 },
+    { label: '1366 × 768 (16:9)', value: '1366x768', width: 1366, height: 768 },
+  ];
+
+  const currentResolution = program ? `${program.width}x${program.height}` : '1920x1080';
+
+  // 自定义分辨率输入
+  const [customWidth, setCustomWidth] = useState<number>(program?.width || 1920);
+  const [customHeight, setCustomHeight] = useState<number>(program?.height || 1080);
+
+  useEffect(() => {
+    if (program) {
+      setCustomWidth(program.width);
+      setCustomHeight(program.height);
+    }
+  }, [program?.width, program?.height]);
 
   const hasSelection = selectedItems.length > 0 || selectedRegions.length > 0;
   const hasItemSelection = selectedItems.length > 0;
   const currentPage = getCurrentPage();
+
+  // 处理分辨率变更
+  const handleResolutionChange = (value: string) => {
+    const resolution = commonResolutions.find(r => r.value === value);
+    if (resolution && updateProgramResolution) {
+      updateProgramResolution({ width: resolution.width, height: resolution.height });
+    }
+  };
+
+  const applyCustomResolution = () => {
+    const w = Math.max(1, Math.floor(Number(customWidth) || 0));
+    const h = Math.max(1, Math.floor(Number(customHeight) || 0));
+    if (updateProgramResolution) {
+      updateProgramResolution({ width: w, height: h });
+    }
+  };
 
   // 添加不同类型的项目
   const handleAddItem = (type: VSNItemType) => {
@@ -235,6 +284,88 @@ export function EditorToolbar({
   return (
     <div className={`border-b bg-background px-4 py-2 ${className}`}>
       <div className="flex items-center gap-1">
+        {/* 分辨率选择器 + 自定义宽高（放大控件尺寸） */}
+        <div className="flex items-center gap-3 mr-4">
+          <Label htmlFor="resolution-select" className="text-sm text-muted-foreground">
+            分辨率:
+          </Label>
+          <Select 
+            value={currentResolution} 
+            onValueChange={handleResolutionChange}
+            disabled={disabled}
+          >
+            <SelectTrigger id="resolution-select" className="h-9 w-44">
+              <SelectValue placeholder="选择分辨率" />
+            </SelectTrigger>
+            <SelectContent>
+              {commonResolutions.map((resolution) => (
+                <SelectItem key={resolution.value} value={resolution.value}>
+                  {resolution.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-2 ml-1">
+            <Input
+              type="number"
+              min={1}
+              value={customWidth}
+              onChange={(e) => setCustomWidth(Number(e.target.value))}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyCustomResolution(); }}
+              disabled={disabled}
+              className="h-9 w-24"
+            />
+            <span className="text-base text-muted-foreground">×</span>
+            <Input
+              type="number"
+              min={1}
+              value={customHeight}
+              onChange={(e) => setCustomHeight(Number(e.target.value))}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyCustomResolution(); }}
+              disabled={disabled}
+              className="h-9 w-24"
+            />
+            <Button
+              variant="outline"
+              size="default"
+              onClick={applyCustomResolution}
+              disabled={disabled}
+              className="h-9"
+            >
+              应用
+            </Button>
+          </div>
+        </div>
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
+        {/* 播放页/页面切换可见性增强（放大控件尺寸） */}
+        <div className="flex items-center gap-3 mr-4">
+          <Label className="text-sm text-muted-foreground">播放页:</Label>
+          <Button
+            variant="ghost"
+            size="default"
+            onClick={() => setCurrentPage(Math.max(0, currentPageIndex - 1))}
+            disabled={disabled || currentPageIndex <= 0}
+            className="h-9 w-9 p-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Badge variant="outline" className="text-sm h-7 px-2">
+            第 {currentPageIndex + 1} 页 / {pages.length}
+          </Badge>
+          <Button
+            variant="ghost"
+            size="default"
+            onClick={() => setCurrentPage(Math.min(pages.length - 1, currentPageIndex + 1))}
+            disabled={disabled || currentPageIndex >= pages.length - 1}
+            className="h-9 w-9 p-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
         {/* 选择工具组 */}
         <div className="flex items-center gap-1">
           <ToolButton

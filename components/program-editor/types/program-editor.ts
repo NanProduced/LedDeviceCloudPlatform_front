@@ -272,9 +272,10 @@ export interface ProgramInfo {
   id?: string;
   name: string;
   description: string;
-  dimensions: Dimensions;
-  duration: Duration; // 总播放时长
-  backgroundColor: Color;
+  width: number;
+  height: number;
+  duration?: Duration; // 总播放时长（可选）
+  backgroundColor?: Color; // 可选
   createdAt?: Date;
   updatedAt?: Date;
   version?: number;

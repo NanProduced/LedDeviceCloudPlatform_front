@@ -133,14 +133,19 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
                 <Input
                   value={program.name}
                   onChange={(e) => setProgram({ name: e.target.value })}
-                  className="h-8 text-sm font-medium"
+                  className="h-9 text-base font-medium"
                   placeholder="节目名称"
                 />
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{program.dimensions.width} × {program.dimensions.height}</span>
-                  <Separator orientation="vertical" className="h-3" />
-                  <span>{pages.length} 页</span>
-                  {isDirty && <Badge variant="secondary" className="h-4 px-1">未保存</Badge>}
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Badge variant="outline" className="h-6 px-2 gap-1">
+                    <Monitor className="h-3.5 w-3.5" />
+                    {program.width} × {program.height}
+                  </Badge>
+                  <Separator orientation="vertical" className="h-4" />
+                  <Badge variant="outline" className="h-6 px-2">
+                    第 {currentPageIndex + 1} / {pages.length} 页
+                  </Badge>
+                  {isDirty && <Badge variant="secondary" className="h-6 px-2">未保存</Badge>}
                 </div>
               </div>
             </div>
@@ -303,10 +308,16 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-4">
               <span>当前页面: {currentPageIndex + 1} / {pages.length}</span>
+              <span>
+                素材列表: ({pages.reduce((total, page) => 
+                  total + page.regions.reduce((pageTotal, region) => pageTotal + region.items.length, 0), 0
+                )})
+              </span>
               <span>选中项目: {selectedItems.length}</span>
               <span>选中区域: {selectedRegions.length}</span>
             </div>
             <div className="flex items-center gap-4">
+              <span>分辨率: {program?.width || 1920} × {program?.height || 1080}</span>
               <span>工具: {currentTool}</span>
               <span>缩放: {Math.round(zoomLevel * 100)}%</span>
             </div>

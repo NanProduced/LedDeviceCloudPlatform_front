@@ -182,11 +182,11 @@ export function PageTabs({ className }: PageTabsProps) {
                       
                       {/* 页面信息徽章 */}
                       <div className="flex items-center gap-1">
-                        {page.regions.length > 0 && (
-                          <Badge variant="secondary" className="h-4 px-1 text-xs">
-                            {page.regions.length}
-                          </Badge>
-                        )}
+                        {/* 素材数量 */}
+                        <Badge variant="secondary" className="h-4 px-1 text-xs">
+                          素材: {page.regions.reduce((total, region) => total + region.items.length, 0)}
+                        </Badge>
+                        {/* 播放时长 */}
                         <Badge variant="outline" className="h-4 px-1 text-xs">
                           {formatDuration(page.duration.milliseconds)}
                         </Badge>

@@ -28,6 +28,7 @@ import {
 interface EditorStore extends EditorState {
   // 基础操作
   setProgram: (program: Partial<ProgramInfo>) => void;
+  updateProgramResolution: (resolution: Dimensions) => void;
   setCurrentPage: (pageIndex: number) => void;
   setSelectedItems: (itemIds: string[]) => void;
   setSelectedRegions: (regionIds: string[]) => void;
@@ -93,9 +94,8 @@ interface EditorStore extends EditorState {
 const createDefaultProgram = (): ProgramInfo => ({
   name: '未命名节目',
   description: '',
-  dimensions: { width: 1920, height: 1080 },
-  duration: { milliseconds: 10000 },
-  backgroundColor: { value: '#000000' },
+  width: 1920,
+  height: 1080,
 });
 
 const createDefaultPage = (name?: string): EditorPage => ({
@@ -187,6 +187,32 @@ export const useEditorStore = create<EditorStore>()(
         set((state) => {
           Object.assign(state.program, updates);
           state.isDirty = true;
+        }),
+
+      updateProgramResolution: (resolution) =>
+        set((state) => {
+          if (state.program) {
+            const oldWidth = state.program.width;
+            const oldHeight = state.program.height;
+            
+            state.program.width = resolution.width;
+            state.program.height = resolution.height;
+            
+            // 更新所有页面的默认区域大小
+            state.pages.forEach(page => {
+              page.regions.forEach(region => {
+                if (region.bounds.x === 0 && region.bounds.y === 0 && 
+                    region.bounds.width === oldWidth && 
+                    region.bounds.height === oldHeight) {
+                  // 如果是全屏区域，更新为新的分辨率
+                  region.bounds.width = resolution.width;
+                  region.bounds.height = resolution.height;
+                }
+              });
+            });
+            
+            state.isDirty = true;
+          }
         }),
 
       setCurrentPage: (pageIndex) =>

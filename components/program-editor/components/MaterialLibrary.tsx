@@ -130,7 +130,7 @@ function MaterialItemCard({
     >
       <CardContent className="p-3">
         {/* 预览图 */}
-        <div className="aspect-video bg-muted rounded-md mb-2 overflow-hidden relative">
+        <div className="aspect-[4/3] bg-muted rounded-md mb-2 overflow-hidden relative h-32">
           {item.thumbnailUrl && !imageError ? (
             <>
               {!imageLoaded && (
@@ -182,14 +182,25 @@ function MaterialItemCard({
         </div>
 
         {/* 文件信息 */}
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <p className="text-sm font-medium truncate" title={item.name}>
             {item.name}
           </p>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{formatFileSize(item.fileSize)}</span>
+            <span className="font-medium">{formatFileSize(item.fileSize)}</span>
             <span>{item.createdAt.toLocaleDateString()}</span>
           </div>
+          {/* 添加详细信息显示 */}
+          {item.dimensions && (
+            <div className="text-xs text-muted-foreground">
+              尺寸: {item.dimensions.width} × {item.dimensions.height}
+            </div>
+          )}
+          {item.duration && (
+            <div className="text-xs text-muted-foreground">
+              时长: {formatDuration(item.duration)}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -317,15 +328,24 @@ export function MaterialLibrary({ onAddMaterial, className }: MaterialLibraryPro
       {/* 快速添加按钮 */}
       <QuickAddButtons onAddItem={handleQuickAdd} />
 
-      {/* 分类标签 */}
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="flex-1 flex flex-col">
-        <div className="border-b">
-          <TabsList className="grid w-full grid-cols-3 h-auto p-1">
-            <TabsTrigger value="all" className="text-xs">全部</TabsTrigger>
-            <TabsTrigger value="image" className="text-xs">图片</TabsTrigger>
-            <TabsTrigger value="video" className="text-xs">视频</TabsTrigger>
-          </TabsList>
-        </div>
+              {/* 分类标签 */}
+        <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="flex-1 flex flex-col">
+          <div className="border-b">
+            <ScrollArea>
+              <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+                <TabsTrigger value="all" className="text-xs">全部</TabsTrigger>
+                <TabsTrigger value="image" className="text-xs">图片</TabsTrigger>
+                <TabsTrigger value="video" className="text-xs">视频</TabsTrigger>
+                <TabsTrigger value="text" className="text-xs">文本</TabsTrigger>
+              </TabsList>
+              <TabsList className="grid w-full grid-cols-4 h-auto p-1 mt-1">
+                <TabsTrigger value="clock" className="text-xs">时钟</TabsTrigger>
+                <TabsTrigger value="weather" className="text-xs">天气</TabsTrigger>
+                <TabsTrigger value="sensor" className="text-xs">传感器</TabsTrigger>
+                <TabsTrigger value="web" className="text-xs">网页</TabsTrigger>
+              </TabsList>
+            </ScrollArea>
+          </div>
 
         {/* 素材列表 */}
         <div className="flex-1 min-h-0">
@@ -396,6 +416,71 @@ export function MaterialLibrary({ onAddMaterial, className }: MaterialLibraryPro
                       onSelect={handleMaterialSelect}
                     />
                   ))}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* 文本类型 */}
+          <TabsContent value="text" className="h-full mt-0">
+            <ScrollArea className="h-full">
+              <div className="p-3 space-y-3">
+                <div className="text-center py-8 text-muted-foreground">
+                  <Type className="h-12 w-12 mx-auto mb-2" />
+                  <p className="text-sm">文本素材</p>
+                  <p className="text-xs">支持单行、多行、滚动文本</p>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* 时钟类型 */}
+          <TabsContent value="clock" className="h-full mt-0">
+            <ScrollArea className="h-full">
+              <div className="p-3 space-y-3">
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-2" />
+                  <p className="text-sm">时钟组件</p>
+                  <p className="text-xs">数字时钟、模拟时钟</p>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* 天气类型 */}
+          <TabsContent value="weather" className="h-full mt-0">
+            <ScrollArea className="h-full">
+              <div className="p-3 space-y-3">
+                <div className="text-center py-8 text-muted-foreground">
+                  <Cloud className="h-12 w-12 mx-auto mb-2" />
+                  <p className="text-sm">天气组件</p>
+                  <p className="text-xs">实时天气信息显示</p>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* 传感器类型 */}
+          <TabsContent value="sensor" className="h-full mt-0">
+            <ScrollArea className="h-full">
+              <div className="p-3 space-y-3">
+                <div className="text-center py-8 text-muted-foreground">
+                  <Thermometer className="h-12 w-12 mx-auto mb-2" />
+                  <p className="text-sm">传感器组件</p>
+                  <p className="text-xs">温度、湿度、空气质量等</p>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* 网页类型 */}
+          <TabsContent value="web" className="h-full mt-0">
+            <ScrollArea className="h-full">
+              <div className="p-3 space-y-3">
+                <div className="text-center py-8 text-muted-foreground">
+                  <Globe className="h-12 w-12 mx-auto mb-2" />
+                  <p className="text-sm">网页组件</p>
+                  <p className="text-xs">网页内容、流媒体</p>
+                </div>
               </div>
             </ScrollArea>
           </TabsContent>
