@@ -94,6 +94,9 @@ interface EditorStateStore extends EditorState {
   moveItemDown: (itemId: string) => void;
   moveItemToTop: (itemId: string) => void;
   moveItemToBottom: (itemId: string) => void;
+    // 播放顺序（数组顺序）调整：将某个 item 在其所在 region 的 items 数组内上移/下移
+    moveItemEarlier: (itemId: string) => void;
+    moveItemLater: (itemId: string) => void;
   moveItem: (fromPageId: string, fromRegionId: string, itemId: string, toPageId: string, toRegionId: string) => void;
   
   // 操作方法 - 画布状态管理
@@ -585,6 +588,39 @@ export const useEditorStore = create<EditorStateStore>()(
                 const item = region.items.find(i => i.id === itemId);
                 if (item) {
                   (item.properties as any).zIndex = 0;
+                }
+              }
+            }
+          });
+        },
+
+        // 将 item 在数组顺序上移一位（用于播放顺序）
+        moveItemEarlier: (itemId) => {
+          set((state) => {
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const idx = region.items.findIndex(i => i.id === itemId);
+                if (idx > 0) {
+                  const [moved] = region.items.splice(idx, 1);
+                  region.items.splice(idx - 1, 0, moved);
+                  state.isDirty = true;
+                  return;
+                }
+              }
+            }
+          });
+        },
+        // 将 item 在数组顺序下移一位（用于播放顺序）
+        moveItemLater: (itemId) => {
+          set((state) => {
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const idx = region.items.findIndex(i => i.id === itemId);
+                if (idx !== -1 && idx < region.items.length - 1) {
+                  const [moved] = region.items.splice(idx, 1);
+                  region.items.splice(idx + 1, 0, moved);
+                  state.isDirty = true;
+                  return;
                 }
               }
             }

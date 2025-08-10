@@ -142,11 +142,13 @@ function MaterialItem({ material, onSelect, onDragStart }: MaterialItemProps) {
         <div className="flex items-center gap-3">
           {/* 缩略图或图标 */}
           {isVisual ? (
-            <div className="w-10 h-10 bg-muted rounded flex-shrink-0 overflow-hidden">
+            <div className="w-10 h-10 bg-muted rounded flex-shrink-0 overflow-hidden" onDragStart={handleDragStart} draggable>
               <img
                 src={thumbUrl}
                 alt={material.name}
                 className="w-full h-full object-cover"
+                draggable
+                onDragStart={handleDragStart}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
@@ -158,7 +160,7 @@ function MaterialItem({ material, onSelect, onDragStart }: MaterialItemProps) {
               />
             </div>
           ) : (
-            <div className="w-10 h-10 bg-muted rounded flex-shrink-0 flex items-center justify-center">
+            <div className="w-10 h-10 bg-muted rounded flex-shrink-0 flex items-center justify-center" onDragStart={handleDragStart} draggable>
               {React.createElement(CATEGORY_ICONS[material.category] || FileText, {
                 className: "w-4 h-4 text-muted-foreground"
               })}

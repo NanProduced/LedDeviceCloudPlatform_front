@@ -43,6 +43,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [isCreatingObject, setIsCreatingObject] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [displaySize, setDisplaySize] = useState<{ width: number; height: number; scale: number }>({ width: 0, height: 0, scale: 1 });
   const guideLinesRef = useRef<{ v?: any; h?: any }>({});
   const SNAP_THRESHOLD = 5; // px
 
@@ -70,7 +71,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     if (!canvasRef.current) return;
     if (!fabricLib) return;
 
-    // 创建Fabric.js画布实例
+    // 创建Fabric.js画布实例（逻辑尺寸固定为节目宽高，CSS 尺寸自适应容器保持等比）
     const canvas = new fabricLib.Canvas(canvasRef.current as any, {
       width,
       height,
@@ -83,13 +84,17 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       enableRetinaScaling: true,
     });
 
-    // 设置画布配置
-    canvas.setDimensions({
-      width: '100%',
-      height: '100%',
-    }, {
-      cssOnly: true,
-    });
+    // 初始按容器计算显示尺寸
+    const applyResponsiveSize = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const scale = Math.min(rect.width / width, rect.height / height) || 1;
+      const cssW = Math.floor(width * scale);
+      const cssH = Math.floor(height * scale);
+      canvas.setDimensions({ width: cssW, height: cssH }, { cssOnly: true });
+      setDisplaySize({ width: cssW, height: cssH, scale });
+    };
+    applyResponsiveSize();
 
     // 选择事件监听
     canvas.on('selection:created', (e) => {
@@ -259,6 +264,23 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       (useStore.getState() as any).saveToHistory?.('初始化画布');
     } catch {}
 
+    // 监听容器尺寸变化，保持等比缩放
+    const ro = new ResizeObserver(() => {
+      try {
+        const c = fabricCanvasRef.current;
+        if (!c) return;
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const scale = Math.min(rect.width / width, rect.height / height) || 1;
+        const cssW = Math.floor(width * scale);
+        const cssH = Math.floor(height * scale);
+        c.setDimensions({ width: cssW, height: cssH }, { cssOnly: true });
+        setDisplaySize({ width: cssW, height: cssH, scale });
+        c.renderAll();
+      } catch {}
+    });
+    if (containerRef.current) ro.observe(containerRef.current);
+
     return canvas;
   }, [width, height, onCanvasReady, onSelectionChange, selectObjects, updateItemPosition, updateItemSize, setCanvas, fabricLib]);
 
@@ -290,6 +312,25 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     };
   }, [initCanvas]);
 
+  // 当节目宽高变化时，更新逻辑尺寸并重新计算显示尺寸
+  useEffect(() => {
+    const c = fabricCanvasRef.current;
+    if (!c || !fabricLib) return;
+    try {
+      c.setWidth(width);
+      c.setHeight(height);
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const scale = Math.min(rect.width / width, rect.height / height) || 1;
+        const cssW = Math.floor(width * scale);
+        const cssH = Math.floor(height * scale);
+        c.setDimensions({ width: cssW, height: cssH }, { cssOnly: true });
+        setDisplaySize({ width: cssW, height: cssH, scale });
+      }
+      c.renderAll();
+    } catch {}
+  }, [width, height, fabricLib]);
+
   // 动态加载 fabric，仅在客户端
   useEffect(() => {
     let mounted = true;
@@ -304,10 +345,11 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     return () => { mounted = false };
   }, []);
 
-  // 创建EditorItem
-  const createEditorItem = useCallback((material: MaterialInfo, position: { x: number, y: number }): EditorItem => {
+    // 创建EditorItem
+    const createEditorItem = useCallback((material: MaterialInfo, position: { x: number, y: number }): EditorItem => {
     const itemType = getItemTypeFromMaterial(material);
-    const itemId = `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // 注意：此处生成的临时ID仅用于拖拽过程，最终以 store 分配ID为准
+      const itemId = `item_tmp_${Math.random().toString(36).slice(2)}`;
     
     // 根据素材类型设置默认尺寸
     let defaultSize = { width: 200, height: 150 };
@@ -359,7 +401,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
         break;
     }
 
-    return {
+      return {
       id: itemId,
       type: itemType,
       name: material.name,
@@ -421,7 +463,11 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
   // 拖拽事件处理
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    // 明确允许 drop
+    if (e.dataTransfer) {
+      try { e.dataTransfer.dropEffect = 'copy'; } catch {}
+      try { e.dataTransfer.effectAllowed = 'copyMove'; } catch {}
+    }
     setIsDragOver(true);
   }, []);
 
@@ -458,8 +504,10 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       if (!canvasElement) return;
 
       const rect = canvasElement.getBoundingClientRect();
-      const canvasX = (e.clientX - rect.left) / canvas.getZoom() - canvas.viewportTransform![4] / canvas.getZoom();
-      const canvasY = (e.clientY - rect.top) / canvas.getZoom() - canvas.viewportTransform![5] / canvas.getZoom();
+      const zoomFactor = canvas.getZoom();
+      const vt = canvas.viewportTransform || [1,0,0,1,0,0];
+      const canvasX = (e.clientX - rect.left - vt[4]) / zoomFactor;
+      const canvasY = (e.clientY - rect.top - vt[5]) / zoomFactor;
 
       // 创建EditorItem
       const editorItem = createEditorItem(material, { x: canvasX, y: canvasY });
@@ -670,7 +718,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
                 {page.regions && page.regions.length > 0 ? (
                   page.regions.map((r) => (
                     <div key={r.id} className="absolute border-2 border-green-400 border-dashed"
-                      style={{ left: r.rect.x, top: r.rect.y, width: r.rect.width, height: r.rect.height }} />
+                      style={{ left: r.rect.x * displaySize.scale, top: r.rect.y * displaySize.scale, width: r.rect.width * displaySize.scale, height: r.rect.height * displaySize.scale }} />
                   ))
                 ) : (
                   <div className="absolute inset-0 m-10 border-2 border-emerald-400 border-dashed rounded-md flex items-center justify-center">
