@@ -21,6 +21,8 @@ import { VersionPickerDialog } from '@/components/program-editor/VersionPickerDi
 import { ProgramAPI } from '@/lib/api/program';
 import { VSNConverter } from '@/components/program-editor/converters/vsn-converter';
 import { computeProgramDuration } from '@/components/program-editor/utils/duration';
+import { validateEditorStateForCreation } from '@/components/program-editor/validators/vsn-validator';
+import { useMaterialStore } from '@/components/program-editor/managers/material-ref-manager';
 
 /**
  * 创建新节目页面
@@ -42,6 +44,26 @@ export default function CreateProgramPage() {
       const duration = computeProgramDuration({ program, pages, currentPageIndex, canvasStates: {} });
       // 2) 构造 EditorState（最小集）
       const editorState = { program, pages, currentPageIndex, canvasStates: {} } as any;
+      // 2.1) 保存前校验（结构/必填/同步窗口）
+      const validation = validateEditorStateForCreation(editorState);
+      if (!validation.isValid) {
+        const first = validation.errors[0];
+        toast.error(first?.message || '校验失败');
+        return;
+      }
+      // 2.2) 批量兜底素材元数据
+      try {
+        const ensure = (useMaterialStore.getState() as any).ensureMaterialsMetadata as (ids: string[]) => Promise<void>;
+        const ids: string[] = [];
+        for (const p of pages) {
+          for (const r of p.regions) {
+            for (const it of r.items) {
+              if ((it as any).materialRef?.materialId) ids.push((it as any).materialRef.materialId);
+            }
+          }
+        }
+        await ensure(ids);
+      } catch {}
       // 3) 生成严格 VSN JSON 字符串
       const { vsnData } = VSNConverter.convertToVSN(editorState);
       const vsnDataStr = JSON.stringify(vsnData);

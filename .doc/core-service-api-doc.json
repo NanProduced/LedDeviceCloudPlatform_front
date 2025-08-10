@@ -92,6 +92,7 @@
         "/program/{programId}": {
             "get": {
                 "tags": [
+                    "节目管理",
                     "节目查询",
                     "Program(节目管理)"
                 ],
@@ -1055,6 +1056,39 @@
                 }
             }
         },
+        "/quota/check": {
+            "post": {
+                "tags": [
+                    "Quota(组织配额)",
+                    "内部接口"
+                ],
+                "summary": "配额检查",
+                "description": "上传前检查组织配额是否充足（仅内部调用）",
+                "operationId": "checkQuota",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/QuotaCheckRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "boolean"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/program/{programId}/versions/{versionId}/revert": {
             "post": {
                 "tags": [
@@ -1098,53 +1132,10 @@
                 }
             }
         },
-        "/program/{programId}/publish": {
-            "post": {
-                "tags": [
-                    "节目管理",
-                    "Program(节目管理)"
-                ],
-                "summary": "发布节目",
-                "description": "将草稿转换为正式节目并进入审核流程",
-                "operationId": "publishProgram",
-                "parameters": [
-                    {
-                        "name": "programId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "format": "int64"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PublishDraftRequest"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "*/*": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ProgramDTO"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/program/{programId}/draft": {
             "post": {
                 "tags": [
+                    "节目管理",
                     "草稿管理",
                     "Program(节目管理)"
                 ],
@@ -1338,6 +1329,40 @@
                 }
             }
         },
+        "/metadata/batch": {
+            "post": {
+                "tags": [
+                    "素材元数据",
+                    "素材管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "批量查询素材元数据",
+                "description": "根据素材ID列表批量获取详细元数据信息，专为节目编辑器设计的高性能接口",
+                "operationId": "batchGetMaterialMetadata",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BatchMaterialMetadataRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BatchMaterialMetadataResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/material/folder/create": {
             "post": {
                 "tags": [
@@ -1360,38 +1385,6 @@
                 "responses": {
                     "200": {
                         "description": "OK"
-                    }
-                }
-            }
-        },
-        "/internal/quota/check": {
-            "post": {
-                "tags": [
-                    "Quota(组织配额)"
-                ],
-                "summary": "配额检查",
-                "description": "上传前检查组织配额是否充足（仅内部调用）",
-                "operationId": "checkQuota",
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/QuotaCheckRequest"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "*/*": {
-                                "schema": {
-                                    "type": "boolean"
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -1720,6 +1713,7 @@
         "/program/{programId}/content": {
             "get": {
                 "tags": [
+                    "节目管理",
                     "节目查询",
                     "Program(节目管理)"
                 ],
@@ -1763,6 +1757,7 @@
         "/program/list": {
             "get": {
                 "tags": [
+                    "节目管理",
                     "节目查询",
                     "Program(节目管理)"
                 ],
@@ -1874,6 +1869,143 @@
                                             "$ref": "#/components/schemas/OperationPermissionResponse"
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/metadata/{materialId}": {
+            "get": {
+                "tags": [
+                    "素材元数据",
+                    "素材管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "查询单个素材元数据",
+                "description": "根据素材ID获取详细元数据信息，包含图片/视频专属信息",
+                "operationId": "getMaterialMetadata",
+                "parameters": [
+                    {
+                        "name": "materialId",
+                        "in": "path",
+                        "description": "素材ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "includeThumbnails",
+                        "in": "query",
+                        "description": "是否包含缩略图信息",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "includeBasicInfo",
+                        "in": "query",
+                        "description": "是否包含基础文件信息",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "includeImageMetadata",
+                        "in": "query",
+                        "description": "是否包含图片元数据",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    },
+                    {
+                        "name": "includeVideoMetadata",
+                        "in": "query",
+                        "description": "是否包含视频元数据",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MaterialMetadataItem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/metadata/{materialId}/exists": {
+            "get": {
+                "tags": [
+                    "素材元数据",
+                    "素材管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "检查素材元数据存在性",
+                "description": "快速检查素材是否存在元数据，用于前端状态判断",
+                "operationId": "checkMetadataExists",
+                "parameters": [
+                    {
+                        "name": "materialId",
+                        "in": "path",
+                        "description": "素材ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "boolean"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/metadata/performance-stats": {
+            "get": {
+                "tags": [
+                    "素材元数据",
+                    "素材管理",
+                    "性能监控",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "获取元数据查询性能统计",
+                "description": "用于监控和优化查询性能的统计信息",
+                "operationId": "getMetadataPerformanceStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -3542,23 +3674,16 @@
                 },
                 "description": "实时消息响应类"
             },
-            "PublishDraftRequest": {
+            "QuotaCheckRequest": {
                 "type": "object",
                 "properties": {
-                    "name": {
-                        "type": "string"
+                    "bytes": {
+                        "type": "integer",
+                        "format": "int64"
                     },
-                    "description": {
-                        "type": "string"
-                    },
-                    "publishNote": {
-                        "type": "string"
-                    },
-                    "vsnData": {
-                        "type": "string"
-                    },
-                    "contentData": {
-                        "type": "string"
+                    "files": {
+                        "type": "integer",
+                        "format": "int32"
                     }
                 }
             },
@@ -3798,6 +3923,447 @@
                 },
                 "description": "创建组织响应DTO"
             },
+            "BatchMaterialMetadataRequest": {
+                "required": [
+                    "materialIds"
+                ],
+                "type": "object",
+                "properties": {
+                    "materialIds": {
+                        "maxItems": 100,
+                        "minItems": 0,
+                        "type": "array",
+                        "description": "素材ID列表",
+                        "example": [
+                            1,
+                            2,
+                            3
+                        ],
+                        "items": {
+                            "type": "integer",
+                            "description": "素材ID列表",
+                            "format": "int64"
+                        }
+                    },
+                    "includeThumbnails": {
+                        "type": "boolean",
+                        "description": "是否包含缩略图信息",
+                        "example": true
+                    },
+                    "includeBasicInfo": {
+                        "type": "boolean",
+                        "description": "是否包含基础文件信息(MD5、文件大小等)",
+                        "example": true
+                    },
+                    "includeImageMetadata": {
+                        "type": "boolean",
+                        "description": "是否包含图片专属元数据(宽高、EXIF等)",
+                        "example": true
+                    },
+                    "includeVideoMetadata": {
+                        "type": "boolean",
+                        "description": "是否包含视频专属元数据(分辨率、时长、编码等)",
+                        "example": true
+                    }
+                },
+                "description": "批量查询素材元数据请求"
+            },
+            "BatchMaterialMetadataResponse": {
+                "type": "object",
+                "properties": {
+                    "metadataList": {
+                        "type": "array",
+                        "description": "元数据列表",
+                        "items": {
+                            "$ref": "#/components/schemas/MaterialMetadataItem"
+                        }
+                    },
+                    "notFoundMaterialIds": {
+                        "type": "array",
+                        "description": "未找到元数据的素材ID列表",
+                        "items": {
+                            "type": "integer",
+                            "description": "未找到元数据的素材ID列表",
+                            "format": "int64"
+                        }
+                    },
+                    "failedMaterialIds": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string",
+                            "description": "查询失败的素材ID及错误信息"
+                        },
+                        "description": "查询失败的素材ID及错误信息"
+                    },
+                    "totalRequested": {
+                        "type": "integer",
+                        "description": "查询总数",
+                        "format": "int32",
+                        "example": 10
+                    },
+                    "successCount": {
+                        "type": "integer",
+                        "description": "成功查询数",
+                        "format": "int32",
+                        "example": 8
+                    },
+                    "notFoundCount": {
+                        "type": "integer",
+                        "description": "未找到数",
+                        "format": "int32",
+                        "example": 1
+                    },
+                    "failedCount": {
+                        "type": "integer",
+                        "description": "查询失败数",
+                        "format": "int32",
+                        "example": 1
+                    },
+                    "successRate": {
+                        "type": "number",
+                        "description": "查询成功率",
+                        "format": "double",
+                        "example": 0.8
+                    },
+                    "queryTimeMs": {
+                        "type": "integer",
+                        "description": "查询耗时(毫秒)",
+                        "format": "int64",
+                        "example": 156
+                    },
+                    "mysqlQueryTimeMs": {
+                        "type": "integer",
+                        "description": "MySQL查询耗时(毫秒)",
+                        "format": "int64",
+                        "example": 45
+                    },
+                    "mongodbQueryTimeMs": {
+                        "type": "integer",
+                        "description": "MongoDB查询耗时(毫秒)",
+                        "format": "int64",
+                        "example": 89
+                    },
+                    "assemblyTimeMs": {
+                        "type": "integer",
+                        "description": "数据组装耗时(毫秒)",
+                        "format": "int64",
+                        "example": 22
+                    },
+                    "queryExecutedAt": {
+                        "type": "string",
+                        "description": "查询执行时间",
+                        "format": "date-time"
+                    },
+                    "requestId": {
+                        "type": "string",
+                        "description": "查询请求ID",
+                        "example": "req_20241201_001"
+                    },
+                    "cacheUsed": {
+                        "type": "boolean",
+                        "description": "是否使用了缓存",
+                        "example": false
+                    },
+                    "responseVersion": {
+                        "type": "string",
+                        "description": "响应数据版本",
+                        "example": "v1.0"
+                    },
+                    "performanceSummary": {
+                        "type": "string"
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "allSuccessful": {
+                        "type": "boolean"
+                    },
+                    "completelyFailed": {
+                        "type": "boolean"
+                    }
+                },
+                "description": "批量查询素材元数据响应"
+            },
+            "GifMetadata": {
+                "type": "object",
+                "properties": {
+                    "width": {
+                        "type": "integer",
+                        "description": "图片宽度(像素)",
+                        "format": "int32",
+                        "example": 400
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "图片高度(像素)",
+                        "format": "int32",
+                        "example": 300
+                    },
+                    "isAnimated": {
+                        "type": "boolean",
+                        "description": "是否为动画GIF",
+                        "example": true
+                    },
+                    "frameCount": {
+                        "type": "integer",
+                        "description": "帧数",
+                        "format": "int32",
+                        "example": 24
+                    },
+                    "durationMs": {
+                        "type": "integer",
+                        "description": "动画时长(毫秒)",
+                        "format": "int64",
+                        "example": 2000
+                    },
+                    "loopCount": {
+                        "type": "integer",
+                        "description": "循环次数",
+                        "format": "int32",
+                        "example": 0
+                    },
+                    "averageFrameDelayMs": {
+                        "type": "integer",
+                        "description": "平均帧延时(毫秒)",
+                        "format": "int32",
+                        "example": 83
+                    }
+                },
+                "description": "GIF动画元数据"
+            },
+            "ImageMetadata": {
+                "type": "object",
+                "properties": {
+                    "width": {
+                        "type": "integer",
+                        "description": "图片宽度(像素)",
+                        "format": "int32",
+                        "example": 1920
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "图片高度(像素)",
+                        "format": "int32",
+                        "example": 1080
+                    },
+                    "colorDepth": {
+                        "type": "integer",
+                        "description": "色深(位)",
+                        "format": "int32",
+                        "example": 24
+                    },
+                    "colorSpace": {
+                        "type": "string",
+                        "description": "色彩空间",
+                        "example": "RGB"
+                    },
+                    "hasAlpha": {
+                        "type": "boolean",
+                        "description": "是否有透明通道",
+                        "example": true
+                    },
+                    "dpiHorizontal": {
+                        "type": "integer",
+                        "description": "水平DPI",
+                        "format": "int32",
+                        "example": 72
+                    },
+                    "dpiVertical": {
+                        "type": "integer",
+                        "description": "垂直DPI",
+                        "format": "int32",
+                        "example": 72
+                    },
+                    "orientation": {
+                        "type": "string",
+                        "description": "图片方向",
+                        "example": "1"
+                    },
+                    "cameraModel": {
+                        "type": "string",
+                        "description": "拍摄设备",
+                        "example": "Canon EOS R5"
+                    },
+                    "dateTaken": {
+                        "type": "string",
+                        "description": "拍摄时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "图片元数据"
+            },
+            "MaterialMetadataItem": {
+                "type": "object",
+                "properties": {
+                    "materialId": {
+                        "type": "integer",
+                        "description": "素材ID",
+                        "format": "int64",
+                        "example": 123
+                    },
+                    "fileId": {
+                        "type": "string",
+                        "description": "文件ID",
+                        "example": "file_abc123"
+                    },
+                    "materialName": {
+                        "type": "string",
+                        "description": "素材名称",
+                        "example": "产品宣传视频.mp4"
+                    },
+                    "materialType": {
+                        "type": "string",
+                        "description": "素材类型",
+                        "example": "VIDEO"
+                    },
+                    "md5Hash": {
+                        "type": "string",
+                        "description": "MD5哈希值",
+                        "example": "a1b2c3d4e5f6..."
+                    },
+                    "fileExtension": {
+                        "type": "string",
+                        "description": "文件扩展名",
+                        "example": "mp4"
+                    },
+                    "mimeType": {
+                        "type": "string",
+                        "description": "MIME类型",
+                        "example": "video/mp4"
+                    },
+                    "fileSize": {
+                        "type": "integer",
+                        "description": "文件大小(字节)",
+                        "format": "int64",
+                        "example": 1024000
+                    },
+                    "fileStatus": {
+                        "type": "integer",
+                        "description": "文件状态",
+                        "format": "int32",
+                        "example": 1
+                    },
+                    "fileStatusDesc": {
+                        "type": "string",
+                        "description": "文件状态描述",
+                        "example": "已完成"
+                    },
+                    "processProgress": {
+                        "type": "integer",
+                        "description": "处理进度",
+                        "format": "int32",
+                        "example": 100
+                    },
+                    "previewUrl": {
+                        "type": "string",
+                        "description": "预览URL",
+                        "example": "/file/api/file/preview/file_abc123"
+                    },
+                    "thumbnailUrl": {
+                        "type": "string",
+                        "description": "缩略图URL",
+                        "example": "https://cdn.example.com/thumbnails/file_abc123_300x300.jpg"
+                    },
+                    "streamUrl": {
+                        "type": "string",
+                        "description": "流式播放URL(视频专用)",
+                        "example": "/file/api/file/stream/file_abc123"
+                    },
+                    "imageMetadata": {
+                        "$ref": "#/components/schemas/ImageMetadata"
+                    },
+                    "videoMetadata": {
+                        "$ref": "#/components/schemas/VideoMetadata"
+                    },
+                    "gifMetadata": {
+                        "$ref": "#/components/schemas/GifMetadata"
+                    },
+                    "analysisStatus": {
+                        "type": "string",
+                        "description": "元数据分析状态",
+                        "example": "SUCCESS"
+                    },
+                    "metadataCreatedAt": {
+                        "type": "string",
+                        "description": "元数据创建时间",
+                        "format": "date-time"
+                    },
+                    "metadataUpdatedAt": {
+                        "type": "string",
+                        "description": "元数据更新时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "素材元数据项"
+            },
+            "VideoMetadata": {
+                "type": "object",
+                "properties": {
+                    "width": {
+                        "type": "integer",
+                        "description": "视频宽度(像素)",
+                        "format": "int32",
+                        "example": 1920
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "视频高度(像素)",
+                        "format": "int32",
+                        "example": 1080
+                    },
+                    "durationMs": {
+                        "type": "integer",
+                        "description": "视频时长(毫秒)",
+                        "format": "int64",
+                        "example": 30000
+                    },
+                    "frameRate": {
+                        "type": "number",
+                        "description": "帧率(fps)",
+                        "format": "double",
+                        "example": 30.0
+                    },
+                    "bitrate": {
+                        "type": "integer",
+                        "description": "视频比特率(bps)",
+                        "format": "int64",
+                        "example": 5000000
+                    },
+                    "videoCodec": {
+                        "type": "string",
+                        "description": "视频编码",
+                        "example": "H.264"
+                    },
+                    "audioCodec": {
+                        "type": "string",
+                        "description": "音频编码",
+                        "example": "AAC"
+                    },
+                    "aspectRatio": {
+                        "type": "string",
+                        "description": "宽高比",
+                        "example": "16:9"
+                    },
+                    "containerFormat": {
+                        "type": "string",
+                        "description": "容器格式",
+                        "example": "MP4"
+                    },
+                    "audioSampleRate": {
+                        "type": "integer",
+                        "description": "音频采样率",
+                        "format": "int32",
+                        "example": 44100
+                    },
+                    "audioChannels": {
+                        "type": "integer",
+                        "description": "音频声道数",
+                        "format": "int32",
+                        "example": 2
+                    }
+                },
+                "description": "视频元数据"
+            },
             "CreateFolderRequest": {
                 "required": [
                     "folderName"
@@ -3824,19 +4390,6 @@
                     }
                 },
                 "description": "创建文件夹请求"
-            },
-            "QuotaCheckRequest": {
-                "type": "object",
-                "properties": {
-                    "bytes": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "files": {
-                        "type": "integer",
-                        "format": "int32"
-                    }
-                }
             },
             "PageRequestDTOQueryBroadcastMessageRequest": {
                 "type": "object",

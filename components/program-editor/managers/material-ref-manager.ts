@@ -95,6 +95,9 @@ interface MaterialRefStore {
   // 操作方法 - 素材引用验证
   validateMaterialRef: (materialRef: MaterialReference) => Promise<MaterialRefValidationResult>;
   validateMaterialRefs: (materialRefs: MaterialReference[]) => Promise<MaterialRefsBatchValidationResult>;
+
+  // 操作方法 - 元数据兜底
+  ensureMaterialsMetadata: (materialIds: string[]) => Promise<void>;
   
   // 操作方法 - 缓存管理
   getCachedMaterial: (materialId: string) => MaterialInfo | null;
@@ -133,7 +136,8 @@ const mapToMaterialInfo = (m: ListMaterialResponse): MaterialInfo => {
   const category: MaterialCategory = isImage ? 'image' : isVideo ? 'video' : 'other';
   const type: ItemType = isImage ? ItemType.IMAGE : isVideo ? ItemType.VIDEO : ItemType.DOC;
   // 预览URL（若服务未提供该接口，图片会走占位渲染，不影响拖拽使用）
-  const accessUrl = isImage ? `/file/api/file/preview/${m.fileId}` : '';
+  // 统一的预览URL构造：图片与视频都走preview入口，视频可在UI端追加`t`参数
+  const accessUrl = `/file/api/file/preview/${m.fileId}`;
   return {
     id: String(m.mid),
     name: m.materialName,
@@ -467,6 +471,40 @@ export const useMaterialStore = create<MaterialRefStore>()(
               validCount: 0,
               invalidCount: materialRefs.length
             };
+          }
+        },
+
+        // 批量兜底元数据
+        ensureMaterialsMetadata: async (materialIds) => {
+          try {
+            const ids = Array.from(new Set((materialIds || []).filter(Boolean)));
+            if (ids.length === 0) return;
+            const res = await fetch('/core/api/metadata/batch', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ materialIds: ids })
+            });
+            if (!res.ok) return;
+            const payload = await res.json();
+            const list = payload?.data || payload?.result || payload || [];
+            if (!Array.isArray(list)) return;
+            set((state) => {
+              for (const meta of list) {
+                const id = String(meta.mid || meta.materialId || meta.id);
+                const m = state.materials[id];
+                if (!m) continue;
+                if (meta.basicInfo?.md5Hash) m.md5Hash = meta.basicInfo.md5Hash;
+                if (meta.basicInfo?.fileSize) m.fileSize = meta.basicInfo.fileSize;
+                const w = meta.imageMetadata?.width || meta.videoMetadata?.videoWidth;
+                const h = meta.imageMetadata?.height || meta.videoMetadata?.videoHeight;
+                if (w && h) m.metadata.dimensions = { width: w, height: h };
+                const durMs = meta.videoMetadata?.videoDurationMs ?? (typeof meta.videoMetadata?.videoDuration === 'number' ? meta.videoMetadata.videoDuration * 1000 : undefined);
+                if (durMs) m.metadata.duration = Number(durMs);
+              }
+            });
+          } catch (e) {
+            console.warn('ensureMaterialsMetadata failed', e);
           }
         },
         

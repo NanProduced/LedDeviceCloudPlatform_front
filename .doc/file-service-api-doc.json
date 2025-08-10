@@ -14,12 +14,17 @@
         {
             "name": "文件上传",
             "description": "文件上传相关接口"
+        },
+        {
+            "name": "文件预览",
+            "description": "统一文件预览接口"
         }
     ],
     "paths": {
         "/file/upload/single": {
             "post": {
                 "tags": [
+                    "素材管理",
                     "文件上传"
                 ],
                 "summary": "异步上传单个文件",
@@ -72,6 +77,7 @@
         "/file/upload/check-duplicate": {
             "post": {
                 "tags": [
+                    "内部接口",
                     "文件上传"
                 ],
                 "summary": "MD5文件去重检查",
@@ -106,6 +112,8 @@
                 "tags": [
                     "文件上传"
                 ],
+                "summary": "服务器支持的文件类型",
+                "description": "获取服务器支持的文件类型列表",
                 "operationId": "getSupportedFileTypes",
                 "responses": {
                     "200": {
@@ -121,44 +129,14 @@
                 }
             }
         },
-        "/file/upload/statistics/{organizationId}": {
-            "get": {
-                "tags": [
-                    "文件上传"
-                ],
-                "summary": "获取上传统计",
-                "description": "获取组织的文件上传统计信息",
-                "operationId": "getUploadStatistics",
-                "parameters": [
-                    {
-                        "name": "organizationId",
-                        "in": "path",
-                        "description": "组织ID",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "*/*": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/FileUploadStatistics"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/file/upload/progress/{taskId}": {
             "get": {
                 "tags": [
+                    "素材管理",
                     "文件上传"
                 ],
+                "summary": "查询上传进度",
+                "description": "根据任务Id查询任务具体进度",
                 "operationId": "getUploadProgress",
                 "parameters": [
                     {
@@ -181,6 +159,218 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/file/preview/{fileId}": {
+            "get": {
+                "tags": [
+                    "素材管理",
+                    "文件预览",
+                    "素材预览"
+                ],
+                "summary": "统一素材预览接口",
+                "description": "支持图片直接预览和视频截帧预览，专为节目编辑器设计的高性能接口",
+                "operationId": "previewFile",
+                "parameters": [
+                    {
+                        "name": "fileId",
+                        "in": "path",
+                        "description": "文件ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "w",
+                        "in": "query",
+                        "description": "输出宽度（像素）",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        },
+                        "example": 300
+                    },
+                    {
+                        "name": "h",
+                        "in": "query",
+                        "description": "输出高度（像素）",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        },
+                        "example": 300
+                    },
+                    {
+                        "name": "fit",
+                        "in": "query",
+                        "description": "适应方式",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "cover"
+                        },
+                        "example": "cover"
+                    },
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "输出格式",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "jpg"
+                        },
+                        "example": "jpg"
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "图片质量 1-100",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 85
+                        },
+                        "example": 85
+                    },
+                    {
+                        "name": "t",
+                        "in": "query",
+                        "description": "视频时间点（秒）",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "double",
+                            "default": 1.0
+                        },
+                        "example": 1.0
+                    },
+                    {
+                        "name": "frame",
+                        "in": "query",
+                        "description": "视频帧数（替代t参数）",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/file/preview/stream/{fileId}": {
+            "get": {
+                "tags": [
+                    "素材管理",
+                    "文件预览",
+                    "素材预览"
+                ],
+                "summary": "素材流式文件播放",
+                "description": "支持Range请求的视频流式播放接口，用于视频预览播放",
+                "operationId": "streamFile",
+                "parameters": [
+                    {
+                        "name": "fileId",
+                        "in": "path",
+                        "description": "文件ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/file/preview/info/{fileId}": {
+            "get": {
+                "tags": [
+                    "素材管理",
+                    "文件预览"
+                ],
+                "summary": "获取文件信息",
+                "description": "获取文件的基础信息，不返回文件内容",
+                "operationId": "getFileInfo",
+                "parameters": [
+                    {
+                        "name": "fileId",
+                        "in": "path",
+                        "description": "文件ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FileInfo"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/file/preview/download/{fileId}": {
+            "get": {
+                "tags": [
+                    "素材管理",
+                    "文件预览"
+                ],
+                "summary": "原始文件下载",
+                "description": "下载文件的原始版本，保持原有格式和质量",
+                "operationId": "downloadFile",
+                "parameters": [
+                    {
+                        "name": "fileId",
+                        "in": "path",
+                        "description": "文件ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "attachment",
+                        "in": "query",
+                        "description": "是否强制下载（attachment）",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
                     }
                 }
             }
@@ -558,34 +748,6 @@
                 },
                 "description": "系统配置"
             },
-            "FileUploadStatistics": {
-                "type": "object",
-                "properties": {
-                    "organizationId": {
-                        "type": "string"
-                    },
-                    "totalFiles": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "totalSize": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "todayUploads": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "thisWeekUploads": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "thisMonthUploads": {
-                        "type": "integer",
-                        "format": "int64"
-                    }
-                }
-            },
             "QualityMetrics": {
                 "type": "object",
                 "properties": {
@@ -701,6 +863,70 @@
                     }
                 },
                 "description": "上传进度响应"
+            },
+            "FileInfo": {
+                "type": "object",
+                "properties": {
+                    "fileId": {
+                        "type": "string"
+                    },
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "fileSize": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "md5Hash": {
+                        "type": "string"
+                    },
+                    "storagePath": {
+                        "type": "string"
+                    },
+                    "fileExtension": {
+                        "type": "string"
+                    },
+                    "storageType": {
+                        "type": "string"
+                    },
+                    "uploadTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updateTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "refCount": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "fileStatus": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "thumbnailPath": {
+                        "type": "string"
+                    },
+                    "transcodingTaskId": {
+                        "type": "string"
+                    },
+                    "metaDataId": {
+                        "type": "string"
+                    },
+                    "image": {
+                        "type": "boolean"
+                    },
+                    "audio": {
+                        "type": "boolean"
+                    },
+                    "video": {
+                        "type": "boolean"
+                    }
+                }
             }
         }
     }
