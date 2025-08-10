@@ -5,7 +5,7 @@
  * 负责Fabric.js对象的序列化和反序列化，确保画布状态的完整保存和恢复
  */
 
-import { fabric } from 'fabric';
+// import { fabric } from 'fabric'; // 暂时注释掉，因为我们不再使用fabric.js
 import {
   SerializedFabricObject,
   CanvasState,
