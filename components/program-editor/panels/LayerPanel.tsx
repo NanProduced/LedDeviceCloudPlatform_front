@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -101,6 +101,9 @@ interface LayerItemProps {
   onDelete: (itemId: string) => void;
   onMoveUp: (itemId: string) => void;
   onMoveDown: (itemId: string) => void;
+  onDragStart: (itemId: string) => void;
+  onDragOverItem: (itemId: string) => void;
+  onDropOverItem: (itemId: string) => void;
 }
 
 function LayerItem({
@@ -118,7 +121,7 @@ function LayerItem({
   const [isHovered, setIsHovered] = useState(false);
   
   const Icon = getObjectIcon(item.type);
-  const typeName = ITEM_TYPE_MAP[item.type]?.label || '未知';
+  const typeName = (ITEM_TYPE_MAP as any)[item.type] || '未知';
   
   // 从属性中获取可见性和锁定状态
   const isVisible = item.properties.visible !== false;
@@ -186,6 +189,10 @@ function LayerItem({
         isLocked && 'border-dashed'
       )}
       onClick={handleClick}
+      draggable
+      onDragStart={(e)=>{ e.dataTransfer.setData('text/plain', item.id); onDragStart(item.id); }}
+      onDragOver={(e)=>{ e.preventDefault(); onDragOverItem(item.id); }}
+      onDrop={(e)=>{ e.preventDefault(); onDropOverItem(item.id); }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -312,8 +319,8 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
     currentPageIndex,
     pages,
     updateItemProperties,
-    duplicateItem,
-    deleteItem,
+    duplicateItemById,
+    deleteItemById,
     moveItemUp,
     moveItemDown,
     moveItemToTop,
@@ -448,12 +455,13 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
 
   // 复制对象
   const handleDuplicate = useCallback((itemId: string) => {
-    duplicateItem(itemId);
-  }, [duplicateItem]);
+    duplicateItemById(itemId);
+    try { (useEditorStore.getState() as any).saveToHistory?.('复制对象'); } catch {}
+  }, [duplicateItemById]);
 
   // 删除对象
   const handleDelete = useCallback((itemId: string) => {
-    deleteItem(itemId);
+    deleteItemById(itemId);
     
     // 从Fabric.js画布中移除
     const canvas = getCanvas();
@@ -467,7 +475,7 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
     try {
       (useEditorStore.getState() as any).saveToHistory?.('删除对象');
     } catch {}
-  }, [deleteItem, getCanvas]);
+  }, [deleteItemById, getCanvas]);
 
   // 层级操作
   const handleMoveUp = useCallback((itemId: string) => {
@@ -504,6 +512,77 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
     } catch {}
   }, [moveItemDown, getCanvas]);
 
+  // 批量显隐
+  const handleBatchVisibility = useCallback(() => {
+    const anyVisible = selectedObjectIds.some(id => {
+      const item = currentPageItems.find(i => i.id === id);
+      return item ? (item.properties.visible !== false) : false;
+    });
+    const nextVisible = !anyVisible;
+    selectedObjectIds.forEach(id => updateItemProperties(id, { ...(currentPageItems.find(i=>i.id===id)?.properties||{}), visible: nextVisible }));
+    const canvas = getCanvas();
+    if (canvas) {
+      selectedObjectIds.forEach(id => {
+        const obj = canvas.getObjects().find((o:any)=>o.id===id);
+        if (obj) obj.set('visible', nextVisible);
+      });
+      canvas.renderAll();
+    }
+    try { (useEditorStore.getState() as any).saveToHistory?.(nextVisible ? '批量显示对象' : '批量隐藏对象'); } catch {}
+  }, [selectedObjectIds, currentPageItems, updateItemProperties, getCanvas]);
+
+  // 批量锁定
+  const handleBatchLock = useCallback(() => {
+    const anyUnlocked = selectedObjectIds.some(id => {
+      const item = currentPageItems.find(i => i.id === id);
+      return item ? !(item.properties.locked === true) : false;
+    });
+    const nextLock = anyUnlocked;
+    selectedObjectIds.forEach(id => updateItemProperties(id, { ...(currentPageItems.find(i=>i.id===id)?.properties||{}), locked: nextLock }));
+    const canvas = getCanvas();
+    if (canvas) {
+      selectedObjectIds.forEach(id => {
+        const obj = canvas.getObjects().find((o:any)=>o.id===id);
+        if (obj) {
+          obj.set({ selectable: !nextLock, evented: !nextLock });
+        }
+      });
+      canvas.renderAll();
+    }
+    try { (useEditorStore.getState() as any).saveToHistory?.(nextLock ? '批量锁定对象' : '批量解锁对象'); } catch {}
+  }, [selectedObjectIds, currentPageItems, updateItemProperties, getCanvas]);
+
+  // 拖拽排序
+  const draggingIdRef = useRef<string | null>(null);
+  const handleDragStart = useCallback((id: string) => { draggingIdRef.current = id; }, []);
+  const handleDragOverItem = useCallback((_id: string) => {}, []);
+  const handleDropOverItem = useCallback((targetId: string) => {
+    const srcId = draggingIdRef.current;
+    draggingIdRef.current = null;
+    if (!srcId || srcId === targetId) return;
+    const orderTopFirst = sortedItems.map(i => i.id);
+    const srcIdx = orderTopFirst.indexOf(srcId);
+    const tgtIdx = orderTopFirst.indexOf(targetId);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+    orderTopFirst.splice(srcIdx, 1);
+    orderTopFirst.splice(tgtIdx, 0, srcId);
+    const canvas = getCanvas();
+    if (canvas) {
+      const frames = canvas.getObjects().filter((o:any)=>o.isRegionFrame);
+      const baseIndex = frames.length;
+      const bottomToTop = [...orderTopFirst].reverse();
+      bottomToTop.forEach((id, idx) => {
+        const obj = canvas.getObjects().find((o:any)=>o.id===id);
+        if (obj) canvas.moveTo(obj, baseIndex + idx);
+      });
+      canvas.renderAll();
+    }
+    orderTopFirst.forEach((id, idxFromTop) => {
+      try { updateItemProperties(id, { zIndex: orderTopFirst.length - idxFromTop }); } catch {}
+    });
+    try { (useEditorStore.getState() as any).saveToHistory?.('拖拽排序图层'); } catch {}
+  }, [sortedItems, getCanvas, updateItemProperties]);
+
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* 头部 */}
@@ -538,6 +617,8 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
               <Maximize className="w-3 h-3 mr-1 rotate-180" />
               置底
             </Button>
+            <Button variant="outline" size="sm" onClick={handleBatchVisibility}>显隐切换</Button>
+            <Button variant="outline" size="sm" onClick={handleBatchLock}>锁定切换</Button>
             <Button
               variant="outline"
               size="sm"
@@ -576,6 +657,9 @@ export function LayerPanel({ className, selectedObjects = [] }: LayerPanelProps)
                 onDelete={handleDelete}
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
+                onDragStart={handleDragStart}
+                onDragOverItem={handleDragOverItem}
+                onDropOverItem={handleDropOverItem}
               />
             ))
           )}

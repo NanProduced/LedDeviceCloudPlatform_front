@@ -60,6 +60,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     setCanvas,
     getCurrentPage,
     getCanvasState,
+    findItem,
   } = useEditorStore();
 
   const { getMaterialRef } = useMaterialStore();
@@ -436,7 +437,11 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
     setIsDragOver(false);
 
     try {
-      const data = e.dataTransfer.getData('application/json');
+      let data = e.dataTransfer.getData('application/json');
+      if (!data) {
+        // 兜底：部分浏览器或中间层仅允许 text/plain
+        data = e.dataTransfer.getData('text/plain');
+      }
       if (!data) return;
 
       const dropData = JSON.parse(data);
@@ -495,11 +500,15 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
         }
       } catch {}
 
-      // 添加到状态管理
-      addItem(page.id, targetRegionId, editorItem);
+      // 添加到状态管理，拿到实际分配的 itemId（store 会生成新ID）
+      const newItemId = addItem(page.id, targetRegionId as string, editorItem);
 
-      // 创建Fabric.js对象
-      const fabricObject = await createFabricObjectFromMaterial(editorItem);
+      // 从 store 取回最终落入的对象，确保与 store 的 ID 一致
+      const found = (useStore.getState() as any).findItem?.(newItemId) || findItem?.(newItemId);
+      const itemToRender = found?.item || editorItem;
+
+      // 创建Fabric.js对象（使用 store 中的最终数据）
+      const fabricObject = await createFabricObjectFromMaterial(itemToRender as any);
       if (fabricObject) {
         canvas.add(fabricObject);
         canvas.setActiveObject(fabricObject);
@@ -645,6 +654,7 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onDragEnter={(e)=>{ e.preventDefault(); setIsDragOver(true); }}
     >
       {/* 拖拽覆盖层：高亮有效落区 */}
       {isDragOver && (

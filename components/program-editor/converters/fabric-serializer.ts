@@ -351,14 +351,14 @@ export class FabricSerializer {
               } else {
                 resolve(null);
               }
-            });
+            }, { crossOrigin: 'anonymous' } as any);
           };
           
           resolve(img);
         } else {
           resolve(null);
         }
-      });
+      }, { crossOrigin: 'anonymous' } as any);
     });
   }
 
@@ -536,31 +536,66 @@ export class FabricSerializer {
     customProps: any
   ): Promise<fabric.Image | null> {
     return new Promise((resolve) => {
-      const imageUrl = materialRef?.accessUrl || 
-        this.createPlaceholderImageUrl(
-          item.size.width,
-          item.size.height,
-          '图片'
-        );
-
       if (typeof window === 'undefined') {
         resolve(null);
         return;
       }
-      fabric.Image.fromURL(imageUrl, (img) => {
-        if (img) {
+
+      const baseUrl = materialRef?.accessUrl || '';
+      const isVideoLike = item.type === ItemType.VIDEO || item.type === ItemType.GIF;
+      let previewUrl = baseUrl;
+      if (previewUrl) {
+        // 对视频/GIF 强制使用截帧，以免直接返回视频文件导致图片解码失败
+        if (isVideoLike && !/([?&])t=/.test(previewUrl)) {
+          previewUrl += (previewUrl.includes('?') ? '&' : '?') + 't=1000';
+        }
+        // 尺寸适配，利于更快加载
+        const sizeQuery = `w=${Math.max(1, Math.round(item.size.width))}&h=${Math.max(1, Math.round(item.size.height))}&fit=cover`;
+        if (!/([?&])(w|h|fit)=/.test(previewUrl)) {
+          previewUrl += (previewUrl.includes('?') ? '&' : '?') + sizeQuery;
+        }
+      }
+
+      const fallbackUrl = this.createPlaceholderImageUrl(
+        item.size.width,
+        item.size.height,
+        isVideoLike ? '视频预览' : '图片'
+      );
+
+      const srcToUse = previewUrl || fallbackUrl;
+
+      // 预加载，失败则回退占位图，避免 Fabric 内部 onerror 情况下返回空对象
+      const testImg = new Image();
+      testImg.onload = () => {
+        fabric.Image.fromURL(srcToUse, (img) => {
+          if (!img) {
+            resolve(null);
+            return;
+          }
           img.set({
             ...baseProps,
             ...customProps
           });
-          
-          // 处理透明度
-          if (item.properties.alpha !== undefined) {
-            img.set('opacity', item.properties.alpha);
+          if ((item as any).properties?.alpha !== undefined) {
+            img.set('opacity', (item as any).properties.alpha);
           }
-        }
-        resolve(img);
-      });
+          resolve(img);
+        }, { crossOrigin: 'anonymous' } as any);
+      };
+      testImg.onerror = () => {
+        fabric.Image.fromURL(fallbackUrl, (img) => {
+          if (!img) {
+            resolve(null);
+            return;
+          }
+          img.set({
+            ...baseProps,
+            ...customProps
+          });
+          resolve(img);
+        }, { crossOrigin: 'anonymous' } as any);
+      };
+      testImg.src = srcToUse;
     });
   }
 

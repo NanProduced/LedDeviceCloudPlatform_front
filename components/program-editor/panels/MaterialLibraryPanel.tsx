@@ -126,6 +126,11 @@ function MaterialItem({ material, onSelect, onDragStart }: MaterialItemProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
+  const isVisual = material.category === 'image' || material.category === 'video';
+  const thumbUrl = isVisual
+    ? `${material.accessUrl}?w=80&h=80&fit=cover${material.category === 'video' ? '&t=1000' : ''}&format=jpg`
+    : '';
+
   return (
     <Card 
       className="cursor-pointer hover:bg-accent transition-colors"
@@ -136,10 +141,10 @@ function MaterialItem({ material, onSelect, onDragStart }: MaterialItemProps) {
       <CardContent className="p-3">
         <div className="flex items-center gap-3">
           {/* 缩略图或图标 */}
-          {material.category === 'image' ? (
-              <div className="w-10 h-10 bg-muted rounded flex-shrink-0 overflow-hidden">
+          {isVisual ? (
+            <div className="w-10 h-10 bg-muted rounded flex-shrink-0 overflow-hidden">
               <img
-                src={`${material.accessUrl}?w=80&h=80&fit=cover`}
+                src={thumbUrl}
                 alt={material.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -313,12 +318,20 @@ export function MaterialLibraryPanel({ className }: MaterialLibraryPanelProps) {
 
   // 拖拽开始
   const handleDragStart = useCallback((material: MaterialInfo, event: React.DragEvent) => {
-    // 设置拖拽数据
-    event.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'material',
-      data: material
-    }));
+    // 设置拖拽数据（增加 text/plain 兜底，适配部分浏览器策略）
+    const payload = JSON.stringify({ type: 'material', data: material });
+    try { event.dataTransfer.setData('application/json', payload); } catch {}
+    try { event.dataTransfer.setData('text/plain', payload); } catch {}
     event.dataTransfer.effectAllowed = 'copy';
+    // 提升拖拽体验：设置拖拽预览
+    const dragGhost = document.createElement('div');
+    dragGhost.style.width = '80px';
+    dragGhost.style.height = '80px';
+    dragGhost.style.background = '#000';
+    dragGhost.style.opacity = '0.4';
+    document.body.appendChild(dragGhost);
+    event.dataTransfer.setDragImage(dragGhost, 40, 40);
+    setTimeout(() => document.body.removeChild(dragGhost), 0);
   }, []);
 
   // 文件上传

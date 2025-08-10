@@ -526,6 +526,16 @@ export const useEditorStore = create<EditorStateStore>()(
               const obj = canvas.getObjects().find((o: any) => o.id === itemId);
               if (obj) canvas.bringForward(obj);
             }
+            // 可选：记录zIndex到属性，便于无画布排序
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const item = region.items.find(i => i.id === itemId);
+                if (item) {
+                  const current = typeof (item.properties as any)?.zIndex === 'number' ? (item.properties as any).zIndex : 0;
+                  (item.properties as any).zIndex = current + 1;
+                }
+              }
+            }
           });
         },
         moveItemDown: (itemId) => {
@@ -534,6 +544,15 @@ export const useEditorStore = create<EditorStateStore>()(
             if (canvas) {
               const obj = canvas.getObjects().find((o: any) => o.id === itemId);
               if (obj) canvas.sendBackwards(obj);
+            }
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const item = region.items.find(i => i.id === itemId);
+                if (item) {
+                  const current = typeof (item.properties as any)?.zIndex === 'number' ? (item.properties as any).zIndex : 0;
+                  (item.properties as any).zIndex = Math.max(0, current - 1);
+                }
+              }
             }
           });
         },
@@ -544,6 +563,14 @@ export const useEditorStore = create<EditorStateStore>()(
               const obj = canvas.getObjects().find((o: any) => o.id === itemId);
               if (obj) canvas.bringToFront(obj);
             }
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const item = region.items.find(i => i.id === itemId);
+                if (item) {
+                  (item.properties as any).zIndex = (region.items?.length || 1);
+                }
+              }
+            }
           });
         },
         moveItemToBottom: (itemId) => {
@@ -552,6 +579,14 @@ export const useEditorStore = create<EditorStateStore>()(
             if (canvas) {
               const obj = canvas.getObjects().find((o: any) => o.id === itemId);
               if (obj) canvas.sendToBack(obj);
+            }
+            for (const page of state.pages) {
+              for (const region of page.regions) {
+                const item = region.items.find(i => i.id === itemId);
+                if (item) {
+                  (item.properties as any).zIndex = 0;
+                }
+              }
             }
           });
         },

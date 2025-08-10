@@ -19,6 +19,7 @@ import { VSNValidator } from '@/components/program-editor/converters/validation-
 import { computeProgramDuration } from '@/components/program-editor/utils/duration';
 import { FabricSerializer } from '@/components/program-editor/converters/fabric-serializer';
 import { VersionPickerDialog } from '@/components/program-editor/VersionPickerDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface EditProgramPageProps {
   params: {
@@ -36,6 +37,8 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [centerWide, setCenterWide] = useState(false);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ field?: string; message: string }[]>([]);
   const {
     program,
     pages,
@@ -137,6 +140,14 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
     }
   }, [canvas]);
 
+  // 错误点击定位
+  const navigateToError = useCallback((message: string) => {
+    try {
+      // 兼容 VSNValidator 的错误信息（无明确路径），尝试聚焦属性面板
+      setRightOpen(true);
+    } catch {}
+  }, []);
+
   // 删除选中对象
   const handleDelete = useCallback(() => {
     if (canvas && selectedObjects.length > 0) {
@@ -196,11 +207,11 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       const duration = computeProgramDuration({ program, pages, currentPageIndex, canvasStates: {} } as any);
       const editorState = { program, pages, currentPageIndex, canvasStates: {} } as any;
       const { vsnData, validation } = VSNConverter.convertToVSN(editorState);
-      // 强校验阻断保存
+      // 强校验阻断保存，聚合错误
       const result = validation?.isValid ? validation : VSNValidator.validate(vsnData);
       if (!result.isValid) {
-        const first = result.errors[0];
-        toast.error(first?.message || 'VSN校验失败');
+        setValidationErrors(result.errors as any);
+        setErrorDialogOpen(true);
         return;
       }
       const vsnDataStr = JSON.stringify(vsnData);
@@ -318,6 +329,29 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
           saveToHistory('新增区域');
         }}
       />
+
+      {/* 错误聚合弹窗（编辑页） */}
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>VSN校验失败，共 {validationErrors.length} 项</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[50vh] overflow-auto">
+            {validationErrors.map((e, idx) => (
+              <div
+                key={idx}
+                role="button"
+                className="text-sm hover:bg-accent rounded px-2 py-1 cursor-pointer"
+                onClick={() => { navigateToError(e.message); setErrorDialogOpen(false); }}
+                title={e.field || ''}
+              >
+                <span className="font-medium">{e.message}</span>
+                {e.field ? <span className="text-muted-foreground ml-2">[{e.field}]</span> : null}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* 主要内容区域 - 三栏式布局 */}
       <div className="flex-1 overflow-hidden">

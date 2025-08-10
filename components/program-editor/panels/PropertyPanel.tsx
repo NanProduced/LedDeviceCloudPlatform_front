@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +29,8 @@ import {
   ArrowUp,
   ArrowDown,
   Maximize,
-  MoreHorizontal
+  MoreHorizontal,
+  Square
 } from 'lucide-react';
 
 import { fabric } from 'fabric';
@@ -42,6 +43,8 @@ import {
   MaterialReference,
   ITEM_TYPE_MAP
 } from '../types';
+
+type TransformProp = 'left' | 'top' | 'width' | 'height' | 'angle';
 
 interface PropertyPanelProps {
   className?: string;
@@ -104,7 +107,7 @@ function getTypeIcon(type: ItemType) {
 
 // 获取对象类型名称
 function getTypeName(type: ItemType): string {
-  return ITEM_TYPE_MAP[type]?.label || '未知对象';
+  return (ITEM_TYPE_MAP as any)[type] || '未知对象';
 }
 
 export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanelProps) {
@@ -113,6 +116,8 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
     selectedObjectIds,
     currentPageIndex,
     pages,
+    updatePage,
+    updateRegion,
     updateItemProperties,
     updateItemPosition,
     updateItemSize,
@@ -216,8 +221,19 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
     }
   }, [primarySelectedItem, primarySelectedObject, updateItemProperties, getCanvas]);
 
-  // 位置和尺寸更新
-  const updateTransform = useCallback((property: 'left' | 'top' | 'width' | 'height' | 'angle', value: number) => {
+  // 简易节流/防抖调度器
+  const timersRef = useRef<{ [key: string]: any }>({});
+  const schedule = useCallback((key: string, fn: () => void, delay: number) => {
+    const timers = timersRef.current;
+    if (timers[key]) clearTimeout(timers[key]);
+    timers[key] = setTimeout(() => {
+      fn();
+      delete timers[key];
+    }, delay);
+  }, []);
+
+  // 位置和尺寸更新（先声明，供后续节流包装引用）
+  const updateTransform = useCallback((property: TransformProp, value: number) => {
     if (!primarySelectedObject || !primarySelectedItem) return;
 
     const canvas = getCanvas();
@@ -241,6 +257,21 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
     }
     saveHistoryDebounced('更新位置/尺寸/旋转');
   }, [primarySelectedObject, primarySelectedItem, updateItemPosition, updateItemSize, getCanvas]);
+
+  // 包装后的节流更新
+  const updateTransformThrottled = useCallback((property: TransformProp, value: number) => {
+    schedule(`transform:${property}`, () => updateTransform(property, value), property === 'angle' ? 100 : 100);
+  }, [schedule, updateTransform]);
+
+  const updateFabricPropertyThrottled = useCallback((property: string, value: any) => {
+    schedule(`fabric:${property}`, () => updateFabricObjectProperty(property, value), 100);
+  }, [schedule, updateFabricObjectProperty]);
+
+  const updateEditorPropertyThrottled = useCallback((property: string, value: any) => {
+    schedule(`editor:${property}`, () => updateEditorProperty(property, value), 300);
+  }, [schedule, updateEditorProperty]);
+
+  
 
   // 层级操作
   const handleLayerOperation = useCallback((operation: 'top' | 'bottom' | 'up' | 'down') => {
@@ -268,28 +299,23 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
     return getMaterialRef(primarySelectedItem.materialRef.materialId);
   }, [primarySelectedItem?.materialRef, getMaterialRef]);
 
-  // 没有选中对象时的空状态
-  if (selectedObjects.length === 0 && selectedEditorItems.length === 0) {
-    return (
-      <div className={`flex flex-col h-full ${className}`}>
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-semibold">属性面板</h2>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>请选择一个对象</p>
-            <p className="text-sm mt-1">选中画布中的对象来编辑属性</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // 计算当前页面与区域（对象未选中时，区域默认当前页第一个）
+  const currentPage = pages[currentPageIndex];
+  const currentRegion = useMemo(() => {
+    if (!currentPage) return null;
+    if (primarySelectedItem) {
+      for (const region of currentPage.regions) {
+        if (region.items.some(i => i.id === primarySelectedItem.id)) return region;
+      }
+    }
+    return currentPage.regions?.[0] || null;
+  }, [currentPage, primarySelectedItem]);
 
   const TypeIcon = primarySelectedItem ? getTypeIcon(primarySelectedItem.type) : Settings;
 
-  return (
-    <div className={`flex flex-col h-full ${className}`}>
+  const panel = (
+    <>
+      <div className={"flex flex-col h-full " + (className || '')}>
       {/* 头部 */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-2">
@@ -306,10 +332,171 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
         )}
       </div>
 
-      {/* 属性编辑区域 */}
+      {/* 属性编辑区域（顶层页签：页面 / 区域 / 对象） */}
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
-          <Tabs defaultValue="transform" className="w-full">
+          <Tabs defaultValue="object" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="page">页面</TabsTrigger>
+              <TabsTrigger value="region">区域</TabsTrigger>
+              <TabsTrigger value="object">对象</TabsTrigger>
+            </TabsList>
+
+            {/* 页面属性 */}
+            <TabsContent value="page" className="space-y-4">
+              {currentPage ? (
+                <>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Settings className="w-4 h-4" />
+                        <CardTitle className="text-base">页面基础</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="page-name">名称</Label>
+                        <Input
+                          id="page-name"
+                          value={currentPage.name}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            updatePage(currentPage.id, { name: v });
+                            saveHistoryDebounced('更新页面属性');
+                          }}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="loopType">播放方式</Label>
+                          <Select
+                            value={String(currentPage.loopType)}
+                            onValueChange={(v)=>{ updatePage(currentPage.id, { loopType: Number(v) as any }); saveHistoryDebounced('更新页面属性'); }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">指定时长</SelectItem>
+                              <SelectItem value="1">自动计算</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="page-duration">页面时长(ms)</Label>
+                          <Input
+                            id="page-duration"
+                            type="number"
+                            min={100}
+                            value={currentPage.duration}
+                            onChange={(e)=>{ const v = parseInt(e.target.value)||0; updatePage(currentPage.id, { duration: v }); saveHistoryDebounced('更新页面属性'); }}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="page-bg">背景色</Label>
+                        <div className="flex gap-2">
+                          <Input id="page-bg" type="color" value={currentPage.bgColor}
+                            onChange={(e)=>{ const v = e.target.value; updatePage(currentPage.id, { bgColor: v }); const c = getCanvas(); try { c?.setBackgroundColor(v, ()=>{}); c?.renderAll(); } catch {}; saveHistoryDebounced('更新页面属性'); }}
+                            className="w-12 h-10 p-1" />
+                          <Input value={currentPage.bgColor} onChange={(e)=>{ const v=e.target.value; updatePage(currentPage.id, { bgColor: v }); const c=getCanvas(); try { c?.setBackgroundColor(v, ()=>{}); c?.renderAll(); } catch {}; saveHistoryDebounced('更新页面属性'); }} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground">无页面</div>
+              )}
+            </TabsContent>
+
+            {/* 区域属性 */}
+            <TabsContent value="region" className="space-y-4">
+              {currentPage && currentRegion ? (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Square className="w-4 h-4" />
+                      <CardTitle className="text-base">区域属性</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="region-name">名称</Label>
+                      <Input id="region-name" value={currentRegion.name}
+                        onChange={(e)=>{ updateRegion(currentPage.id, currentRegion.id, { name: e.target.value }); saveHistoryDebounced('更新区域属性'); }} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="region-x">X</Label>
+                        <Input id="region-x" type="number" value={currentRegion.rect.x}
+                          onChange={(e)=>{
+                            const v = parseInt(e.target.value)||0;
+                            const rect = { ...currentRegion.rect, x: v };
+                            updateRegion(currentPage.id, currentRegion.id, { rect });
+                            const c = getCanvas();
+                            const frame = c?.getObjects().find((o:any)=>o.isRegionFrame && o.regionId===currentRegion.id);
+                            if (frame) { frame.set('left', v); c?.renderAll(); }
+                            saveHistoryDebounced('更新区域属性');
+                          }} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="region-y">Y</Label>
+                        <Input id="region-y" type="number" value={currentRegion.rect.y}
+                          onChange={(e)=>{
+                            const v = parseInt(e.target.value)||0;
+                            const rect = { ...currentRegion.rect, y: v };
+                            updateRegion(currentPage.id, currentRegion.id, { rect });
+                            const c = getCanvas();
+                            const frame = c?.getObjects().find((o:any)=>o.isRegionFrame && o.regionId===currentRegion.id);
+                            if (frame) { frame.set('top', v); c?.renderAll(); }
+                            saveHistoryDebounced('更新区域属性');
+                          }} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="region-w">宽度</Label>
+                        <Input id="region-w" type="number" value={currentRegion.rect.width}
+                          onChange={(e)=>{
+                            const v = parseInt(e.target.value)||0;
+                            const rect = { ...currentRegion.rect, width: v };
+                            updateRegion(currentPage.id, currentRegion.id, { rect });
+                            const c = getCanvas();
+                            const frame = c?.getObjects().find((o:any)=>o.isRegionFrame && o.regionId===currentRegion.id);
+                            if (frame) { frame.set('width', v); c?.renderAll(); }
+                            saveHistoryDebounced('更新区域属性');
+                          }} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="region-h">高度</Label>
+                        <Input id="region-h" type="number" value={currentRegion.rect.height}
+                          onChange={(e)=>{
+                            const v = parseInt(e.target.value)||0;
+                            const rect = { ...currentRegion.rect, height: v };
+                            updateRegion(currentPage.id, currentRegion.id, { rect });
+                            const c = getCanvas();
+                            const frame = c?.getObjects().find((o:any)=>o.isRegionFrame && o.regionId===currentRegion.id);
+                            if (frame) { frame.set('height', v); c?.renderAll(); }
+                            saveHistoryDebounced('更新区域属性');
+                          }} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="text-sm text-muted-foreground">无区域</div>
+              )}
+            </TabsContent>
+
+            {/* 对象属性（包含 原有的 变换/外观/内容 页签） */}
+            <TabsContent value="object" className="space-y-4">
+              {selectedEditorItems.length === 0 ? (
+                <div className="text-center text-muted-foreground py-10">
+                  <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>请选择一个对象</p>
+                  <p className="text-sm mt-1">选中画布中的对象来编辑属性</p>
+                </div>
+              ) : null}
+              <Tabs defaultValue="transform" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="transform">变换</TabsTrigger>
               <TabsTrigger value="appearance">外观</TabsTrigger>
@@ -334,7 +521,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         id="left"
                         type="number"
                         value={primarySelectedObject?.left || primarySelectedItem?.position.x || 0}
-                        onChange={(e) => updateTransform('left', parseInt(e.target.value) || 0)}
+                        onChange={(e) => updateTransformThrottled('left', parseInt(e.target.value) || 0)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -343,7 +530,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         id="top"
                         type="number"
                         value={primarySelectedObject?.top || primarySelectedItem?.position.y || 0}
-                        onChange={(e) => updateTransform('top', parseInt(e.target.value) || 0)}
+                        onChange={(e) => updateTransformThrottled('top', parseInt(e.target.value) || 0)}
                       />
                     </div>
                   </div>
@@ -355,7 +542,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         id="width"
                         type="number"
                         value={primarySelectedObject?.width || primarySelectedItem?.size.width || 100}
-                        onChange={(e) => updateTransform('width', parseInt(e.target.value) || 100)}
+                        onChange={(e) => updateTransformThrottled('width', parseInt(e.target.value) || 100)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -364,7 +551,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         id="height"
                         type="number"
                         value={primarySelectedObject?.height || primarySelectedItem?.size.height || 50}
-                        onChange={(e) => updateTransform('height', parseInt(e.target.value) || 50)}
+                        onChange={(e) => updateTransformThrottled('height', parseInt(e.target.value) || 50)}
                       />
                     </div>
                   </div>
@@ -376,7 +563,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                     </div>
                     <Slider
                       value={[primarySelectedObject?.angle || 0]}
-                      onValueChange={([value]) => updateTransform('angle', value)}
+                      onValueChange={([value]) => updateTransformThrottled('angle', value)}
                       max={360}
                       min={-360}
                       step={1}
@@ -450,7 +637,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                     <Switch
                       id="visible"
                       checked={primarySelectedObject?.visible !== false}
-                      onCheckedChange={(checked) => updateFabricObjectProperty('visible', checked)}
+                      onCheckedChange={(checked) => updateFabricPropertyThrottled('visible', checked)}
                     />
                   </div>
 
@@ -460,7 +647,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                     </Label>
                     <Slider
                       value={[primarySelectedObject?.opacity || 1]}
-                      onValueChange={([value]) => updateFabricObjectProperty('opacity', value)}
+                      onValueChange={([value]) => updateFabricPropertyThrottled('opacity', value)}
                       max={1}
                       min={0}
                       step={0.01}
@@ -511,7 +698,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         </Label>
                         <Slider
                           value={[primarySelectedItem.properties.alpha ?? 1]}
-                          onValueChange={([value]) => updateEditorProperty('alpha', value)}
+                          onValueChange={([value]) => updateEditorPropertyThrottled('alpha', value)}
                           max={1}
                           min={0}
                           step={0.01}
@@ -541,7 +728,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         <Textarea
                           id="text"
                           value={primarySelectedItem.properties.text || ''}
-                          onChange={(e) => updateEditorProperty('text', e.target.value)}
+                          onChange={(e) => updateEditorPropertyThrottled('text', e.target.value)}
                           placeholder="输入文本内容..."
                           rows={3}
                         />
@@ -549,7 +736,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         <Input
                           id="text"
                           value={primarySelectedItem.properties.text || ''}
-                          onChange={(e) => updateEditorProperty('text', e.target.value)}
+                          onChange={(e) => updateEditorPropertyThrottled('text', e.target.value)}
                           placeholder="输入文本内容..."
                         />
                       )}
@@ -740,7 +927,13 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                 </Card>
               )}
 
-              {/* 网页/流媒体属性 */}
+              {/* 结束内容页签 */}
+            </TabsContent>
+
+            {/* 关闭内层 Tabs */}
+            </Tabs>
+
+            {/* 网页/流媒体属性 */}
               {primarySelectedItem && primarySelectedItem.type === ItemType.WEB_STREAM && (
                 <Card>
                   <CardHeader className="pb-3">
@@ -756,7 +949,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         id="url"
                         type="url"
                         value={primarySelectedItem.properties.url || ''}
-                        onChange={(e) => updateEditorProperty('url', e.target.value)}
+                        onChange={(e) => updateEditorPropertyThrottled('url', e.target.value)}
                         placeholder="https://example.com"
                       />
                     </div>
@@ -854,5 +1047,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
         </div>
       </ScrollArea>
     </div>
+    </>
   );
+  return panel;
 }

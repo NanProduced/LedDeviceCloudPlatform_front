@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { fabric } from 'fabric';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/sonner';
 import { VersionPickerDialog } from '@/components/program-editor/VersionPickerDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ProgramAPI } from '@/lib/api/program';
 import { VSNConverter } from '@/components/program-editor/converters/vsn-converter';
 import { computeProgramDuration } from '@/components/program-editor/utils/duration';
@@ -32,10 +33,12 @@ export default function CreateProgramPage() {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<fabric.Object[]>([]);
   const [activeTool, setActiveTool] = useState('select');
-  const { pages, currentPageIndex, addRegion, program, setSaving, isSaving, updateProgramInfo, getCanvas } = useEditorStore();
+  const { pages, currentPageIndex, addRegion, program, setSaving, isSaving, updateProgramInfo, getCanvas, undo, redo, canUndo, canRedo, saveToHistory } = useEditorStore();
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [centerWide, setCenterWide] = useState(false);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ path: string; message: string }[]>([]);
 
   const handleSave = useCallback(async () => {
     try {
@@ -47,8 +50,8 @@ export default function CreateProgramPage() {
       // 2.1) 保存前校验（结构/必填/同步窗口）
       const validation = validateEditorStateForCreation(editorState);
       if (!validation.isValid) {
-        const first = validation.errors[0];
-        toast.error(first?.message || '校验失败');
+        setValidationErrors(validation.errors);
+        setErrorDialogOpen(true);
         return;
       }
       // 2.2) 批量兜底素材元数据
@@ -133,15 +136,25 @@ export default function CreateProgramPage() {
 
   // 撤销操作
   const handleUndo = useCallback(() => {
-    // TODO: 实现撤销逻辑
-    console.log('Undo');
-  }, []);
+    const ok = undo();
+    if (!ok) return;
+    const c = getCanvas();
+    // 重新渲染画布
+    if (c) {
+      // 触发页面重渲染由状态变化驱动；此处仅刷新
+      c.renderAll();
+    }
+  }, [undo, getCanvas]);
 
   // 重做操作
   const handleRedo = useCallback(() => {
-    // TODO: 实现重做逻辑
-    console.log('Redo');
-  }, []);
+    const ok = redo();
+    if (!ok) return;
+    const c = getCanvas();
+    if (c) {
+      c.renderAll();
+    }
+  }, [redo, getCanvas]);
 
   // 缩放操作
   const handleZoomIn = useCallback(() => {
@@ -366,8 +379,8 @@ export default function CreateProgramPage() {
       <CanvasToolbar
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
-        canUndo={false}
-        canRedo={false}
+        canUndo={canUndo()}
+        canRedo={canRedo()}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onZoomIn={handleZoomIn}
@@ -404,6 +417,49 @@ export default function CreateProgramPage() {
         onToggleLock={handleToggleLock}
         onToggleVisibility={handleToggleVisibility}
       />
+      {/* 错误聚合弹窗 */}
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>校验失败，共 {validationErrors.length} 项</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[50vh] overflow-auto">
+            {validationErrors.map((e, idx) => (
+              <div
+                key={idx}
+                role="button"
+                className="text-sm hover:bg-accent rounded px-2 py-1 cursor-pointer"
+                onClick={() => { try {
+                  const pageMatch = e.path.match(/pages\[(\d+)\]/);
+                  const regionMatch = e.path.match(/regions\[(\d+)\]/);
+                  const itemMatch = e.path.match(/items\[(\d+)\]/);
+                  const pageIdx = pageMatch ? parseInt(pageMatch[1]) : 0;
+                  (useEditorStore.getState() as any).setCurrentPage?.(pageIdx);
+                  setRightOpen(true);
+                  if (itemMatch) {
+                    const regionIdx = regionMatch ? parseInt(regionMatch[1]) : 0;
+                    const itemIdx = parseInt(itemMatch[1]);
+                    const p = useEditorStore.getState().pages[pageIdx];
+                    const id = p?.regions?.[regionIdx]?.items?.[itemIdx]?.id;
+                    if (id) {
+                      (useEditorStore.getState() as any).selectObjects?.([id]);
+                      const c = getCanvas();
+                      if (c) {
+                        const obj = c.getObjects().find((o: any) => o.id === id);
+                        if (obj) { c.setActiveObject(obj); c.renderAll(); }
+                      }
+                    }
+                  }
+                } catch {} setErrorDialogOpen(false); }}
+                title={e.path}
+              >
+                <span className="font-medium">{e.message}</span>
+                <span className="text-muted-foreground ml-2">[{e.path}]</span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* 主要内容区域 - 三栏式布局 */}
       <div className="flex-1 overflow-hidden">

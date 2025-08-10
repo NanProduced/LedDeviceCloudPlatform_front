@@ -37,8 +37,9 @@ export function validateEditorStateForCreation(editor: EditorState): ValidationR
     const pagePath = `pages[${pageIndex}]`;
     // LoopType 与 AppointDuration 约束（LoopType=0 时要求 AppointDuration）
     if (page.loopType === 0) {
-      if (!page.appointDuration || page.appointDuration <= 0) {
-        errors.push({ path: `${pagePath}.appointDuration`, message: '页面为指定时长播放时，必须设置有效的 AppointDuration' });
+      // 前端 EditorState 中字段为 duration
+      if (!page.duration || page.duration <= 0) {
+        errors.push({ path: `${pagePath}.duration`, message: '页面为指定时长播放时，必须设置有效的时长（duration，毫秒）' });
       }
     }
 
@@ -89,6 +90,14 @@ export function validateEditorStateForCreation(editor: EditorState): ValidationR
           const font = (item as any).properties?.font;
           if (!font || !Number.isFinite(font.size) || font.size <= 0) {
             errors.push({ path: `${itemPath}.properties.font.size`, message: '文本字体大小(lfHeight)必须大于0' });
+          }
+        }
+
+        // Web(27) URL 必填（最小版）
+        if (item.type === ItemType.WEB_STREAM) {
+          const url = (item as any).properties?.url;
+          if (!url || String(url).trim() === '') {
+            errors.push({ path: `${itemPath}.properties.url`, message: '网页/流媒体URL不能为空' });
           }
         }
       });
