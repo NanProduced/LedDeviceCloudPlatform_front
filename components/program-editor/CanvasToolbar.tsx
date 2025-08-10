@@ -36,6 +36,10 @@ interface CanvasToolbarProps {
   onPaste?: () => void;
   onAddRegion?: () => void;
   onPreview?: () => void;
+  onAlign?: (type: 'left'|'centerX'|'right'|'top'|'centerY'|'bottom') => void;
+  onDistribute?: (type: 'hspace'|'vspace') => void;
+  onToggleLock?: () => void;
+  onToggleVisibility?: () => void;
 }
 
 /**
@@ -57,6 +61,10 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onPaste,
   onAddRegion,
   onPreview,
+  onAlign,
+  onDistribute,
+  onToggleLock,
+  onToggleVisibility,
   }) => {
   const handleToolClick = (tool: string) => {
     onToolSelect?.(tool);
@@ -94,6 +102,23 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
       </div>
 
       <Separator orientation="vertical" className="mx-2 h-6" />
+
+      {/* 对齐/分布/锁定显隐 */}
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="sm" title="左对齐" className="h-8 w-8 p-0" onClick={() => onAlign?.('left')}>L</Button>
+        <Button variant="ghost" size="sm" title="水平居中" className="h-8 w-8 p-0" onClick={() => onAlign?.('centerX')}>HC</Button>
+        <Button variant="ghost" size="sm" title="右对齐" className="h-8 w-8 p-0" onClick={() => onAlign?.('right')}>R</Button>
+        <Separator orientation="vertical" className="h-6" />
+        <Button variant="ghost" size="sm" title="顶对齐" className="h-8 w-8 p-0" onClick={() => onAlign?.('top')}>T</Button>
+        <Button variant="ghost" size="sm" title="垂直居中" className="h-8 w-8 p-0" onClick={() => onAlign?.('centerY')}>VC</Button>
+        <Button variant="ghost" size="sm" title="底对齐" className="h-8 w-8 p-0" onClick={() => onAlign?.('bottom')}>B</Button>
+        <Separator orientation="vertical" className="h-6" />
+        <Button variant="ghost" size="sm" title="水平等距" className="h-8 w-8 p-0" onClick={() => onDistribute?.('hspace')}>H=</Button>
+        <Button variant="ghost" size="sm" title="垂直等距" className="h-8 w-8 p-0" onClick={() => onDistribute?.('vspace')}>V=</Button>
+        <Separator orientation="vertical" className="h-6" />
+        <Button variant="ghost" size="sm" title="锁定/解锁" className="h-8 w-8 p-0" onClick={onToggleLock}>🔒</Button>
+        <Button variant="ghost" size="sm" title="显隐切换" className="h-8 w-8 p-0" onClick={onToggleVisibility}>👁️</Button>
+      </div>
 
       {/* 形状工具 */}
       <div className="flex items-center gap-1">

@@ -43,6 +43,8 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [isCreatingObject, setIsCreatingObject] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const guideLinesRef = useRef<{ v?: any; h?: any }>({});
+  const SNAP_THRESHOLD = 5; // px
 
   // 状态管理
   const {
@@ -140,6 +142,26 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       } catch {}
     });
 
+    // 对象缩放事件：Shift 等比缩放 + 最小尺寸约束
+    canvas.on('object:scaling', (e: any) => {
+      const t = e.target as any;
+      if (!t) return;
+      const evt = e.e as MouseEvent;
+      const keepRatio = !!evt?.shiftKey;
+      t.lockUniScaling = keepRatio;
+      const minSize = 20;
+      const w = t.getScaledWidth();
+      const h = t.getScaledHeight();
+      if (w < minSize) {
+        const scaleX = (minSize / (t.width || minSize));
+        t.scaleX = scaleX;
+      }
+      if (h < minSize) {
+        const scaleY = (minSize / (t.height || minSize));
+        t.scaleY = scaleY;
+      }
+    });
+
     // 对象移动事件
     canvas.on('object:moving', (e) => {
       const target = e.target;
@@ -150,6 +172,36 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
         x: target.left || 0,
         y: target.top || 0
       });
+      // 吸附/对齐线（对画布中心/边缘）
+      const cw = canvas.getWidth();
+      const ch = canvas.getHeight();
+      const left = target.left || 0;
+      const top = target.top || 0;
+      const centerX = left + (target.getScaledWidth() / 2);
+      const centerY = top + (target.getScaledHeight() / 2);
+      const lines = guideLinesRef.current;
+      const shouldSnapV = Math.abs(centerX - cw / 2) <= SNAP_THRESHOLD;
+      const shouldSnapH = Math.abs(centerY - ch / 2) <= SNAP_THRESHOLD;
+      // 垂直线
+      if (shouldSnapV) {
+        target.set('left', cw / 2 - target.getScaledWidth() / 2);
+        if (!lines.v) {
+          lines.v = new fabricLib.Line([cw / 2, 0, cw / 2, ch], { stroke: '#5b9cf3', strokeDashArray: [4, 4], selectable: false, evented: false });
+          canvas.add(lines.v);
+        }
+      } else if (lines.v) {
+        canvas.remove(lines.v); lines.v = undefined;
+      }
+      // 水平线
+      if (shouldSnapH) {
+        target.set('top', ch / 2 - target.getScaledHeight() / 2);
+        if (!lines.h) {
+          lines.h = new fabricLib.Line([0, ch / 2, cw, ch / 2], { stroke: '#5b9cf3', strokeDashArray: [4, 4], selectable: false, evented: false });
+          canvas.add(lines.h);
+        }
+      } else if (lines.h) {
+        canvas.remove(lines.h); lines.h = undefined;
+      }
       // 实时移动时不入历史，避免爆量；仅在 modified/added 时入历史
     });
 
@@ -190,6 +242,10 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       canvas.defaultCursor = 'default';
       canvas.selection = true;
       isPanning = false;
+      // 清理辅助线
+      const lines = guideLinesRef.current;
+      if (lines.v) { canvas.remove(lines.v); lines.v = undefined; }
+      if (lines.h) { canvas.remove(lines.h); lines.h = undefined; }
     });
 
     // 保存引用
@@ -590,20 +646,32 @@ export const ProgramCanvas: React.FC<ProgramCanvasProps> = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* 拖拽覆盖层 */}
+      {/* 拖拽覆盖层：高亮有效落区 */}
       {isDragOver && (
-        <div className="absolute inset-0 bg-primary/20 border-2 border-dashed border-primary z-50 flex items-center justify-center">
-          <Card className="p-6 bg-background/90 backdrop-blur-sm">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                <ZoomIn className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">释放以添加素材</h3>
-              <p className="text-sm text-muted-foreground">
-                素材将添加到画布中的当前位置
-              </p>
-            </div>
-          </Card>
+        <div className="absolute inset-0 z-50 pointer-events-none">
+          {/* 半透明遮罩 */}
+          <div className="absolute inset-0 bg-black/20" />
+          {/* 现有区域高亮 */}
+          {(() => {
+            const page = pages[currentPageIndex];
+            if (!page) return null;
+            return (
+              <>
+                {page.regions && page.regions.length > 0 ? (
+                  page.regions.map((r) => (
+                    <div key={r.id} className="absolute border-2 border-green-400 border-dashed"
+                      style={{ left: r.rect.x, top: r.rect.y, width: r.rect.width, height: r.rect.height }} />
+                  ))
+                ) : (
+                  <div className="absolute inset-0 m-10 border-2 border-emerald-400 border-dashed rounded-md flex items-center justify-center">
+                    <Card className="p-4 bg-background/95">
+                      <div className="flex items-center gap-2"><ZoomIn className="w-4 h-4"/><span className="text-sm">释放以创建全屏区域并添加素材</span></div>
+                    </Card>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 

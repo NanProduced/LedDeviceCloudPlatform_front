@@ -137,9 +137,9 @@ function MaterialItem({ material, onSelect, onDragStart }: MaterialItemProps) {
         <div className="flex items-center gap-3">
           {/* 缩略图或图标 */}
           {material.category === 'image' ? (
-            <div className="w-10 h-10 bg-muted rounded flex-shrink-0 overflow-hidden">
+              <div className="w-10 h-10 bg-muted rounded flex-shrink-0 overflow-hidden">
               <img
-                src={material.accessUrl}
+                src={`${material.accessUrl}?w=80&h=80&fit=cover`}
                 alt={material.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {

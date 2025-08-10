@@ -32,7 +32,7 @@ export default function CreateProgramPage() {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [selectedObjects, setSelectedObjects] = useState<fabric.Object[]>([]);
   const [activeTool, setActiveTool] = useState('select');
-  const { pages, currentPageIndex, addRegion, program, setSaving, isSaving, updateProgramInfo } = useEditorStore();
+  const { pages, currentPageIndex, addRegion, program, setSaving, isSaving, updateProgramInfo, getCanvas } = useEditorStore();
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [centerWide, setCenterWide] = useState(false);
@@ -165,6 +165,126 @@ export default function CreateProgramPage() {
     }
   }, [canvas]);
 
+  // 对齐
+  const handleAlign = useCallback((type: 'left'|'centerX'|'right'|'top'|'centerY'|'bottom') => {
+    const c = getCanvas();
+    if (!c) return;
+    const objs = c.getActiveObjects();
+    if (!objs || objs.length < 2) return;
+    // 计算选区包围盒
+    const bounds = objs.map(o => ({
+      o,
+      left: o.left || 0,
+      top: o.top || 0,
+      w: o.getScaledWidth(),
+      h: o.getScaledHeight(),
+    }));
+    const minL = Math.min(...bounds.map(b => b.left));
+    const maxR = Math.max(...bounds.map(b => b.left + b.w));
+    const minT = Math.min(...bounds.map(b => b.top));
+    const maxB = Math.max(...bounds.map(b => b.top + b.h));
+    const centerX = (minL + maxR) / 2;
+    const centerY = (minT + maxB) / 2;
+    bounds.forEach(b => {
+      let newLeft = b.left;
+      let newTop = b.top;
+      switch (type) {
+        case 'left': newLeft = minL; break;
+        case 'right': newLeft = maxR - b.w; break;
+        case 'centerX': newLeft = centerX - b.w / 2; break;
+        case 'top': newTop = minT; break;
+        case 'bottom': newTop = maxB - b.h; break;
+        case 'centerY': newTop = centerY - b.h / 2; break;
+      }
+      b.o.set({ left: newLeft, top: newTop });
+      const id = (b.o as any).id;
+      if (id) {
+        (useEditorStore.getState() as any).updateItemPosition?.(id, { x: newLeft, y: newTop });
+      }
+    });
+    c.discardActiveObject();
+    c.renderAll();
+  }, [getCanvas]);
+
+  // 分布
+  const handleDistribute = useCallback((type: 'hspace'|'vspace') => {
+    const c = getCanvas();
+    if (!c) return;
+    const objs = c.getActiveObjects();
+    if (!objs || objs.length < 3) return;
+    const arr = objs.map(o => ({
+      o,
+      left: o.left || 0,
+      top: o.top || 0,
+      w: o.getScaledWidth(),
+      h: o.getScaledHeight(),
+    }));
+    if (type === 'hspace') {
+      const sorted = arr.sort((a,b)=>a.left-b.left);
+      const minL = sorted[0].left;
+      const maxR = Math.max(...sorted.map(b => b.left + b.w));
+      const totalW = sorted.reduce((s,b)=>s+b.w,0);
+      const gaps = sorted.length - 1;
+      const gap = (maxR - minL - totalW) / gaps;
+      let cur = minL;
+      sorted.forEach(b => {
+        b.o.set({ left: cur });
+        const id = (b.o as any).id; if (id) (useEditorStore.getState() as any).updateItemPosition?.(id, { x: cur, y: b.top });
+        cur += b.w + gap;
+      });
+    } else {
+      const sorted = arr.sort((a,b)=>a.top-b.top);
+      const minT = sorted[0].top;
+      const maxB = Math.max(...sorted.map(b => b.top + b.h));
+      const totalH = sorted.reduce((s,b)=>s+b.h,0);
+      const gaps = sorted.length - 1;
+      const gap = (maxB - minT - totalH) / gaps;
+      let cur = minT;
+      sorted.forEach(b => {
+        b.o.set({ top: cur });
+        const id = (b.o as any).id; if (id) (useEditorStore.getState() as any).updateItemPosition?.(id, { x: b.left, y: cur });
+        cur += b.h + gap;
+      });
+    }
+    c.discardActiveObject();
+    c.renderAll();
+  }, [getCanvas]);
+
+  // 锁定/显隐
+  const handleToggleLock = useCallback(() => {
+    const c = getCanvas();
+    if (!c) return;
+    const objs = c.getActiveObjects();
+    if (!objs || objs.length === 0) return;
+    const anyUnlocked = objs.some((o:any)=>!o.lockMovementX && !o.lockMovementY);
+    objs.forEach((o:any)=>{
+      const lock = anyUnlocked;
+      o.lockMovementX = lock;
+      o.lockMovementY = lock;
+      o.lockScalingX = lock;
+      o.lockScalingY = lock;
+      o.lockRotation = lock;
+      o.selectable = !lock;
+      o.evented = !lock;
+    });
+    c.discardActiveObject();
+    c.renderAll();
+  }, [getCanvas]);
+
+  const handleToggleVisibility = useCallback(() => {
+    const c = getCanvas();
+    if (!c) return;
+    const objs = c.getActiveObjects();
+    if (!objs || objs.length === 0) return;
+    const anyVisible = objs.some((o:any)=>o.visible !== false);
+    objs.forEach((o:any)=>{
+      o.visible = !anyVisible;
+      const id = (o as any).id; if (id) (useEditorStore.getState() as any).updateItemProperties?.(id, { visible: !anyVisible });
+    });
+    c.discardActiveObject();
+    c.renderAll();
+  }, [getCanvas]);
+
   // 删除选中对象
   const handleDelete = useCallback(() => {
     if (canvas && selectedObjects.length > 0) {
@@ -279,6 +399,10 @@ export default function CreateProgramPage() {
               };
           addRegion(page.id, { name: hasRegion ? `区域${page.regions.length + 1}` : '主区域', rect });
         }}
+        onAlign={handleAlign}
+        onDistribute={handleDistribute}
+        onToggleLock={handleToggleLock}
+        onToggleVisibility={handleToggleVisibility}
       />
       
       {/* 主要内容区域 - 三栏式布局 */}
