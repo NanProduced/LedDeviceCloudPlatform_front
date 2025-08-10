@@ -10,9 +10,12 @@ import {
   MousePointer2, 
   Square, 
   Type, 
-  Image, 
   Clock, 
   Cloud, 
+  Thermometer,
+  Activity,
+  Globe,
+  Timer,
   Move,
   ZoomIn,
   ZoomOut,
@@ -399,6 +402,7 @@ export function EditorToolbar({
             disabled={disabled}
           />
           
+          {/* 文本组件 */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -414,21 +418,7 @@ export function EditorToolbar({
             <TooltipContent side="bottom">添加文本 (T)</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleAddItem(2)}
-                disabled={disabled || !currentPage || currentPage.regions.length === 0}
-                className="h-8 w-8 p-0"
-              >
-                <Image className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">添加图片 (I)</TooltipContent>
-          </Tooltip>
-
+          {/* 时钟组件 */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -444,6 +434,7 @@ export function EditorToolbar({
             <TooltipContent side="bottom">添加时钟 (C)</TooltipContent>
           </Tooltip>
 
+          {/* 天气组件 */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -457,6 +448,54 @@ export function EditorToolbar({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">添加天气 (W)</TooltipContent>
+          </Tooltip>
+
+          {/* 温度传感器 */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleAddItem(22)}
+                disabled={disabled || !currentPage || currentPage.regions.length === 0}
+                className="h-8 w-8 p-0"
+              >
+                <Thermometer className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">添加温度传感器</TooltipContent>
+          </Tooltip>
+
+          {/* 计时器 */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleAddItem(15)}
+                disabled={disabled || !currentPage || currentPage.regions.length === 0}
+                className="h-8 w-8 p-0"
+              >
+                <Timer className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">添加计时器</TooltipContent>
+          </Tooltip>
+
+          {/* 网页组件 */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleAddItem(27)}
+                disabled={disabled || !currentPage || currentPage.regions.length === 0}
+                className="h-8 w-8 p-0"
+              >
+                <Globe className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">添加网页</TooltipContent>
           </Tooltip>
         </div>
 

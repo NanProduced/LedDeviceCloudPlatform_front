@@ -34,6 +34,7 @@ export interface Duration {
 
 export interface MaterialReference {
   materialId: string;
+  fileId?: string;
   originalName: string;
   mimeType: string;
   fileSize: number;

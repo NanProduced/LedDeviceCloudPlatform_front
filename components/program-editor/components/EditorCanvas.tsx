@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 // 状态管理和类型
 import { useEditorStore } from '../stores/editor-store';
-import { EditorTool, EditorItem, EditorRegion, Position, Rectangle } from '../types/program-editor';
+import { EditorTool, EditorItem, EditorRegion, Position, Rectangle, VSNItemType } from '../types/program-editor';
 
 interface EditorCanvasProps {
   tool: EditorTool;
@@ -39,6 +39,7 @@ function EditableItem({
   pageIndex, 
   isSelected, 
   isPreviewMode, 
+  canvasScale,
   onSelect, 
   onUpdate 
 }: {
@@ -47,12 +48,14 @@ function EditableItem({
   pageIndex: number;
   isSelected: boolean;
   isPreviewMode: boolean;
+  canvasScale: number;
   onSelect: (itemId: string, multiSelect?: boolean) => void;
   onUpdate: (updates: Partial<EditorItem>) => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [dragStart, setDragStart] = useState<Position | null>(null);
+  const [dragStart, setDragStart] = useState<{ clientX: number; clientY: number; offsetX: number; offsetY: number } | null>(null);
+  const [resizeStart, setResizeStart] = useState<{ clientX: number; clientY: number; width: number; height: number } | null>(null);
 
   // 处理点击选择
   const handleClick = useCallback((e: React.MouseEvent) => {
@@ -71,27 +74,36 @@ function EditableItem({
     
     setIsDragging(true);
     setDragStart({
-      x: e.clientX - item.position.x,
-      y: e.clientY - item.position.y,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      offsetX: (e.clientX - item.position.x * canvasScale),
+      offsetY: (e.clientY - item.position.y * canvasScale),
     });
-  }, [isPreviewMode, isSelected, item.position]);
+  }, [isPreviewMode, isSelected, item.position, canvasScale]);
 
   // 处理拖拽移动
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging || !dragStart) return;
-    
-    const newPosition = {
-      x: Math.max(0, e.clientX - dragStart.x),
-      y: Math.max(0, e.clientY - dragStart.y),
-    };
-    
-    onUpdate({ position: newPosition });
-  }, [isDragging, dragStart, onUpdate]);
+    if (isDragging && dragStart) {
+      const newX = Math.max(0, (e.clientX - dragStart.offsetX) / canvasScale);
+      const newY = Math.max(0, (e.clientY - dragStart.offsetY) / canvasScale);
+      const clampedX = Math.min(newX, region.bounds.x + region.bounds.width - item.dimensions.width);
+      const clampedY = Math.min(newY, region.bounds.y + region.bounds.height - item.dimensions.height);
+      onUpdate({ position: { x: clampedX, y: clampedY } });
+    } else if (isResizing && resizeStart) {
+      const dx = (e.clientX - resizeStart.clientX) / canvasScale;
+      const dy = (e.clientY - resizeStart.clientY) / canvasScale;
+      const newWidth = Math.max(10, Math.min(resizeStart.width + dx, region.bounds.width - (item.position.x - region.bounds.x)));
+      const newHeight = Math.max(10, Math.min(resizeStart.height + dy, region.bounds.height - (item.position.y - region.bounds.y)));
+      onUpdate({ dimensions: { width: Math.round(newWidth), height: Math.round(newHeight) } });
+    }
+  }, [isDragging, dragStart, isResizing, resizeStart, canvasScale, region.bounds, item.position.x, item.position.y, item.dimensions.width, item.dimensions.height, onUpdate]);
 
   // 处理拖拽结束
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     setDragStart(null);
+    setIsResizing(false);
+    setResizeStart(null);
   }, []);
 
   // 绑定全局鼠标事件
@@ -106,6 +118,14 @@ function EditableItem({
       };
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    if (isPreviewMode || !isSelected) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    setResizeStart({ clientX: e.clientX, clientY: e.clientY, width: item.dimensions.width, height: item.dimensions.height });
+  }, [isPreviewMode, isSelected, item.dimensions.width, item.dimensions.height]);
 
   // 渲染内容
   const renderContent = () => {
@@ -215,7 +235,10 @@ function EditableItem({
       {isSelected && !isPreviewMode && (
         <>
           {/* 尺寸调整手柄 */}
-          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border border-white rounded-sm cursor-se-resize" />
+          <div
+            className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border border-white rounded-sm cursor-se-resize"
+            onMouseDown={handleResizeMouseDown}
+          />
           
           {/* 信息标签 */}
           <div className="absolute -top-6 left-0">
@@ -237,6 +260,8 @@ function EditableRegion({
   pageIndex, 
   isSelected, 
   isPreviewMode, 
+  canvasScale,
+  previewIndex,
   onSelect, 
   onUpdate 
 }: {
@@ -244,10 +269,13 @@ function EditableRegion({
   pageIndex: number;
   isSelected: boolean;
   isPreviewMode: boolean;
+  canvasScale: number;
+  previewIndex: number;
   onSelect: (regionId: string, multiSelect?: boolean) => void;
   onUpdate: (updates: Partial<EditorRegion>) => void;
 }) {
   const { selectedItems, updateItem } = useEditorStore();
+  const prevIsPreviewRef = useRef(isPreviewMode);
 
   // 处理区域选择
   const handleRegionClick = useCallback((e: React.MouseEvent) => {
@@ -277,6 +305,13 @@ function EditableRegion({
     updateItem(pageIndex, region.id, itemId, updates);
   }, [pageIndex, region.id, updateItem]);
 
+  useEffect(() => {
+    // 进入或退出预览时重置选择
+    if (prevIsPreviewRef.current !== isPreviewMode) {
+      prevIsPreviewRef.current = isPreviewMode;
+    }
+  }, [isPreviewMode]);
+
   return (
     <div
       className={`absolute border-2 transition-all duration-150 ${
@@ -305,18 +340,22 @@ function EditableRegion({
       )}
       
       {/* 区域内的项目 */}
-      {region.items.map((item) => (
-        <EditableItem
-          key={item.id}
-          item={item}
-          region={region}
-          pageIndex={pageIndex}
-          isSelected={selectedItems.includes(item.id)}
-          isPreviewMode={isPreviewMode}
-          onSelect={handleItemSelect}
-          onUpdate={(updates) => handleItemUpdate(item.id, updates)}
-        />
-      ))}
+      {region.items.map((item, index) => {
+        if (isPreviewMode && index !== previewIndex) return null;
+        return (
+          <EditableItem
+            key={item.id}
+            item={item}
+            region={region}
+            pageIndex={pageIndex}
+            isSelected={selectedItems.includes(item.id)}
+            isPreviewMode={isPreviewMode}
+            canvasScale={canvasScale}
+            onSelect={handleItemSelect}
+            onUpdate={(updates) => handleItemUpdate(item.id, updates)}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -331,6 +370,7 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
     offsetX: 0,
     offsetY: 0,
   });
+  const [regionPlayIndex, setRegionPlayIndex] = useState<Record<string, number>>({});
 
   const {
     program,
@@ -387,6 +427,110 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
   // 计算画布容器尺寸
   const containerWidth = Math.max(800, canvasWidth * viewport.scale + 200);
   const containerHeight = Math.max(600, canvasHeight * viewport.scale + 200);
+  // 预览轮播：每个区域顺序播放
+  useEffect(() => {
+    if (!isPreviewMode) return;
+    // 初始化每个区域索引
+    const initial: Record<string, number> = {};
+    currentPage.regions.forEach(r => {
+      initial[r.id] = 0;
+    });
+    setRegionPlayIndex(initial);
+
+    const interval = setInterval(() => {
+      setRegionPlayIndex(prev => {
+        const next: Record<string, number> = { ...prev };
+        currentPage.regions.forEach(r => {
+          const len = r.items.length;
+          if (len > 0) {
+            const cur = prev[r.id] ?? 0;
+            next[r.id] = (cur + 1) % len;
+          } else {
+            next[r.id] = 0;
+          }
+        });
+        return next;
+      });
+    }, 3000); // 默认每项3秒
+
+    return () => clearInterval(interval);
+  }, [isPreviewMode, currentPageIndex, currentPage.regions]);
+
+  // 处理素材拖入
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    // 允许放置
+    if (e.dataTransfer.types.includes('application/x-material')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('application/x-material')) return;
+    e.preventDefault();
+    try {
+      const json = e.dataTransfer.getData('application/x-material');
+      const payload = JSON.parse(json) as {
+        materialId: string;
+        materialType: VSNItemType;
+        mimeType?: string;
+        dimensions?: { width: number; height: number };
+        name?: string;
+      };
+
+      // 若没有区域则创建一个全屏区域
+      if (currentPage.regions.length === 0) {
+        addRegion(currentPageIndex, {
+          name: '主区域',
+          bounds: { x: 0, y: 0, width: program.width, height: program.height },
+        });
+      }
+
+      const updatedPage = useEditorStore.getState().pages[currentPageIndex];
+      const targetRegion = updatedPage.regions[0];
+
+      // 将屏幕坐标换算为画布坐标
+      const canvasRect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+      const dropX = (e.clientX - canvasRect.left) / viewport.scale;
+      const dropY = (e.clientY - canvasRect.top) / viewport.scale;
+
+      // 初始尺寸按素材尺寸或默认尺寸
+      const srcW = payload.dimensions?.width ?? 800;
+      const srcH = payload.dimensions?.height ?? 600;
+
+      // 在区域内按比例适配（不超过区域）
+      const maxW = targetRegion.bounds.width;
+      const maxH = targetRegion.bounds.height;
+      const scale = Math.min(maxW / srcW, maxH / srcH, 1);
+      const itemW = Math.round(srcW * scale);
+      const itemH = Math.round(srcH * scale);
+
+      // 位置限制在区域内，中心对齐放置点
+      const proposedX = Math.round(dropX - itemW / 2);
+      const proposedY = Math.round(dropY - itemH / 2);
+      const clampedX = Math.max(targetRegion.bounds.x, Math.min(proposedX, targetRegion.bounds.x + maxW - itemW));
+      const clampedY = Math.max(targetRegion.bounds.y, Math.min(proposedY, targetRegion.bounds.y + maxH - itemH));
+
+      useEditorStore.getState().addItem(currentPageIndex, targetRegion.id, {
+        type: payload.materialType,
+        name: payload.name ?? `素材${payload.materialId}`,
+        position: { x: clampedX, y: clampedY },
+        dimensions: { width: itemW, height: itemH },
+        materialRef: {
+          materialId: payload.materialId,
+          originalName: payload.name ?? `素材${payload.materialId}`,
+          mimeType: payload.mimeType ?? 'application/octet-stream',
+          fileSize: 0,
+          dimensions: { width: srcW, height: srcH },
+        },
+        visible: true,
+        locked: false,
+        zIndex: 0,
+      });
+    } catch (err) {
+      console.error('drop 解析失败', err);
+    }
+  }, [currentPageIndex, program.width, program.height, viewport.scale, addRegion, currentPage.regions.length]);
 
   if (!currentPage) {
     return (
@@ -449,12 +593,14 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
           <div
             className="relative mx-auto bg-black shadow-lg"
             style={{
-              width: canvasWidth * viewport.scale,
-              height: canvasHeight * viewport.scale,
+              width: canvasWidth,
+              height: canvasHeight,
               transform: `scale(${viewport.scale})`,
               transformOrigin: 'top left',
               backgroundColor: currentPage.backgroundColor.value,
             }}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
           >
             {/* 网格背景 (仅编辑模式) */}
             {!isPreviewMode && (
@@ -478,6 +624,8 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
                 pageIndex={currentPageIndex}
                 isSelected={selectedRegions.includes(region.id)}
                 isPreviewMode={isPreviewMode}
+                canvasScale={viewport.scale}
+                previewIndex={regionPlayIndex[region.id] ?? 0}
                 onSelect={handleRegionSelect}
                 onUpdate={(updates) => handleRegionUpdate(region.id, updates)}
               />

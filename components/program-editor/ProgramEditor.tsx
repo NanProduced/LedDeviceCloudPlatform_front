@@ -8,6 +8,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Play, Save, Settings, Layers, Image, Type, Clock, Cloud, Monitor } from 'lucide-react';
 
+// API导入
+import { ProgramAPI, CreateProgramRequest, UpdateProgramRequest } from '@/lib/api/program';
+import { VSNConverter } from './converters/vsn-converter';
+
 // shadcn组件
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -95,19 +99,85 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
     try {
       setIsSaving(true);
       
-      // TODO: 实现保存逻辑
-      // - 验证VSN格式
-      // - 调用API保存
-      // - 更新状态
+      // 获取当前编辑器状态
+      const { 
+        program: programInfo, 
+        pages, 
+        getCurrentPage,
+        validate 
+      } = useEditorStore.getState();
       
-      await new Promise(resolve => setTimeout(resolve, 1000)); // 模拟保存
+      // 构建EditorState用于转换
+      const editorState = {
+        program: programInfo,
+        pages,
+        currentPageIndex,
+        selectedItems,
+        selectedRegions,
+        clipboard: [],
+        history: [],
+        historyIndex: -1,
+        isDirty,
+        isPreviewMode,
+        zoomLevel,
+      };
+
+      // 转换为VSN格式
+      const conversionResult = VSNConverter.convertToVSN(editorState);
+      
+      if (!conversionResult.validation.isValid) {
+        console.error('VSN验证失败:', conversionResult.validation.errors);
+        throw new Error(`节目数据验证失败: ${conversionResult.validation.errors[0]?.message || '未知错误'}`);
+      }
+
+      // 准备保存数据
+      const contentData = JSON.stringify(editorState);
+      const vsnData = JSON.stringify(conversionResult.vsnData);
+      
+      if (programId) {
+        // 更新现有节目
+        const updateRequest: UpdateProgramRequest = {
+          name: programInfo.name,
+          description: programInfo.description,
+          width: programInfo.width,
+          height: programInfo.height,
+          duration: pages.reduce((total, page) => total + (page.duration?.milliseconds || 0), 0),
+          status: 'draft', // 保存为草稿
+          vsnData,
+          contentData,
+        };
+        
+        await ProgramAPI.updateProgram(programId, updateRequest);
+      } else {
+        // 创建新节目
+        const createRequest: CreateProgramRequest = {
+          name: programInfo.name || '未命名节目',
+          description: programInfo.description || '',
+          width: programInfo.width,
+          height: programInfo.height,
+          duration: pages.reduce((total, page) => total + (page.duration?.milliseconds || 0), 0),
+          status: 'draft',
+          vsnData,
+          contentData,
+        };
+        
+        const result = await ProgramAPI.createProgram(createRequest);
+        
+        // 更新程序ID到store中
+        if (result.programId) {
+          useEditorStore.getState().setProgram({ id: result.programId });
+        }
+      }
+      
       markClean();
+      console.log('节目保存成功');
     } catch (error) {
       console.error('保存失败:', error);
+      // TODO: 显示用户友好的错误提示
     } finally {
       setIsSaving(false);
     }
-  }, [markClean]);
+  }, [programId, currentPageIndex, selectedItems, selectedRegions, isDirty, isPreviewMode, zoomLevel, markClean]);
 
   // 工具选择处理
   const handleToolSelect = useCallback((tool: EditorTool) => {
@@ -117,9 +187,93 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
 
   // 添加素材到画布
   const handleAddMaterial = useCallback((materialId: string, materialType: VSNItemType) => {
-    // TODO: 实现素材添加逻辑
-    console.log('添加素材:', materialId, materialType);
+    const { 
+      pages, 
+      currentPageIndex, 
+      addItem, 
+      addRegion 
+    } = useEditorStore.getState();
+    
+    const currentPage = pages[currentPageIndex];
+    
+    if (!currentPage) {
+      console.warn('没有当前页面，无法添加素材');
+      return;
+    }
+    
+    // 如果当前页面没有区域，先创建一个默认区域
+    if (currentPage.regions.length === 0) {
+      const { program } = useEditorStore.getState();
+      addRegion(currentPageIndex, {
+        name: '主区域',
+        bounds: {
+          x: 0,
+          y: 0,
+          width: program.width,
+          height: program.height,
+        },
+      });
+    }
+    
+    // 获取更新后的页面信息
+    const updatedCurrentPage = useEditorStore.getState().pages[currentPageIndex];
+    const targetRegion = updatedCurrentPage.regions[0]; // 添加到第一个区域
+    
+    // 根据素材类型创建相应的编辑器项目
+    const itemData = {
+      type: materialType,
+      name: `素材${materialId}`,
+      position: { x: 50, y: 50 }, // 默认位置
+      dimensions: getDefaultDimensions(materialType),
+      materialRef: {
+        materialId,
+        originalName: `素材${materialId}`,
+        mimeType: getMimeTypeByType(materialType),
+        fileSize: 0, // 将通过API获取
+      },
+    };
+    
+    // 添加到区域
+    addItem(currentPageIndex, targetRegion.id, itemData);
+    
+    console.log('素材添加成功:', materialId, materialType);
   }, []);
+  
+  // 获取素材类型的默认尺寸
+  const getDefaultDimensions = (type: VSNItemType) => {
+    switch (type) {
+      case 4: // 单行文本
+        return { width: 200, height: 40 };
+      case 5: // 多行文本
+        return { width: 300, height: 100 };
+      case 9: // 时钟
+      case 16: // 精美时钟
+        return { width: 200, height: 80 };
+      case 14: // 天气
+        return { width: 150, height: 120 };
+      case 22: // 温度等传感器
+      case 21:
+      case 23:
+      case 24:
+        return { width: 120, height: 60 };
+      default:
+        return { width: 200, height: 150 };
+    }
+  };
+  
+  // 根据VSN类型获取MIME类型
+  const getMimeTypeByType = (type: VSNItemType): string => {
+    switch (type) {
+      case 2: // 图片
+        return 'image/jpeg';
+      case 3: // 视频
+        return 'video/mp4';
+      case 6: // GIF
+        return 'image/gif';
+      default:
+        return 'application/octet-stream';
+    }
+  };
 
   return (
     <TooltipProvider>
