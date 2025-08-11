@@ -367,52 +367,69 @@ export class ProgramAPI {
     return { programId: data.id ?? data.programId ?? '' }
   }
 
-  // ===== 审核相关 =====
-  static async submitReview(programId: string, payload?: Record<string, unknown>): Promise<{ requestId?: string }>{
-    const data = await fetchApi(`${this.base}/${programId}/submit-review`, { method: 'POST', body: payload ? JSON.stringify(payload) : undefined }) as any
-    return { requestId: data.requestId ?? data.reviewId }
+  // ===== 审核相关（对齐核心服务文档） =====
+  // 提交节目审核：POST /program/{programId}/versions/{versionId}/approval/submit
+  static async submitReview(programId: string, versionId?: string, payload?: Record<string, unknown>): Promise<{ success?: boolean; approvalId?: string }>{
+    let targetVersionId = versionId
+    if (!targetVersionId) {
+      try {
+        const { items } = await this.listVersions(programId)
+        if (items && items.length > 0) {
+          const sorted = [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          const draft = sorted.find(v => v.type === 'draft')
+          targetVersionId = draft?.versionId || sorted[0].versionId
+        }
+      } catch {}
+    }
+    if (!targetVersionId) throw new Error('未找到可提交审核的版本')
+    const url = `${CORE_API_PREFIX}/program/${encodeURIComponent(programId)}/versions/${encodeURIComponent(targetVersionId)}/approval/submit`
+    const data = await fetchApi(url, { method: 'POST', body: payload ? JSON.stringify(payload) : undefined }) as any
+    return { success: data === true || data?.success === true, approvalId: data?.approvalId }
   }
 
   static async listPendingReviews(query: { scope?: 'mine' | 'all'; page?: number; pageSize?: number } = {}): Promise<{ items: any[]; total: number; page: number; pageSize: number }>{
+    const page = query.page || 1
+    const size = query.pageSize || 20
     const params = new URLSearchParams()
-    if (query.scope) params.append('scope', query.scope)
-    if (query.page) params.append('page', String(query.page))
-    if (query.pageSize) params.append('pageSize', String(query.pageSize))
-    const data = await fetchApi(`${this.base}/review/pending?${params.toString()}`) as any
+    params.append('page', String(page))
+    params.append('size', String(size))
+    const data = await fetchApi(`${CORE_API_PREFIX}/program/approval/pending?${params.toString()}`) as any
     return {
-      items: data.items ?? [],
-      total: data.total ?? 0,
-      page: data.page ?? 1,
-      pageSize: data.pageSize ?? (query.pageSize || 20),
+      items: (data.items ?? data.records ?? data.list ?? data.data ?? []),
+      total: data.total ?? data.totalCount ?? 0,
+      page: data.page ?? data.pageNum ?? page,
+      pageSize: data.pageSize ?? data.size ?? size,
     }
   }
 
-  static async approveReview(requestId: string, payload: Record<string, unknown>): Promise<{ requestId: string; status?: ProgramStatusFrontend }>{
-    const data = await fetchApi(`${this.base}/review/${requestId}/approve`, { method: 'POST', body: JSON.stringify(payload) }) as any
-    return { requestId: data.requestId ?? requestId, status: data.status ? mapStatusToFrontend(data.status) : undefined }
+  static async approveReview(approvalId: string, payload: Record<string, unknown>): Promise<{ approvalId: string; success: boolean }>{
+    const data = await fetchApi(`${CORE_API_PREFIX}/program/approval/${encodeURIComponent(approvalId)}/approve`, { method: 'POST', body: JSON.stringify(payload) }) as any
+    return { approvalId, success: data === true || data?.success === true }
   }
 
-  static async rejectReview(requestId: string, payload: Record<string, unknown>): Promise<{ requestId: string; status?: ProgramStatusFrontend }>{
-    const data = await fetchApi(`${this.base}/review/${requestId}/reject`, { method: 'POST', body: JSON.stringify(payload) }) as any
-    return { requestId: data.requestId ?? requestId, status: data.status ? mapStatusToFrontend(data.status) : undefined }
+  static async rejectReview(approvalId: string, payload: Record<string, unknown>): Promise<{ approvalId: string; success: boolean }>{
+    const data = await fetchApi(`${CORE_API_PREFIX}/program/approval/${encodeURIComponent(approvalId)}/reject`, { method: 'POST', body: JSON.stringify(payload) }) as any
+    return { approvalId, success: data === true || data?.success === true }
   }
 
   static async getProgramReviews(programId: string): Promise<{ items: any[] }>{
-    const data = await fetchApi(`${this.base}/${programId}/reviews`) as any
-    return { items: data.items ?? data ?? [] }
+    const data = await fetchApi(`${CORE_API_PREFIX}/program/${encodeURIComponent(programId)}/approval/history`) as any
+    return { items: data?.items ?? data ?? [] }
   }
 
   // 我发起的审核请求列表（以接口文档为准，若路径不同请在此适配）
   static async listSubmittedReviews(query: { page?: number; pageSize?: number } = {}): Promise<{ items: any[]; total: number; page: number; pageSize: number }>{
+    const page = query.page || 1
+    const size = query.pageSize || 20
     const params = new URLSearchParams()
-    if (query.page) params.append('page', String(query.page))
-    if (query.pageSize) params.append('pageSize', String(query.pageSize))
-    const data = await fetchApi(`${this.base}/review/submitted?${params.toString()}`) as any
+    params.append('page', String(page))
+    params.append('size', String(size))
+    const data = await fetchApi(`${CORE_API_PREFIX}/program/approval/pending?${params.toString()}`) as any
     return {
-      items: data.items ?? [],
-      total: data.total ?? 0,
-      page: data.page ?? 1,
-      pageSize: data.pageSize ?? (query.pageSize || 20),
+      items: (data.items ?? data.records ?? data.list ?? data.data ?? []),
+      total: data.total ?? data.totalCount ?? 0,
+      page: data.page ?? data.pageNum ?? page,
+      pageSize: data.pageSize ?? data.size ?? size,
     }
   }
 }
