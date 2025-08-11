@@ -8,7 +8,7 @@
  * - 消息确认API
  */
 
-import { api } from '../api';
+import { api, CORE_API_PREFIX } from '../api';
 
 // ========== 类型定义 ==========
 
@@ -281,150 +281,132 @@ export class BroadcastMessageAPI {
  * 注意：当前为Mock实现，待后端API完善后替换
  */
 export class TaskAPI {
-  
+  private static mapStatusToBackend(status?: string): string | undefined {
+    switch (status) {
+      case 'PENDING':
+        return 'PENDING'
+      case 'RUNNING':
+        return 'RUNNING'
+      case 'SUCCESS':
+        return 'COMPLETED'
+      case 'FAILED':
+        return 'FAILED'
+      case 'CANCELLED':
+        return 'CANCELED'
+      default:
+        return undefined
+    }
+  }
+  private static mapStatusToFrontend(status?: string): TaskInfo['status'] {
+    switch (status) {
+      case 'PENDING':
+        return 'PENDING';
+      case 'RUNNING':
+        return 'RUNNING';
+      case 'COMPLETED':
+        return 'SUCCESS';
+      case 'FAILED':
+        return 'FAILED';
+      case 'CANCELED':
+        return 'CANCELLED';
+      default:
+        return 'PENDING';
+    }
+  }
+
   /**
-   * 获取任务列表（Mock实现）
+   * 获取任务列表（核心服务真实接口）
    */
   static async getTaskList(params: {
     pageNum: number;
     pageSize: number;
     status?: string;
     type?: string;
+    keyword?: string;
   }): Promise<PageResponse<TaskInfo>> {
-    // Mock数据 - 模拟任务列表
-    const mockTasks: TaskInfo[] = [
-      {
-        id: 'task-001',
-        name: '春节宣传片.mp4',
-        type: 'UPLOAD',
-        status: 'SUCCESS',
-        progress: 100,
-        fileSize: 131072000, // 125MB
-        fileSizeFormatted: '125.0MB',
-        createTime: '2025-01-25T13:30:00Z',
-        parameters: { uploadTime: '14分20秒' }
-      },
-      {
-        id: 'task-002',
-        name: '产品介绍.avi',
-        type: 'TRANSCODE',
-        status: 'FAILED',
-        progress: 45,
-        fileSize: 93650944, // 89.3MB
-        fileSizeFormatted: '89.3MB',
-        createTime: '2025-01-25T12:00:00Z',
-        errorMessage: '转码失败：视频格式不支持'
-      },
-      {
-        id: 'task-003',
-        name: '播放日志导出',
-        type: 'EXPORT',
-        status: 'RUNNING',
-        progress: 75,
-        createTime: '2025-01-25T11:00:00Z',
-        estimatedTime: 300, // 5分钟
-        fileSizeFormatted: '预计 2.3MB'
-      },
-      {
-        id: 'task-004',
-        name: '新年祝福.mov',
-        type: 'UPLOAD',
-        status: 'RUNNING',
-        progress: 68,
-        fileSize: 246415360, // 234.7MB
-        fileSizeFormatted: '234.7MB',
-        createTime: '2025-01-25T10:30:00Z',
-        estimatedTime: 720 // 12分钟
-      },
-      {
-        id: 'task-005',
-        name: '宣传素材.wmv',
-        type: 'TRANSCODE',
-        status: 'SUCCESS',
-        progress: 100,
-        fileSize: 164626432, // 156.8MB
-        fileSizeFormatted: '156.8MB',
-        createTime: '2025-01-25T09:15:00Z',
-        parameters: { transcodeTime: '29分20秒' }
-      }
-    ];
-
-    // 模拟筛选
-    let filteredTasks = mockTasks;
-    if (params.status) {
-      filteredTasks = filteredTasks.filter(task => task.status === params.status);
-    }
-    if (params.type) {
-      filteredTasks = filteredTasks.filter(task => task.type === params.type);
-    }
-
-    // 模拟分页
-    const total = filteredTasks.length;
-    const start = (params.pageNum - 1) * params.pageSize;
-    const end = start + params.pageSize;
-    const records = filteredTasks.slice(start, end);
-
-    return {
+    const body = {
       pageNum: params.pageNum,
       pageSize: params.pageSize,
+      params: {
+        keyword: params.keyword,
+        taskType: params.type,
+        taskStatus: TaskAPI.mapStatusToBackend(params.status),
+      },
+    };
+
+    const response = await api.post(`${CORE_API_PREFIX}/task/list`, body);
+    const data = response.data as any;
+
+    const records: TaskInfo[] = (data.records || []).map((item: any) => ({
+      id: item.taskId,
+      name: item.ref || item.taskId,
+      type: item.taskType || 'UPLOAD',
+      status: TaskAPI.mapStatusToFrontend(item.taskStatus),
+      progress: typeof item.progress === 'number' ? item.progress : 0,
+      createTime: item.createTime,
+      errorMessage: item.errorMessage,
+      parameters: undefined,
+      fileSize: undefined,
+      fileSizeFormatted: undefined,
+      estimatedTime: undefined,
+    }));
+
+    const pageSize = data.pageSize || params.pageSize;
+    const total: number = data.total || records.length || 0;
+    const pageNum = data.pageNum || params.pageNum || 1;
+
+    return {
+      pageNum,
+      pageSize,
       total,
-      totalPages: Math.ceil(total / params.pageSize),
+      totalPages: Math.ceil(total / (pageSize || 1)),
       records,
-      hasNext: end < total,
-      hasPrevious: params.pageNum > 1
+      hasNext: typeof data.hasNext === 'boolean' ? data.hasNext : pageNum * pageSize < total,
+      hasPrevious: typeof data.hasPrevious === 'boolean' ? data.hasPrevious : pageNum > 1,
     };
   }
 
   /**
-   * 获取任务统计信息（Mock实现）
+   * 获取任务统计信息（核心服务真实接口）
    */
   static async getTaskStatistics(): Promise<Record<string, number>> {
+    const response = await api.post(`${CORE_API_PREFIX}/task/count/status`, {});
+    const map = (response.data || {}) as Record<string, number>;
+    const pending = map.PENDING || 0;
+    const running = map.RUNNING || 0;
+    const completed = map.COMPLETED || 0;
+    const failed = map.FAILED || 0;
+    const canceled = map.CANCELED || 0;
+    const total = pending + running + completed + failed + canceled;
     return {
-      total: 8,
-      SUCCESS: 3,
-      RUNNING: 2,
-      PENDING: 1,
-      FAILED: 2
-    };
+      total,
+      PENDING: pending,
+      RUNNING: running,
+      SUCCESS: completed,
+      FAILED: failed,
+      CANCELLED: canceled,
+    } as any;
   }
 
   /**
-   * 获取任务详情（Mock实现）
+   * 获取任务详情（后端暂无对应接口，回退由调用方处理）
    */
-  static async getTaskDetail(taskId: string): Promise<TaskInfo> {
-    // Mock数据
-    return {
-      id: taskId,
-      name: '示例任务详情',
-      type: 'UPLOAD',
-      status: 'RUNNING',
-      progress: 65,
-      fileSize: 104857600,
-      fileSizeFormatted: '100.0MB',
-      createTime: '2025-01-25T10:00:00Z',
-      estimatedTime: 600,
-      parameters: {
-        originalFormat: 'mp4',
-        targetFormat: 'webm',
-        quality: 'high'
-      }
-    };
+  static async getTaskDetail(_taskId: string): Promise<TaskInfo> {
+    throw new Error('后端暂无任务详情接口');
   }
 
   /**
-   * 重试任务（Mock实现）
+   * 重试任务（后端暂无对应接口）
    */
-  static async retryTask(taskId: string): Promise<void> {
-    // Mock实现 - 实际需要调用后端API
-    console.log(`重试任务: ${taskId}`);
+  static async retryTask(_taskId: string): Promise<void> {
+    throw new Error('后端暂无任务重试接口');
   }
 
   /**
-   * 取消任务（Mock实现）
+   * 取消任务（核心服务真实接口）
    */
   static async cancelTask(taskId: string): Promise<void> {
-    // Mock实现 - 实际需要调用后端API
-    console.log(`取消任务: ${taskId}`);
+    await api.post(`${CORE_API_PREFIX}/task/cancel/${encodeURIComponent(taskId)}`);
   }
 }
 

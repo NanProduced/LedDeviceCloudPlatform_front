@@ -134,7 +134,8 @@ export default function TasksPage() {
         pageNum: page,
         pageSize: pagination.pageSize,
         status: filters.status,
-        type: filters.type
+        type: filters.type,
+        keyword: filters.searchKeyword
       });
 
       if (reset || page === 1) {
@@ -586,15 +587,7 @@ export default function TasksPage() {
                         <Eye className="w-4 h-4" />
                       </Button>
                       
-                      {task.status === 'FAILED' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => retryTask(task.id)}
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </Button>
-                      )}
+                      {/* 后端暂不支持重试接口，隐藏该操作 */}
                       
                       {(task.status === 'RUNNING' || task.status === 'PENDING') && (
                         <Button 

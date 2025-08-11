@@ -72,11 +72,16 @@ function EditableItem({
 
   // 处理拖拽开始
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (isPreviewMode || !isSelected) return;
-    
+    if (isPreviewMode) return;
+
     e.preventDefault();
     e.stopPropagation();
-    
+
+    // 若未选中，先选中当前项
+    if (!isSelected) {
+      onSelect(item.id, e.ctrlKey || e.metaKey);
+    }
+
     setIsDragging(true);
     setDragStart({
       clientX: e.clientX,
@@ -84,7 +89,7 @@ function EditableItem({
       offsetX: (e.clientX - item.position.x * canvasScale),
       offsetY: (e.clientY - item.position.y * canvasScale),
     });
-  }, [isPreviewMode, isSelected, item.position, canvasScale]);
+  }, [isPreviewMode, isSelected, item.position, canvasScale, item.id, onSelect]);
 
   // 处理拖拽移动
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -331,14 +336,17 @@ function EditableItem({
         <>
           {/* 尺寸调整手柄 */}
           <div
-            className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border border-white rounded-sm cursor-se-resize"
+            className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 border border-white rounded-sm cursor-se-resize"
             onMouseDown={handleResizeMouseDown}
           />
           
           {/* 信息标签 */}
-          <div className="absolute -top-6 left-0">
+          <div className="absolute -top-6 left-0 flex gap-2">
             <Badge variant="default" className="text-xs h-5">
               {item.name}
+            </Badge>
+            <Badge variant="outline" className="text-[10px] h-5 bg-background/80">
+              {Math.round(item.dimensions.width)}×{Math.round(item.dimensions.height)}
             </Badge>
           </div>
         </>
@@ -636,20 +644,17 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
       const dropX = (e.clientX - canvasRect.left) / viewport.scale;
       const dropY = (e.clientY - canvasRect.top) / viewport.scale;
 
-      // 默认铺满整个画布（对应VSN的reserveAS=0），而非只铺满区域
-      const { program } = useEditorStore.getState();
-      const itemW = program.width;
-      const itemH = program.height;
-
-      // 位置：从画布原点开始
-      const clampedX = 0;
-      const clampedY = 0;
+      // 默认在鼠标落点创建一个可见尺寸的项（保持在区域内），非直接铺满
+      const defaultW = Math.min(targetRegion.bounds.width, payload.dimensions?.width || Math.floor(program.width * 0.5));
+      const defaultH = Math.min(targetRegion.bounds.height, payload.dimensions?.height || Math.floor(program.height * 0.5));
+      const localX = Math.max(targetRegion.bounds.x, Math.min(dropX, targetRegion.bounds.x + targetRegion.bounds.width - defaultW));
+      const localY = Math.max(targetRegion.bounds.y, Math.min(dropY, targetRegion.bounds.y + defaultH));
 
       useEditorStore.getState().addItem(currentPageIndex, targetRegion.id, {
         type: payload.materialType,
         name: payload.name ?? `素材${payload.materialId}`,
-        position: { x: clampedX, y: clampedY },
-        dimensions: { width: itemW, height: itemH },
+        position: { x: Math.floor(localX), y: Math.floor(localY) },
+        dimensions: { width: Math.floor(defaultW), height: Math.floor(defaultH) },
         materialRef: {
           materialId: payload.materialId,
           originalName: payload.name ?? `素材${payload.materialId}`,
@@ -658,7 +663,7 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
           dimensions: payload.dimensions,
           fileId: payload.fileId,
         },
-        preserveAspectRatio: false,
+        preserveAspectRatio: true,
         visible: true,
         locked: false,
         zIndex: 0,
@@ -777,7 +782,7 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
           onWheel={handleWheel}
           onClick={handleCanvasClick}
         >
-          {/* LED显示屏画布 */}
+          {/* LED显示屏画布（注意：黑色矩形即为节目分辨率 {canvasWidth}×{canvasHeight}，外部浅灰背景是编辑区域，不会导出） */}
           <div
             className="relative mx-auto bg-black shadow-lg"
             style={{
