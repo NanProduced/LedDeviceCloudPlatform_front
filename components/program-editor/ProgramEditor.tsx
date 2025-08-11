@@ -36,6 +36,8 @@ import { PropertyPanel } from './components/PropertyPanel';
 import { LayerPanel } from './components/LayerPanel';
 import { PageTabs } from './components/PageTabs';
 import { EditorToolbar } from './components/EditorToolbar';
+import { MediaStrip } from './components/MediaStrip';
+import { TopSummary } from './components/TopSummary';
 
 // 轻量媒体列表（当前页第一个区域）
 function PageMediaList() {
@@ -475,20 +477,8 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
                   placeholder="节目名称"
                 />
                 <div className="flex items-center gap-2 mt-1">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Monitor className="h-3 w-3" />
-                    {program.width}×{program.height}
-                  </div>
-                  <Separator orientation="vertical" className="h-3" />
-                  <div className="text-xs text-muted-foreground">
-                    页面 {currentPageIndex + 1}/{pages.length}
-                  </div>
-                  {isDirty && (
-                    <>
-                      <Separator orientation="vertical" className="h-3" />
-                      <Badge variant="secondary" className="h-4 px-1.5 text-xs">未保存</Badge>
-                    </>
-                  )}
+                  <TopSummary />
+                  {isDirty && <Badge variant="secondary" className="h-4 px-1.5 text-xs">未保存</Badge>}
                 </div>
               </div>
             </div>
@@ -668,6 +658,8 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
             )}
           </ResizablePanelGroup>
         </div>
+        {/* 底部媒体胶片条 */}
+        <MediaStrip />
 
         {/* 底部状态栏 - 优化布局 */}
         <div className="border-t bg-muted/20 px-4 py-1.5">
