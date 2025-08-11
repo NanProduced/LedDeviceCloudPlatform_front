@@ -218,11 +218,15 @@ export class VSNConverter {
     const appointMs = (page as any).duration?.milliseconds ?? (page as any).duration ?? 5000;
     const bgHex = (page as any).backgroundColor?.value || (page as any).bgColor || '#000000';
 
+    // 颜色：后端要求JSON数值且为32位有符号整型范围
+    const unsignedArgb = Number(ColorConverter.hexToVSNColor(bgHex));
+    const signedArgb = unsignedArgb > 0x7FFFFFFF ? unsignedArgb - 0x100000000 : unsignedArgb;
+
     const vsnPage: VSNPage = {
       regions: page.regions.map(region => this.convertRegion(region, options)),
       loopType: NumberUtils.toString(loopTypeNum),
       appointDuration: loopTypeNum === 0 ? NumberUtils.toString(appointMs) : '',
-      bgColor: ColorConverter.hexToVSNColor(bgHex)
+      bgColor: signedArgb
     };
 
     // 处理背景文件

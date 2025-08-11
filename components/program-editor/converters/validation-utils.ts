@@ -155,14 +155,31 @@ export class FieldValidator {
    * 验证VSN颜色格式
    */
   static validateVSNColor(
-    value: string,
+    value: string | number,
     context: ValidationContext,
     fieldName: string
   ): boolean {
-    if (!value) return false;
+    if (value === undefined || value === null || value === '') return false;
 
-    const num = parseInt(value, 10);
-    if (isNaN(num) || num < 0 || num > 4294967295) {
+    let num: number;
+    if (typeof value === 'number') {
+      num = value;
+    } else {
+      num = parseInt(value, 10);
+    }
+
+    if (isNaN(num as any)) {
+      createValidationError(
+        context,
+        ValidationErrorCode.INVALID_COLOR_FORMAT,
+        `字段 ${fieldName} 必须是有效的VSN颜色格式（0-4294967295）`
+      );
+      return false;
+    }
+
+    // 支持后端以32位有符号整型传值的场景（负数），转换为无符号范围校验
+    const unsigned = num < 0 ? (num + 0x100000000) : num;
+    if (unsigned < 0 || unsigned > 4294967295) {
       createValidationError(
         context,
         ValidationErrorCode.INVALID_COLOR_FORMAT,

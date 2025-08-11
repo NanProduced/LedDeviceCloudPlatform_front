@@ -731,7 +731,7 @@ export interface VSNPage {
   appointDuration: string;
   
   /** 节目页背景色（必填，8位16进制数String类型） */
-  bgColor: string;
+  bgColor: number; // 后端要求Integer（32位无符号整数，ARGB）
   
   /** 背景文件 */
   bgFile?: VSNBgFile;
