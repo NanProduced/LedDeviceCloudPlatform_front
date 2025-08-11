@@ -262,8 +262,8 @@ function RegionSection({
               <p className="text-xs">此区域暂无项目</p>
             </div>
           ) : (
-            region.items
-              .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0)) // 按z-index降序排列
+            [...region.items]
+              .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0)) // 按z-index降序排列（不修改原数组）
               .map((item) => (
                 <LayerItem
                   key={item.id}
@@ -348,8 +348,8 @@ export function LayerPanel({ className }: LayerPanelProps) {
               <p className="text-xs mt-1">在画布中添加区域开始编辑</p>
             </div>
           ) : (
-            currentPage.regions
-              .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0)) // 按z-index降序排列
+            [...currentPage.regions]
+              .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0)) // 按z-index降序排列（不修改原数组）
               .map((region) => (
                 <RegionSection
                   key={region.id}
