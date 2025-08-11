@@ -5,8 +5,8 @@
  * 使用shadcn组件实现对象属性编辑功能
  */
 
-import React, { useState, useEffect } from 'react';
-import { Palette, Move3d, Eye, Lock, RotateCw, Maximize, AspectRatio, Monitor } from 'lucide-react';
+import React from 'react';
+import { Move3d, Eye, Maximize, Maximize2 } from 'lucide-react';
 
 // shadcn组件
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,7 +24,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 
 // 状态管理和类型
 import { useEditorStore } from '../stores/editor-store';
-import { EditorItem, EditorRegion, TextEditorItem, ClockEditorItem, WeatherEditorItem } from '../types/program-editor';
+import { EditorItem, EditorRegion, TextEditorItem, ClockEditorItem } from '../types/program-editor';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PropertyPanelProps {
@@ -321,11 +321,10 @@ function CommonProperties({
   items: EditorItem[]; 
   onUpdate: (updates: Partial<EditorItem>) => void; 
 }) {
+  const { program } = useEditorStore();
   if (items.length === 0) return null;
 
   const firstItem = items[0];
-  const allSameType = items.every(item => item.type === firstItem.type);
-  const { program } = useEditorStore();
 
   // 快捷功能：适应屏幕
   const handleFitToScreen = () => {
@@ -470,7 +469,7 @@ function CommonProperties({
                           onClick={handleFitToScreenKeepRatio}
                           className="h-8 px-2 text-xs"
                         >
-                          <AspectRatio className="h-3 w-3 mr-1" />
+                          <Maximize2 className="h-3 w-3 mr-1" />
                           适应屏幕
                         </Button>
                       </TooltipTrigger>
