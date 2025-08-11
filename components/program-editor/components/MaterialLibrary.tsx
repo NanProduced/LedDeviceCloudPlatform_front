@@ -37,7 +37,15 @@ interface MaterialItem {
 }
 
 interface MaterialLibraryProps {
-  onAddMaterial: (materialId: string, materialType: VSNItemType) => void;
+  onAddMaterial: (material: {
+    id: string;
+    vsnType: VSNItemType;
+    mimeType: string;
+    name: string;
+    dimensions?: { width: number; height: number };
+    fileId?: string;
+    duration?: number;
+  }) => void;
   className?: string;
 }
 
@@ -94,6 +102,7 @@ function MaterialItemCard({
       mimeType: item.mimeType,
       dimensions: getFallbackDimensions(item),
       name: item.name,
+      fileId: item.fileId,
     };
     e.dataTransfer.setData('application/x-material', JSON.stringify(payload));
     e.dataTransfer.effectAllowed = 'copy';
@@ -288,7 +297,15 @@ export function MaterialLibrary({ onAddMaterial, className }: MaterialLibraryPro
         break;
     }
     
-    onAddMaterial(material.id, vsnType);
+    onAddMaterial({
+      id: material.id,
+      vsnType,
+      mimeType: material.mimeType,
+      name: material.name,
+      dimensions: material.dimensions,
+      fileId: material.fileId,
+      duration: material.duration,
+    });
   };
 
 

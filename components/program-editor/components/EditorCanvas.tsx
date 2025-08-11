@@ -17,6 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 // 状态管理和类型
 import { useEditorStore } from '../stores/editor-store';
 import { EditorTool, EditorItem, EditorRegion, Position, Rectangle, VSNItemType } from '../types/program-editor';
+import { getFilePreviewUrl, getFileStreamUrl, getFileDownloadUrl } from '@/lib/api/filePreview';
 
 interface EditorCanvasProps {
   tool: EditorTool;
@@ -176,11 +177,84 @@ function EditableItem({
         
       case 2: // 图片
         const imageItem = item as any;
+        {
+          const imageFileId: string | undefined = imageItem.materialRef?.fileId;
+          if (imageFileId) {
+            const src = getFilePreviewUrl(imageFileId, {
+              w: Math.max(1, Math.floor(item.dimensions.width)),
+              h: Math.max(1, Math.floor(item.dimensions.height)),
+              fit: 'contain',
+              format: 'jpg',
+              q: 85,
+            });
+            return (
+              <img
+                src={src}
+                alt={imageItem.materialRef?.originalName || '图片'}
+                className="w-full h-full object-contain select-none"
+                draggable={false}
+              />
+            );
+          }
+        }
         return (
           <div className="w-full h-full bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <div className="text-2xl mb-1">🖼️</div>
               <div className="text-xs">图片素材</div>
+            </div>
+          </div>
+        );
+
+      case 3: // 视频
+        const videoItem = item as any;
+        {
+          const videoFileId: string | undefined = videoItem.materialRef?.fileId;
+          if (videoFileId) {
+            const videoSrc = getFileStreamUrl(videoFileId);
+            return (
+              <video
+                src={videoSrc}
+                className="w-full h-full object-contain bg-black"
+                muted
+                autoPlay
+                loop
+                playsInline
+                controls={isPreviewMode}
+              />
+            );
+          }
+        }
+        return (
+          <div className="w-full h-full bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <div className="text-2xl mb-1">🎞️</div>
+              <div className="text-xs">视频素材</div>
+            </div>
+          </div>
+        );
+
+      case 6: // GIF
+        const gifItem = item as any;
+        {
+          const gifFileId: string | undefined = gifItem.materialRef?.fileId;
+          if (gifFileId) {
+            const gifSrc = getFileDownloadUrl(gifFileId, false);
+            return (
+              <img
+                src={gifSrc}
+                alt={gifItem.materialRef?.originalName || 'GIF'}
+                className="w-full h-full object-contain select-none"
+                draggable={false}
+              />
+            );
+          }
+        }
+        return (
+          <div className="w-full h-full bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <div className="text-2xl mb-1">🖼️</div>
+              <div className="text-xs">GIF素材</div>
             </div>
           </div>
         );
@@ -329,6 +403,12 @@ function EditableRegion({
         visibility: region.visible ? 'visible' : 'hidden',
       }}
       onClick={handleRegionClick}
+      onDragOver={(e) => {
+        if (e.dataTransfer?.types?.includes('application/x-material')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }
+      }}
     >
       {/* 区域名称标签 */}
       {isSelected && !isPreviewMode && (
@@ -476,6 +556,7 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
         mimeType?: string;
         dimensions?: { width: number; height: number };
         name?: string;
+        fileId?: string;
       };
 
       // 若没有区域则创建一个全屏区域
@@ -522,6 +603,7 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
           mimeType: payload.mimeType ?? 'application/octet-stream',
           fileSize: 0,
           dimensions: { width: srcW, height: srcH },
+          fileId: payload.fileId,
         },
         visible: true,
         locked: false,
@@ -547,7 +629,7 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
     <div className={`relative h-full overflow-hidden ${className}`}>
       {/* 工具提示 */}
       {!isPreviewMode && (
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 left-4 z-10 pointer-events-none">
           <Badge variant="outline" className="bg-background/80 backdrop-blur">
             当前工具: {tool}
           </Badge>

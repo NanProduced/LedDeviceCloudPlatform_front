@@ -185,8 +185,16 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
     // TODO: 根据工具类型设置画布状态
   }, []);
 
-  // 添加素材到画布
-  const handleAddMaterial = useCallback((materialId: string, materialType: VSNItemType) => {
+  // 添加素材到画布（来自素材库点击）
+  const handleAddMaterial = useCallback((material: {
+    id: string;
+    vsnType: VSNItemType;
+    mimeType: string;
+    name: string;
+    dimensions?: { width: number; height: number };
+    fileId?: string;
+    duration?: number;
+  }) => {
     const { 
       pages, 
       currentPageIndex, 
@@ -220,23 +228,27 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
     const targetRegion = updatedCurrentPage.regions[0]; // 添加到第一个区域
     
     // 根据素材类型创建相应的编辑器项目
+    const defaultDims = material.dimensions ?? getDefaultDimensions(material.vsnType);
     const itemData = {
-      type: materialType,
-      name: `素材${materialId}`,
+      type: material.vsnType,
+      name: material.name || `素材${material.id}`,
       position: { x: 50, y: 50 }, // 默认位置
-      dimensions: getDefaultDimensions(materialType),
+      dimensions: defaultDims,
       materialRef: {
-        materialId,
-        originalName: `素材${materialId}`,
-        mimeType: getMimeTypeByType(materialType),
+        materialId: material.id,
+        fileId: material.fileId,
+        originalName: material.name || `素材${material.id}`,
+        mimeType: material.mimeType || getMimeTypeByType(material.vsnType),
         fileSize: 0, // 将通过API获取
+        dimensions: material.dimensions,
+        duration: material.duration ? { milliseconds: Math.floor(material.duration * 1000) } : undefined,
       },
-    };
+    } as const;
     
     // 添加到区域
     addItem(currentPageIndex, targetRegion.id, itemData);
     
-    console.log('素材添加成功:', materialId, materialType);
+    console.log('素材添加成功:', material.id, material.vsnType);
   }, []);
   
   // 获取素材类型的默认尺寸
