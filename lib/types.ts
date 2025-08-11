@@ -372,3 +372,77 @@ export interface FileUploadStatistics {
   thisWeekUploads: number
   thisMonthUploads: number
 } 
+
+// ========== 文件服务 FileInfo ==========
+export interface FileInfo {
+  fileId: string
+  originalFilename: string
+  fileSize: number
+  mimeType: string
+  md5Hash: string
+  storagePath: string
+  fileExtension: string
+  storageType: string
+  uploadTime: string
+  updateTime: string
+  refCount: number
+  fileStatus: number
+  thumbnailPath?: string
+  transcodingTaskId?: string
+  metaDataId?: string
+  image?: boolean
+  audio?: boolean
+  video?: boolean
+}
+
+// ========== Material 元数据相关类型 ==========
+export interface ImageMetadata {
+  width?: number
+  height?: number
+  dpi?: number
+  colorSpace?: string
+}
+
+export interface VideoMetadata {
+  width?: number
+  height?: number
+  durationMs?: number
+  frameRate?: number
+  bitrate?: number
+  videoCodec?: string
+  audioCodec?: string
+  aspectRatio?: string
+  containerFormat?: string
+  audioSampleRate?: number
+  audioChannels?: number
+}
+
+export interface GifMetadata {
+  width?: number
+  height?: number
+  frameCount?: number
+  durationMs?: number
+}
+
+export interface MaterialMetadataItem {
+  materialId: number
+  fileId: string
+  materialName: string
+  materialType: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT'
+  md5Hash?: string
+  fileExtension?: string
+  mimeType?: string
+  fileSize?: number
+  fileStatus?: number
+  fileStatusDesc?: string
+  processProgress?: number
+  previewUrl?: string
+  thumbnailUrl?: string
+  streamUrl?: string
+  imageMetadata?: ImageMetadata
+  videoMetadata?: VideoMetadata
+  gifMetadata?: GifMetadata
+  analysisStatus?: string
+  metadataCreatedAt?: string
+  metadataUpdatedAt?: string
+}

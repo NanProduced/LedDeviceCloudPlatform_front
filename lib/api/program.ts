@@ -62,7 +62,7 @@ export interface CreateProgramRequest {
   height: number
   duration: number
   thumbnailUrl?: string
-  vsnData: string // 严格VSN JSON字符串
+  vsnData: string // 严格VSN JSON字符串（注意：应为“VSNData[]”的数组JSON字符串，如: JSON.stringify([vsnData])）
   contentData: string // EditorState JSON字符串
 }
 

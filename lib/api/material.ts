@@ -1,4 +1,5 @@
 import { api } from '../api'
+import { MaterialMetadataItem } from '../types'
 
 // 材料节点树响应类型
 export interface MaterialNodeTreeResponse {
@@ -61,6 +62,12 @@ export interface ListSharedMaterialResponse extends ListMaterialResponse {
   sharedByUserName: string
   sharedTime: string
   resourceType: number
+}
+
+// 素材详情响应类型（在列表字段基础上补充一些可选信息）
+export interface MaterialDetailResponse extends ListMaterialResponse {
+  // 若后端未来扩展更多字段，可在此补充
+  // 例如：metadata、tags 等
 }
 
 // 创建文件夹请求类型
@@ -141,6 +148,51 @@ export class MaterialAPI {
   static async listAllMaterials(): Promise<ListMaterialResponse[]> {
     const response = await api.get('/core/api/material/get/all')
     return response.data
+  }
+
+  /**
+   * 获取素材详情
+   * 按照后端文档仅暴露了列表与全量查询，这里提供按ID查询的后向兼容：
+   * 1) 优先尝试 /core/api/material/detail/{mid}（如后端提供）
+   * 2) 回退到 /core/api/material/get/all 后本地筛选
+   */
+  static async getMaterialDetail(mid: number): Promise<MaterialDetailResponse | null> {
+    try {
+      // 优先尝试潜在的详情端点（如果网关存在将直接返回；如果404则回退）
+      const tryDetail = await api.get(`/core/api/material/detail/${mid}`)
+      return tryDetail.data as MaterialDetailResponse
+    } catch {
+      // 回退方案：从全部列表中筛选（性能可接受，前端兜底）
+      try {
+        const all = await this.listAllMaterials()
+        const found = all.find(item => item.mid === mid) || null
+        return found as MaterialDetailResponse | null
+      } catch (e) {
+        console.error('getMaterialDetail fallback failed:', e)
+        return null
+      }
+    }
+  }
+
+  /**
+   * 获取素材元数据（包含预览/流/缩略图以及图片/视频专属信息）
+   */
+  static async getMaterialMetadata(materialId: number, options?: {
+    includeThumbnails?: boolean
+    includeBasicInfo?: boolean
+    includeImageMetadata?: boolean
+    includeVideoMetadata?: boolean
+  }): Promise<MaterialMetadataItem> {
+    const params = new URLSearchParams()
+    if (options?.includeThumbnails !== undefined) params.append('includeThumbnails', String(options.includeThumbnails))
+    if (options?.includeBasicInfo !== undefined) params.append('includeBasicInfo', String(options.includeBasicInfo))
+    if (options?.includeImageMetadata !== undefined) params.append('includeImageMetadata', String(options.includeImageMetadata))
+    if (options?.includeVideoMetadata !== undefined) params.append('includeVideoMetadata', String(options.includeVideoMetadata))
+
+    const qs = params.toString()
+    const url = `/core/api/material/metadata/${materialId}${qs ? `?${qs}` : ''}`
+    const response = await api.get(url)
+    return response.data as MaterialMetadataItem
   }
 
   /**

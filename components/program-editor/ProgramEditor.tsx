@@ -132,7 +132,7 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
 
       // 准备保存数据
       const contentData = JSON.stringify(editorState);
-      const vsnData = JSON.stringify(conversionResult.vsnData);
+      const vsnData = JSON.stringify([conversionResult.vsnData]);
       
       if (programId) {
         // 更新现有节目
@@ -202,7 +202,7 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
         throw new Error(`节目数据验证失败: ${conversionResult.validation.errors[0]?.message || '未知错误'}`);
       }
       const contentData = JSON.stringify(editorState);
-      const vsnData = JSON.stringify(conversionResult.vsnData);
+          const vsnData = JSON.stringify([conversionResult.vsnData]);
       const createRequest: CreateProgramRequest = {
         name: programInfo.name || '未命名节目',
         description: programInfo.description || '',
@@ -250,7 +250,7 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
       }
 
       const contentData = JSON.stringify(editorState);
-      const vsnData = JSON.stringify(conversionResult.vsnData);
+      const vsnData = JSON.stringify([conversionResult.vsnData]);
       await ProgramAPI.createTemplate({
         name: programInfo.name || '未命名模板',
         description: programInfo.description || '',

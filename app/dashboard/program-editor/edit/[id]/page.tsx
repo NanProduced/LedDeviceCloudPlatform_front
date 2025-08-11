@@ -75,7 +75,9 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
           parsed.program.id = params.id;
           loadProgram(parsed);
         } else if (content?.vsnData) {
-          const editor = VSNConverter.convertFromVSN(JSON.parse(content.vsnData));
+          const parsed = JSON.parse(content.vsnData);
+          const single = Array.isArray(parsed) ? (parsed[0] || parsed) : parsed;
+          const editor = VSNConverter.convertFromVSN(single);
           editor.program.id = params.id;
           loadProgram(editor);
         } else {
@@ -278,7 +280,9 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
                   parsed.program.id = params.id
                   loadProgram(parsed)
                 } else if (data?.vsnData) {
-                  const editor = VSNConverter.convertFromVSN(JSON.parse(data.vsnData))
+                  const parsed = JSON.parse(data.vsnData)
+                  const single = Array.isArray(parsed) ? (parsed[0] || parsed) : parsed
+                  const editor = VSNConverter.convertFromVSN(single)
                   editor.program.id = params.id
                   loadProgram(editor)
                 }

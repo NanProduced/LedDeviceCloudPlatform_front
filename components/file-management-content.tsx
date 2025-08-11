@@ -32,6 +32,7 @@ import { MaterialTree } from "@/components/ui/material-tree"
 import MaterialAPI from "@/lib/api/material" 
 import MaterialTreeAdapter from "@/lib/utils/materialTreeAdapter"
 import { Material, SharedMaterial, MaterialTreeNode } from "@/lib/types"
+import MaterialDetailDialog from "@/components/MaterialDetailDialog"
 import {
   Search,
   Folder,
@@ -70,6 +71,10 @@ export default function FileManagementContent() {
   const [folderName, setFolderName] = useState<string>("")
   const [folderDescription, setFolderDescription] = useState<string>("")
   const [creatingFolder, setCreatingFolder] = useState<boolean>(false)
+
+  // 详情对话框
+  const [detailOpen, setDetailOpen] = useState<boolean>(false)
+  const [detailMid, setDetailMid] = useState<number | null>(null)
 
   // 从树数据中查找节点名称
   const findNodeInTree = (nodeId: string, nodes: MaterialTreeNode[]): MaterialTreeNode | null => {
@@ -581,9 +586,9 @@ export default function FileManagementContent() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>操作</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="gap-2">
+                              <DropdownMenuItem className="gap-2" onClick={() => { setDetailMid(material.mid); setDetailOpen(true) }}>
                                 <Eye className="w-4 h-4" />
-                                预览
+                                查看详情
                               </DropdownMenuItem>
                               <DropdownMenuItem className="gap-2">
                                 <Download className="w-4 h-4" />
@@ -610,6 +615,7 @@ export default function FileManagementContent() {
           </CardContent>
         </Card>
       </div>
+      <MaterialDetailDialog mid={detailMid} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
   )
 }
