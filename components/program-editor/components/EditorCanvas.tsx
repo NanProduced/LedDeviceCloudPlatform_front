@@ -93,8 +93,25 @@ function EditableItem({
     } else if (isResizing && resizeStart) {
       const dx = (e.clientX - resizeStart.clientX) / canvasScale;
       const dy = (e.clientY - resizeStart.clientY) / canvasScale;
-      const newWidth = Math.max(10, Math.min(resizeStart.width + dx, region.bounds.width - (item.position.x - region.bounds.x)));
-      const newHeight = Math.max(10, Math.min(resizeStart.height + dy, region.bounds.height - (item.position.y - region.bounds.y)));
+      // 目标尺寸（未约束）
+      let targetW = resizeStart.width + dx;
+      let targetH = resizeStart.height + dy;
+      // 比例锁定：按当前项目宽高比例
+      if (item.preserveAspectRatio) {
+        const ratio = resizeStart.width / Math.max(1, resizeStart.height);
+        if (Math.abs(dx) > Math.abs(dy)) {
+          targetW = resizeStart.width + dx;
+          targetH = targetW / ratio;
+        } else {
+          targetH = resizeStart.height + dy;
+          targetW = targetH * ratio;
+        }
+      }
+      // 约束在区域内
+      const maxW = region.bounds.width - (item.position.x - region.bounds.x);
+      const maxH = region.bounds.height - (item.position.y - region.bounds.y);
+      const newWidth = Math.max(10, Math.min(targetW, maxW));
+      const newHeight = Math.max(10, Math.min(targetH, maxH));
       onUpdate({ dimensions: { width: Math.round(newWidth), height: Math.round(newHeight) } });
     }
   }, [isDragging, dragStart, isResizing, resizeStart, canvasScale, region.bounds, item.position.x, item.position.y, item.dimensions.width, item.dimensions.height, onUpdate]);
@@ -183,7 +200,7 @@ function EditableItem({
             const src = getFilePreviewUrl(imageFileId, {
               w: Math.max(1, Math.floor(item.dimensions.width)),
               h: Math.max(1, Math.floor(item.dimensions.height)),
-              fit: 'contain',
+              fit: imageItem.preserveAspectRatio ? 'contain' : 'fill',
               format: 'jpg',
               q: 85,
             });
@@ -191,7 +208,7 @@ function EditableItem({
               <img
                 src={src}
                 alt={imageItem.materialRef?.originalName || '图片'}
-                className="w-full h-full object-contain select-none"
+                className={`w-full h-full ${imageItem.preserveAspectRatio ? 'object-contain' : 'object-fill'} select-none`}
                 draggable={false}
               />
             );
@@ -215,7 +232,7 @@ function EditableItem({
             return (
               <video
                 src={videoSrc}
-                className="w-full h-full object-contain bg-black"
+                className={`w-full h-full ${videoItem.preserveAspectRatio ? 'object-contain' : 'object-fill'} bg-black`}
                 muted
                 autoPlay
                 loop
@@ -244,7 +261,7 @@ function EditableItem({
               <img
                 src={gifSrc}
                 alt={gifItem.materialRef?.originalName || 'GIF'}
-                className="w-full h-full object-contain select-none"
+                className={`w-full h-full ${gifItem.preserveAspectRatio ? 'object-contain' : 'object-fill'} select-none`}
                 draggable={false}
               />
             );
@@ -575,22 +592,15 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
       const dropX = (e.clientX - canvasRect.left) / viewport.scale;
       const dropY = (e.clientY - canvasRect.top) / viewport.scale;
 
-      // 初始尺寸按素材尺寸或默认尺寸
-      const srcW = payload.dimensions?.width ?? 800;
-      const srcH = payload.dimensions?.height ?? 600;
-
-      // 在区域内按比例适配（不超过区域）
+      // 默认铺满区域（拉伸），也支持后续在属性里锁定比例
       const maxW = targetRegion.bounds.width;
       const maxH = targetRegion.bounds.height;
-      const scale = Math.min(maxW / srcW, maxH / srcH, 1);
-      const itemW = Math.round(srcW * scale);
-      const itemH = Math.round(srcH * scale);
+      const itemW = maxW;
+      const itemH = maxH;
 
-      // 位置限制在区域内，中心对齐放置点
-      const proposedX = Math.round(dropX - itemW / 2);
-      const proposedY = Math.round(dropY - itemH / 2);
-      const clampedX = Math.max(targetRegion.bounds.x, Math.min(proposedX, targetRegion.bounds.x + maxW - itemW));
-      const clampedY = Math.max(targetRegion.bounds.y, Math.min(proposedY, targetRegion.bounds.y + maxH - itemH));
+      // 位置：使其贴合区域起点
+      const clampedX = targetRegion.bounds.x;
+      const clampedY = targetRegion.bounds.y;
 
       useEditorStore.getState().addItem(currentPageIndex, targetRegion.id, {
         type: payload.materialType,
@@ -602,9 +612,10 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
           originalName: payload.name ?? `素材${payload.materialId}`,
           mimeType: payload.mimeType ?? 'application/octet-stream',
           fileSize: 0,
-          dimensions: { width: srcW, height: srcH },
+          dimensions: payload.dimensions,
           fileId: payload.fileId,
         },
+        preserveAspectRatio: false,
         visible: true,
         locked: false,
         zIndex: 0,

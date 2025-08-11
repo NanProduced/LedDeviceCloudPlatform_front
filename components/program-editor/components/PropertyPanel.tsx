@@ -382,6 +382,17 @@ function CommonProperties({
               />
             </div>
 
+            {/* 比例锁定 */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right text-sm">锁定比例</Label>
+              <div className="col-span-3">
+                <Switch
+                  checked={!!firstItem.preserveAspectRatio}
+                  onCheckedChange={(preserveAspectRatio) => onUpdate({ preserveAspectRatio })}
+                />
+              </div>
+            </div>
+
             {firstItem.rotation !== undefined && (
               <NumberInput
                 label="旋转"

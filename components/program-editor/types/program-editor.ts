@@ -80,6 +80,7 @@ export interface BaseEditorItem {
   zIndex: number;
   rotation?: number;
   opacity?: number;
+  preserveAspectRatio?: boolean; // 是否保持等比例缩放（影响画布渲染与缩放手柄行为）
 }
 
 // 图片项目

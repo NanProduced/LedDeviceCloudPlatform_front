@@ -179,6 +179,27 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
     }
   }, [programId, currentPageIndex, selectedItems, selectedRegions, isDirty, isPreviewMode, zoomLevel, markClean]);
 
+  // 预览：整节目跨页顺序播放
+  useEffect(() => {
+    if (!isPreviewMode) return;
+    // 按页面duration轮播
+    let timer: NodeJS.Timeout | null = null;
+    const playNext = () => {
+      const state = useEditorStore.getState();
+      const page = state.pages[state.currentPageIndex];
+      const durationMs = Math.max(1000, page?.duration?.milliseconds ?? 3000);
+      timer = setTimeout(() => {
+        const nextIndex = (state.currentPageIndex + 1) % state.pages.length;
+        state.setCurrentPage(nextIndex);
+        playNext();
+      }, durationMs);
+    };
+    playNext();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isPreviewMode]);
+
   // 工具选择处理
   const handleToolSelect = useCallback((tool: EditorTool) => {
     setCurrentTool(tool);
@@ -227,13 +248,12 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
     const updatedCurrentPage = useEditorStore.getState().pages[currentPageIndex];
     const targetRegion = updatedCurrentPage.regions[0]; // 添加到第一个区域
     
-    // 根据素材类型创建相应的编辑器项目
-    const defaultDims = material.dimensions ?? getDefaultDimensions(material.vsnType);
+    // 根据素材类型创建相应的编辑器项目：默认铺满当前区域
     const itemData = {
       type: material.vsnType,
       name: material.name || `素材${material.id}`,
-      position: { x: 50, y: 50 }, // 默认位置
-      dimensions: defaultDims,
+      position: { x: targetRegion.bounds.x, y: targetRegion.bounds.y },
+      dimensions: { width: targetRegion.bounds.width, height: targetRegion.bounds.height },
       materialRef: {
         materialId: material.id,
         fileId: material.fileId,
@@ -243,6 +263,7 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
         dimensions: material.dimensions,
         duration: material.duration ? { milliseconds: Math.floor(material.duration * 1000) } : undefined,
       },
+      preserveAspectRatio: false,
     } as const;
     
     // 添加到区域
