@@ -47,6 +47,7 @@ interface MaterialLibraryProps {
     duration?: number;
   }) => void;
   className?: string;
+  onAddToMediaList?: (materials: Array<{ id: string; vsnType: VSNItemType; mimeType: string; name: string; dimensions?: { width: number; height: number }; fileId?: string; duration?: number }>) => void;
 }
 
 /**

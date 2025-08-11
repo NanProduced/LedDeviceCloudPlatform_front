@@ -37,6 +37,69 @@ import { LayerPanel } from './components/LayerPanel';
 import { PageTabs } from './components/PageTabs';
 import { EditorToolbar } from './components/EditorToolbar';
 
+// 轻量媒体列表（当前页第一个区域）
+function PageMediaList() {
+  const { pages, currentPageIndex, reorderItems, updateItem } = useEditorStore();
+  const page = pages[currentPageIndex];
+  const region = page?.regions?.[0];
+  if (!region) {
+    return <div className="text-xs text-muted-foreground">暂无区域，拖入任意素材将自动创建全屏区域</div>;
+  }
+  const items = region.items;
+
+  const onReorder = (from: number, to: number) => {
+    if (from === to) return;
+    const order = items.map(i => i.id);
+    const [moved] = order.splice(from, 1);
+    order.splice(to, 0, moved);
+    reorderItems(currentPageIndex, region.id, order);
+  };
+
+  return (
+    <div className="space-y-2">
+      {items.length === 0 && (
+        <div className="text-xs text-muted-foreground">将素材拖拽到画布或下方素材库添加</div>
+      )}
+      {items.map((it, idx) => (
+        <div key={it.id} className="flex items-center gap-2">
+          <div className="w-5 text-xs text-muted-foreground">{idx + 1}</div>
+          <div className="flex-1 truncate text-sm">{it.name}</div>
+          {/* 时长（ms）仅对图片/网页等有效，这里直接暴露一个输入框 */}
+          <input
+            className="h-7 w-24 border rounded px-2 text-xs"
+            type="number"
+            min={500}
+            value={(it as any).duration ?? (it as any).playDuration?.milliseconds ?? ''}
+            placeholder="时长(ms)"
+            onChange={(e) => {
+              const v = parseInt(e.target.value || '0', 10);
+              updateItem(currentPageIndex, region.id, it.id, { duration: isNaN(v) ? undefined : v });
+            }}
+          />
+          {/* 简易上/下移动 */}
+          <button className="h-7 px-2 text-xs border rounded" onClick={() => onReorder(idx, Math.max(0, idx - 1))}>上移</button>
+          <button className="h-7 px-2 text-xs border rounded" onClick={() => onReorder(idx, Math.min(items.length - 1, idx + 1))}>下移</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// 仅显示当前条目开关
+function OnlyActiveToggle() {
+  const { showOnlyActiveItem, setShowOnlyActiveItem } = useEditorStore();
+  return (
+    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+      <input
+        type="checkbox"
+        checked={!!showOnlyActiveItem}
+        onChange={(e) => setShowOnlyActiveItem(e.target.checked)}
+      />
+      仅显示当前条目
+    </label>
+  );
+}
+
 interface ProgramEditorProps {
   programId?: string;
   className?: string;
@@ -472,7 +535,7 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
 
             <div className="flex-1" />
 
-            {/* 面板切换按钮 */}
+            {/* 面板切换按钮 + 仅显示当前条目开关 */}
             <div className="flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -509,6 +572,8 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
               <Badge variant="outline" className="text-xs">
                 {Math.round(zoomLevel * 100)}%
               </Badge>
+              <Separator orientation="vertical" className="h-6 mx-1" />
+              <OnlyActiveToggle />
             </div>
           </div>
         </div>
@@ -523,7 +588,7 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
           disabled={isPreviewMode}
         />
 
-        {/* 主要内容区域 */}
+            {/* 主要内容区域 */}
         <div className="flex-1 overflow-hidden">
           <ResizablePanelGroup direction="horizontal" className="h-full">
             {/* 左侧素材库 */}
@@ -531,15 +596,20 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
               <>
                 <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
                   <Card className="h-full rounded-none border-0 border-r">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">素材库</CardTitle>
-                      <CardDescription className="text-xs">
-                        拖拽素材到画布中使用
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <MaterialLibrary onAddMaterial={handleAddMaterial} />
-                    </CardContent>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm">媒体列表</CardTitle>
+                          <CardDescription className="text-xs">单区域顺序播放</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0 space-y-3">
+                          {/* 媒体列表（简版）：展示当前页第一个区域的素材顺序 */}
+                          <div className="p-3 border-b">
+                            <PageMediaList />
+                          </div>
+                          <div className="p-3">
+                            <CardTitle className="text-xs mb-2">素材库</CardTitle>
+                            <MaterialLibrary onAddMaterial={handleAddMaterial} />
+                          </div>
+                        </CardContent>
                   </Card>
                 </ResizablePanel>
                 <ResizableHandle />

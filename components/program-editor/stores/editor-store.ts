@@ -35,6 +35,8 @@ interface EditorStore extends EditorState {
   setTool: (tool: EditorTool) => void;
   setZoomLevel: (zoom: number) => void;
   setPreviewMode: (enabled: boolean) => void;
+  setShowOnlyActiveItem: (enabled: boolean) => void;
+  setActiveItemIndex: (regionId: string, index: number) => void;
 
   // 页面操作
   addPage: (page?: Partial<EditorPage>) => void;
@@ -181,6 +183,8 @@ export const useEditorStore = create<EditorStore>()(
       isDirty: false,
       isPreviewMode: false,
       zoomLevel: 1,
+      showOnlyActiveItem: true,
+      activeItemIndexByRegion: {},
 
       // 基础操作
       setProgram: (updates) =>
@@ -255,6 +259,18 @@ export const useEditorStore = create<EditorStore>()(
             state.selectedItems = [];
             state.selectedRegions = [];
           }
+        }),
+
+      setShowOnlyActiveItem: (enabled) =>
+        set((state) => {
+          state.showOnlyActiveItem = enabled;
+        }),
+
+      setActiveItemIndex: (regionId, index) =>
+        set((state) => {
+          const map = state.activeItemIndexByRegion || {};
+          map[regionId] = Math.max(0, index);
+          state.activeItemIndexByRegion = { ...map };
         }),
 
       // 页面操作

@@ -377,7 +377,7 @@ function EditableRegion({
   onSelect: (regionId: string, multiSelect?: boolean) => void;
   onUpdate: (updates: Partial<EditorRegion>) => void;
 }) {
-  const { selectedItems, updateItem } = useEditorStore();
+  const { selectedItems, updateItem, showOnlyActiveItem, activeItemIndexByRegion } = useEditorStore();
   const prevIsPreviewRef = useRef(isPreviewMode);
 
   // 处理区域选择
@@ -448,8 +448,12 @@ function EditableRegion({
         </div>
       )}
       
-      {/* 区域内的项目 */}
+      {/* 区域内的项目（编辑态可仅显示当前条目；预览态按轮播索引） */}
       {region.items.map((item, index) => {
+        if (!isPreviewMode && showOnlyActiveItem) {
+          const activeIdx = (activeItemIndexByRegion || {})[region.id] ?? 0;
+          if (index !== activeIdx) return null;
+        }
         if (isPreviewMode && index !== previewIndex) return null;
         return (
           <EditableItem
@@ -576,33 +580,56 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
   // 计算画布容器尺寸
   const containerWidth = Math.max(800, canvasWidth * viewport.scale + 200);
   const containerHeight = Math.max(600, canvasHeight * viewport.scale + 200);
-  // 预览轮播：每个区域顺序播放
+  // 预览轮播：每个区域按素材顺序播放，时长优先取素材自身时长，否则默认3秒
   useEffect(() => {
     if (!isPreviewMode) return;
-    // 初始化每个区域索引
+
+    // 初始化每个区域当前索引
     const initial: Record<string, number> = {};
-    currentPage.regions.forEach(r => {
-      initial[r.id] = 0;
-    });
+    currentPage.regions.forEach(r => { initial[r.id] = 0; });
     setRegionPlayIndex(initial);
 
-    const interval = setInterval(() => {
-      setRegionPlayIndex(prev => {
-        const next: Record<string, number> = { ...prev };
-        currentPage.regions.forEach(r => {
-          const len = r.items.length;
-          if (len > 0) {
-            const cur = prev[r.id] ?? 0;
-            next[r.id] = (cur + 1) % len;
-          } else {
-            next[r.id] = 0;
-          }
-        });
-        return next;
-      });
-    }, 3000); // 默认每项3秒
+    // 为每个区域建立独立的计时器
+    const timers: Record<string, ReturnType<typeof setTimeout>> = {};
 
-    return () => clearInterval(interval);
+    const getItemDurationMs = (item: any): number => {
+      // 优先使用 materialRef.duration，其次使用 item.duration/playDuration，最后 3000ms
+      const d1 = item?.materialRef?.duration?.milliseconds;
+      const d2 = typeof item?.duration === 'number' ? item.duration : undefined;
+      const d3 = typeof item?.playDuration?.milliseconds === 'number' ? item.playDuration.milliseconds : undefined;
+      return Math.max(500, d1 ?? d2 ?? d3 ?? 3000);
+    };
+
+    const scheduleRegion = (regionId: string) => {
+      const region = currentPage.regions.find(r => r.id === regionId);
+      if (!region) return;
+      const items = region.items || [];
+      if (items.length === 0) return;
+
+      const curIndex = initial[regionId] ?? 0;
+      const curItem = items[curIndex];
+      const duration = getItemDurationMs(curItem);
+
+      // 下一次切到下一个
+      timers[regionId] = setTimeout(() => {
+        setRegionPlayIndex(prev => {
+          const next: Record<string, number> = { ...prev };
+          const len = items.length;
+          const cur = prev[regionId] ?? curIndex;
+          next[regionId] = len > 0 ? (cur + 1) % len : 0;
+          return next;
+        });
+        scheduleRegion(regionId);
+      }, duration);
+    };
+
+    // 启动所有区域的轮播
+    currentPage.regions.forEach(r => scheduleRegion(r.id));
+
+    // 清理
+    return () => {
+      Object.values(timers).forEach(t => clearTimeout(t));
+    };
   }, [isPreviewMode, currentPageIndex, currentPage.regions]);
 
   // 处理素材拖入
@@ -637,18 +664,24 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
       }
 
       const updatedPage = useEditorStore.getState().pages[currentPageIndex];
-      const targetRegion = updatedPage.regions[0];
 
       // 将屏幕坐标换算为画布坐标
       const canvasRect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
       const dropX = (e.clientX - canvasRect.left) / viewport.scale;
       const dropY = (e.clientY - canvasRect.top) / viewport.scale;
 
-      // 默认在鼠标落点创建一个可见尺寸的项（保持在区域内），非直接铺满
-      const defaultW = Math.min(targetRegion.bounds.width, payload.dimensions?.width || Math.floor(program.width * 0.5));
-      const defaultH = Math.min(targetRegion.bounds.height, payload.dimensions?.height || Math.floor(program.height * 0.5));
-      const localX = Math.max(targetRegion.bounds.x, Math.min(dropX, targetRegion.bounds.x + targetRegion.bounds.width - defaultW));
-      const localY = Math.max(targetRegion.bounds.y, Math.min(dropY, targetRegion.bounds.y + defaultH));
+      // 命中区域：优先使用鼠标落点命中的区域，否则回退第一个区域
+      const hit = updatedPage.regions.find(r => {
+        const { x, y, width, height } = r.bounds;
+        return dropX >= x && dropX <= x + width && dropY >= y && dropY <= y + height;
+      });
+      const targetRegion = hit || updatedPage.regions[0];
+
+      // 默认铺满目标区域：位置=区域原点，尺寸=区域宽高，不保持比例（便于后续手动调整）
+      const defaultW = targetRegion.bounds.width;
+      const defaultH = targetRegion.bounds.height;
+      const localX = targetRegion.bounds.x;
+      const localY = targetRegion.bounds.y;
 
       useEditorStore.getState().addItem(currentPageIndex, targetRegion.id, {
         type: payload.materialType,
@@ -663,7 +696,7 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
           dimensions: payload.dimensions,
           fileId: payload.fileId,
         },
-        preserveAspectRatio: true,
+        preserveAspectRatio: false,
         visible: true,
         locked: false,
         zIndex: 0,

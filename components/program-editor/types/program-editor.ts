@@ -299,6 +299,9 @@ export interface EditorState {
   isDirty: boolean; // 是否有未保存的更改
   isPreviewMode: boolean;
   zoomLevel: number;
+  // 编辑偏好
+  showOnlyActiveItem?: boolean; // 编辑态仅显示当前条目（避免看起来像重叠）
+  activeItemIndexByRegion?: Record<string, number>; // 各区域当前条目下标
 }
 
 export interface EditorHistoryEntry {
