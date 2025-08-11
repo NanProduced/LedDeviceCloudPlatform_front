@@ -5,7 +5,9 @@
       "Bash(move:*)",
       "Bash(mv:*)",
       "Bash(cp:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(dir:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

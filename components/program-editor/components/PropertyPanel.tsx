@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Palette, Move3d, Eye, Lock, RotateCw } from 'lucide-react';
+import { Palette, Move3d, Eye, Lock, RotateCw, Maximize, AspectRatio, Monitor } from 'lucide-react';
 
 // shadcn组件
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,6 +25,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 // 状态管理和类型
 import { useEditorStore } from '../stores/editor-store';
 import { EditorItem, EditorRegion, TextEditorItem, ClockEditorItem, WeatherEditorItem } from '../types/program-editor';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PropertyPanelProps {
   selectedItems: string[];
@@ -324,6 +325,49 @@ function CommonProperties({
 
   const firstItem = items[0];
   const allSameType = items.every(item => item.type === firstItem.type);
+  const { program } = useEditorStore();
+
+  // 快捷功能：适应屏幕
+  const handleFitToScreen = () => {
+    onUpdate({
+      position: { x: 0, y: 0 },
+      dimensions: { width: program.width, height: program.height },
+      preserveAspectRatio: false,
+    });
+  };
+
+  // 快捷功能：保持比例适应屏幕
+  const handleFitToScreenKeepRatio = () => {
+    if (!firstItem.materialRef?.dimensions) return;
+    
+    const { width: originalW, height: originalH } = firstItem.materialRef.dimensions;
+    const { width: screenW, height: screenH } = program;
+    
+    const scaleX = screenW / originalW;
+    const scaleY = screenH / originalH;
+    const scale = Math.min(scaleX, scaleY);
+    
+    const newW = Math.round(originalW * scale);
+    const newH = Math.round(originalH * scale);
+    
+    onUpdate({
+      position: { 
+        x: Math.round((screenW - newW) / 2), 
+        y: Math.round((screenH - newH) / 2) 
+      },
+      dimensions: { width: newW, height: newH },
+      preserveAspectRatio: true,
+    });
+  };
+
+  // 快捷功能：居中对齐
+  const handleCenter = () => {
+    const centerX = Math.round((program.width - firstItem.dimensions.width) / 2);
+    const centerY = Math.round((program.height - firstItem.dimensions.height) / 2);
+    onUpdate({
+      position: { x: centerX, y: centerY },
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -390,6 +434,71 @@ function CommonProperties({
                   checked={!!firstItem.preserveAspectRatio}
                   onCheckedChange={(preserveAspectRatio) => onUpdate({ preserveAspectRatio })}
                 />
+              </div>
+            </div>
+
+            {/* 快捷操作 */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">快捷操作</Label>
+              <div className="flex flex-wrap gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleFitToScreen}
+                        className="h-8 px-2 text-xs"
+                      >
+                        <Maximize className="h-3 w-3 mr-1" />
+                        填充屏幕
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      拉伸至屏幕大小，不保持比例
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                {firstItem.materialRef?.dimensions && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleFitToScreenKeepRatio}
+                          className="h-8 px-2 text-xs"
+                        >
+                          <AspectRatio className="h-3 w-3 mr-1" />
+                          适应屏幕
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        保持比例适应屏幕并居中
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCenter}
+                        className="h-8 px-2 text-xs"
+                      >
+                        <Move3d className="h-3 w-3 mr-1" />
+                        居中
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      将对象移到屏幕中心
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
 

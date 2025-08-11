@@ -6,13 +6,15 @@
  */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { Plus, Move, RotateCw, Trash2 } from 'lucide-react';
+import { Plus, Move, RotateCw, Trash2, ZoomIn, ZoomOut, Maximize2, Monitor } from 'lucide-react';
 
 // shadcn组件
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // 状态管理和类型
 import { useEditorStore } from '../stores/editor-store';
@@ -30,6 +32,8 @@ interface CanvasViewport {
   offsetX: number;
   offsetY: number;
 }
+
+type DisplayMode = 'fit' | 'actual' | 'custom';
 
 /**
  * 可编辑项目组件
@@ -467,6 +471,7 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
     offsetX: 0,
     offsetY: 0,
   });
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('fit');
   const [regionPlayIndex, setRegionPlayIndex] = useState<Record<string, number>>({});
 
   const {
@@ -518,7 +523,46 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
       const newScale = Math.max(0.1, Math.min(5, viewport.scale * delta));
       setViewport(prev => ({ ...prev, scale: newScale }));
+      // 手动缩放时切换到自定义模式
+      if (displayMode !== 'custom') {
+        setDisplayMode('custom');
+      }
     }
+  }, [viewport.scale, displayMode]);
+
+  // 处理显示模式切换
+  const handleDisplayModeChange = useCallback((mode: DisplayMode) => {
+    setDisplayMode(mode);
+    
+    if (mode === 'fit') {
+      // 适应窗口：计算合适的缩放比例
+      if (canvasRef.current) {
+        const container = canvasRef.current.parentElement;
+        if (container) {
+          const containerRect = container.getBoundingClientRect();
+          const padding = 64; // 留出边距
+          const availableWidth = containerRect.width - padding;
+          const availableHeight = containerRect.height - padding;
+          
+          const scaleX = availableWidth / canvasWidth;
+          const scaleY = availableHeight / canvasHeight;
+          const scale = Math.min(scaleX, scaleY, 1); // 不放大超过100%
+          
+          setViewport(prev => ({ ...prev, scale }));
+        }
+      }
+    } else if (mode === 'actual') {
+      // 实际大小：100%缩放
+      setViewport(prev => ({ ...prev, scale: 1 }));
+    }
+    // custom模式保持当前缩放不变
+  }, [canvasWidth, canvasHeight]);
+
+  // 快速缩放按钮
+  const handleZoom = useCallback((factor: number) => {
+    const newScale = Math.max(0.1, Math.min(5, viewport.scale * factor));
+    setViewport(prev => ({ ...prev, scale: newScale }));
+    setDisplayMode('custom');
   }, [viewport.scale]);
 
   // 计算画布容器尺寸
@@ -592,15 +636,14 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
       const dropX = (e.clientX - canvasRect.left) / viewport.scale;
       const dropY = (e.clientY - canvasRect.top) / viewport.scale;
 
-      // 默认铺满区域（拉伸），也支持后续在属性里锁定比例
-      const maxW = targetRegion.bounds.width;
-      const maxH = targetRegion.bounds.height;
-      const itemW = maxW;
-      const itemH = maxH;
+      // 默认铺满整个画布（对应VSN的reserveAS=0），而非只铺满区域
+      const { program } = useEditorStore.getState();
+      const itemW = program.width;
+      const itemH = program.height;
 
-      // 位置：使其贴合区域起点
-      const clampedX = targetRegion.bounds.x;
-      const clampedY = targetRegion.bounds.y;
+      // 位置：从画布原点开始
+      const clampedX = 0;
+      const clampedY = 0;
 
       useEditorStore.getState().addItem(currentPageIndex, targetRegion.id, {
         type: payload.materialType,
@@ -647,27 +690,79 @@ export function EditorCanvas({ tool, isPreviewMode, className }: EditorCanvasPro
         </div>
       )}
 
-      {/* 缩放控制 */}
+      {/* 显示模式和缩放控制 */}
       {!isPreviewMode && (
-        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setViewport(prev => ({ ...prev, scale: Math.max(0.1, prev.scale * 0.8) }))}
-          >
-            -
-          </Button>
-          <Badge variant="outline" className="bg-background/80 backdrop-blur min-w-[60px] text-center">
-            {Math.round(viewport.scale * 100)}%
-          </Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setViewport(prev => ({ ...prev, scale: Math.min(5, prev.scale * 1.25) }))}
-          >
-            +
-          </Button>
-        </div>
+        <TooltipProvider>
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-background/80 backdrop-blur p-2 rounded-lg border shadow-sm">
+            {/* 显示模式选择器 */}
+            <Select value={displayMode} onValueChange={handleDisplayModeChange}>
+              <SelectTrigger className="h-8 w-[120px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fit">
+                  <div className="flex items-center gap-2">
+                    <Maximize2 className="h-3 w-3" />
+                    适应窗口
+                  </div>
+                </SelectItem>
+                <SelectItem value="actual">
+                  <div className="flex items-center gap-2">
+                    <Monitor className="h-3 w-3" />
+                    实际大小
+                  </div>
+                </SelectItem>
+                <SelectItem value="custom">
+                  <div className="flex items-center gap-2">
+                    <ZoomIn className="h-3 w-3" />
+                    自定义缩放
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="h-4 w-px bg-border" />
+
+            {/* 缩放控制 */}
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleZoom(0.8)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ZoomOut className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  缩小 (Ctrl + 滚轮)
+                </TooltipContent>
+              </Tooltip>
+
+              <Badge variant="outline" className="bg-background min-w-[50px] text-center text-xs">
+                {Math.round(viewport.scale * 100)}%
+              </Badge>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleZoom(1.25)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ZoomIn className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  放大 (Ctrl + 滚轮)
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        </TooltipProvider>
       )}
 
       {/* 画布滚动区域 */}

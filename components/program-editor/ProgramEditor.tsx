@@ -248,12 +248,13 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
     const updatedCurrentPage = useEditorStore.getState().pages[currentPageIndex];
     const targetRegion = updatedCurrentPage.regions[0]; // 添加到第一个区域
     
-    // 根据素材类型创建相应的编辑器项目：默认铺满当前区域
+    // 根据素材类型创建相应的编辑器项目：默认铺满整个画布（对应VSN的reserveAS=0）
+    const { program } = useEditorStore.getState();
     const itemData = {
       type: material.vsnType,
       name: material.name || `素材${material.id}`,
-      position: { x: targetRegion.bounds.x, y: targetRegion.bounds.y },
-      dimensions: { width: targetRegion.bounds.width, height: targetRegion.bounds.height },
+      position: { x: 0, y: 0 }, // 从画布原点开始
+      dimensions: { width: program.width, height: program.height }, // 铺满整个画布
       materialRef: {
         materialId: material.id,
         fileId: material.fileId,
@@ -263,13 +264,13 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
         dimensions: material.dimensions,
         duration: material.duration ? { milliseconds: Math.floor(material.duration * 1000) } : undefined,
       },
-      preserveAspectRatio: false,
+      preserveAspectRatio: false, // 默认不保持宽高比，拉伸填充（reserveAS=0）
     } as const;
     
     // 添加到区域
     addItem(currentPageIndex, targetRegion.id, itemData);
     
-    console.log('素材添加成功:', material.id, material.vsnType);
+    console.log('素材添加成功（铺满画布）:', material.id, material.vsnType);
   }, []);
   
   // 获取素材类型的默认尺寸
@@ -313,26 +314,31 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
       <div className={`h-screen flex flex-col bg-background ${className}`}>
         {/* 顶部工具栏 */}
         <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center px-4 gap-4">
-            {/* 节目信息 */}
-            <div className="flex items-center gap-3">
-              <div className="grid gap-1">
+          <div className="flex h-16 items-center px-4 gap-4">
+            {/* 节目信息 - 重新设计为更紧凑的布局 */}
+            <div className="flex items-center gap-4">
+              <div className="flex flex-col min-w-0">
                 <Input
                   value={program.name}
                   onChange={(e) => setProgram({ name: e.target.value })}
-                  className="h-9 text-base font-medium"
+                  className="h-8 text-sm font-medium border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
                   placeholder="节目名称"
                 />
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Badge variant="outline" className="h-6 px-2 gap-1">
-                    <Monitor className="h-3.5 w-3.5" />
-                    {program.width} × {program.height}
-                  </Badge>
-                  <Separator orientation="vertical" className="h-4" />
-                  <Badge variant="outline" className="h-6 px-2">
-                    第 {currentPageIndex + 1} / {pages.length} 页
-                  </Badge>
-                  {isDirty && <Badge variant="secondary" className="h-6 px-2">未保存</Badge>}
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Monitor className="h-3 w-3" />
+                    {program.width}×{program.height}
+                  </div>
+                  <Separator orientation="vertical" className="h-3" />
+                  <div className="text-xs text-muted-foreground">
+                    页面 {currentPageIndex + 1}/{pages.length}
+                  </div>
+                  {isDirty && (
+                    <>
+                      <Separator orientation="vertical" className="h-3" />
+                      <Badge variant="secondary" className="h-4 px-1.5 text-xs">未保存</Badge>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -490,23 +496,36 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
           </ResizablePanelGroup>
         </div>
 
-        {/* 底部状态栏 */}
-        <div className="border-t bg-muted/30 px-4 py-2">
+        {/* 底部状态栏 - 优化布局 */}
+        <div className="border-t bg-muted/20 px-4 py-1.5">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-4">
-              <span>当前页面: {currentPageIndex + 1} / {pages.length}</span>
-              <span>
-                素材列表: ({pages.reduce((total, page) => 
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <Layers className="h-3 w-3" />
+                <span>素材: {pages.reduce((total, page) => 
                   total + page.regions.reduce((pageTotal, region) => pageTotal + region.items.length, 0), 0
-                )})
-              </span>
-              <span>选中项目: {selectedItems.length}</span>
-              <span>选中区域: {selectedRegions.length}</span>
+                )}</span>
+              </div>
+              {selectedItems.length > 0 && (
+                <>
+                  <Separator orientation="vertical" className="h-3" />
+                  <span>已选: {selectedItems.length}项</span>
+                </>
+              )}
+              {selectedRegions.length > 0 && (
+                <>
+                  <Separator orientation="vertical" className="h-3" />
+                  <span>区域: {selectedRegions.length}</span>
+                </>
+              )}
             </div>
-            <div className="flex items-center gap-4">
-              <span>分辨率: {program?.width || 1920} × {program?.height || 1080}</span>
-              <span>工具: {currentTool}</span>
-              <span>缩放: {Math.round(zoomLevel * 100)}%</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <Settings className="h-3 w-3" />
+                <span>{currentTool}</span>
+              </div>
+              <Separator orientation="vertical" className="h-3" />
+              <span>{Math.round(zoomLevel * 100)}%</span>
             </div>
           </div>
         </div>
