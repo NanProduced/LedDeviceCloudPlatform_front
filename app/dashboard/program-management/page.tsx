@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,52 +30,19 @@ import {
   Download,
 } from "lucide-react"
 import Link from "next/link"
+import { ProgramAPI, ProgramListResponse, ProgramSummaryFrontend } from "@/lib/api/program"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 
-// 模拟数据
-const mockPrograms = [
-  {
-    id: 1,
-    name: "春节宣传节目",
-    description: "2024年春节主题宣传内容",
-    duration: "00:05:30",
-    status: "published",
-    createTime: "2024-01-10T09:00:00",
-    updateTime: "2024-01-15T14:30:00",
-    creator: "张三",
-    playCount: 156,
-    thumbnail: "/placeholder.svg?height=80&width=120",
-    scenes: 5,
-    devices: 12,
-  },
-  {
-    id: 2,
-    name: "产品展示节目",
-    description: "最新产品功能展示",
-    duration: "00:03:45",
-    status: "draft",
-    createTime: "2024-01-20T10:15:00",
-    updateTime: "2024-01-22T16:20:00",
-    creator: "李四",
-    playCount: 0,
-    thumbnail: "/placeholder.svg?height=80&width=120",
-    scenes: 3,
-    devices: 0,
-  },
-  {
-    id: 3,
-    name: "企业文化宣传",
-    description: "公司企业文化展示内容",
-    duration: "00:08:15",
-    status: "playing",
-    createTime: "2024-01-05T14:45:00",
-    updateTime: "2024-01-25T11:30:00",
-    creator: "王五",
-    playCount: 89,
-    thumbnail: "/placeholder.svg?height=80&width=120",
-    scenes: 8,
-    devices: 25,
-  },
-]
+// 占位类型定义（与真实API映射）
+type ListItem = ProgramSummaryFrontend & {
+  // 兼容已有UI字段，若后端暂未提供则前端以占位符显示
+  creator?: string
+  playCount?: number
+  scenes?: number
+  devices?: number
+  thumbnail?: string
+}
 
 const mockDevices = [
   { id: 1, name: "大厅LED屏-001", location: "一楼大厅", status: "online", group: "大厅组" },
@@ -153,6 +121,26 @@ const mediaAssets = [
 
 export default function ProgramManagement() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeTab, setActiveTab] = useState<'template' | 'draft' | 'program'>("program")
+  const [loading, setLoading] = useState(false)
+  const [programItems, setProgramItems] = useState<ListItem[]>([])
+  const [draftItems, setDraftItems] = useState<ListItem[]>([])
+  const [templateItems, setTemplateItems] = useState<ListItem[]>([])
+  const [programStatusFilter, setProgramStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'published'>('all')
+
+  // 分页状态
+  const [tplPage, setTplPage] = useState(1)
+  const [tplPageSize, setTplPageSize] = useState(12)
+  const [tplTotal, setTplTotal] = useState(0)
+
+  const [draftPage, setDraftPage] = useState(1)
+  const [draftPageSize, setDraftPageSize] = useState(12)
+  const [draftTotal, setDraftTotal] = useState(0)
+
+  const [progPage, setProgPage] = useState(1)
+  const [progPageSize, setProgPageSize] = useState(12)
+  const [progTotal, setProgTotal] = useState(0)
+
   const [selectedProgram, setSelectedProgram] = useState<any>(null)
   const [isProgramDetailOpen, setIsProgramDetailOpen] = useState(false)
   const [isCreateProgramOpen, setIsCreateProgramOpen] = useState(false)
@@ -175,16 +163,73 @@ export default function ProgramManagement() {
     autoPlay: true,
   })
 
+  // ========== 数据加载 ==========
+  const loadTemplates = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await ProgramAPI.listTemplates({ keyword: searchQuery, page: tplPage, pageSize: tplPageSize, sortBy: 'updatedAt', sortOrder: 'desc' })
+      setTemplateItems(res.items as ListItem[])
+      setTplTotal(res.total)
+    } catch (e) {
+      console.error('加载模板失败', e)
+      setTemplateItems([])
+      setTplTotal(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [searchQuery, tplPage, tplPageSize])
+
+  const loadDrafts = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await ProgramAPI.listPrograms({ keyword: searchQuery, status: 'draft', createdBy: 'me', page: draftPage, pageSize: draftPageSize, sortBy: 'updatedAt', sortOrder: 'desc' })
+      setDraftItems(res.items as ListItem[])
+      setDraftTotal(res.total)
+    } catch (e) {
+      console.error('加载草稿失败', e)
+      setDraftItems([])
+      setDraftTotal(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [searchQuery, draftPage, draftPageSize])
+
+  const loadPrograms = useCallback(async () => {
+    setLoading(true)
+    try {
+      // 将 UI 的 pending 映射到前端状态 ready（PENDING）
+      const statusParam = programStatusFilter === 'all' ? undefined : (programStatusFilter === 'pending' ? 'ready' : programStatusFilter)
+      const res = await ProgramAPI.listPrograms({ keyword: searchQuery, kind: 'program', status: statusParam as any, page: progPage, pageSize: progPageSize, sortBy: 'updatedAt', sortOrder: 'desc' })
+      setProgramItems(res.items as ListItem[])
+      setProgTotal(res.total)
+    } catch (e) {
+      console.error('加载节目失败', e)
+      setProgramItems([])
+      setProgTotal(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [searchQuery, programStatusFilter, progPage, progPageSize])
+
+  useEffect(() => {
+    if (activeTab === 'template') loadTemplates()
+    if (activeTab === 'draft') loadDrafts()
+    if (activeTab === 'program') loadPrograms()
+  }, [activeTab, loadTemplates, loadDrafts, loadPrograms])
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "published":
         return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">已发布</Badge>
-      case "playing":
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">播放中</Badge>
+      case "approved":
+        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">可发布</Badge>
+      case "ready":
+      case "pending":
+        return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">待审核</Badge>
       case "draft":
         return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400">草稿</Badge>
-      case "stopped":
-        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">已停止</Badge>
+      case "rejected":
+        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">被拒绝</Badge>
       default:
         return <Badge>{status}</Badge>
     }
@@ -249,11 +294,37 @@ export default function ProgramManagement() {
     setSelectedAssets(newSelected)
   }
 
-  const filteredPrograms = mockPrograms.filter(
-    (program) =>
-      program.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      program.description.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  const filteredTemplates = useMemo(() => templateItems.filter(
+    (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ), [templateItems, searchQuery])
+
+  const filteredDrafts = useMemo(() => draftItems.filter(
+    (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ), [draftItems, searchQuery])
+
+  const filteredPrograms = useMemo(() => programItems.filter(
+    (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ), [programItems, searchQuery])
+
+  const canPublish = (status?: string) => status === 'approved' || status === 'published'
+
+  const handleSubmitReview = async (programId: string) => {
+    try {
+      await ProgramAPI.submitReview(programId)
+      await loadDrafts()
+    } catch (e) { console.error(e) }
+  }
+
+  const [instantiateDialog, setInstantiateDialog] = useState<{ open: boolean; templateId?: string; name: string }>({ open: false, name: '' })
+  const doInstantiate = async () => {
+    if (!instantiateDialog.templateId || !instantiateDialog.name) return
+    try {
+      await ProgramAPI.instantiateFromTemplate(instantiateDialog.templateId, { name: instantiateDialog.name })
+      setInstantiateDialog({ open: false, name: '' })
+      setActiveTab('draft')
+      await loadDrafts()
+    } catch (e) { console.error(e) }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
@@ -266,21 +337,22 @@ export default function ProgramManagement() {
 
         {/* 顶部页面跳转按钮移除，统一由左侧菜单导航 */}
 
-        {/* 节目列表 */}
         <Card className="border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <FileVideo className="w-5 h-5 text-blue-600" />
-                  节目列表
+                  节目管理
                 </CardTitle>
-                <CardDescription>管理已创建的节目内容</CardDescription>
+                <CardDescription>模板/草稿/节目统一管理</CardDescription>
               </div>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                新建节目
-              </Button>
+              <Link href="/dashboard/program-editor/create">
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  新建节目
+                </Button>
+              </Link>
             </div>
           </CardHeader>
           <CardContent>
@@ -288,124 +360,204 @@ export default function ProgramManagement() {
             <div className="relative mb-6">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input
-                placeholder="搜索节目名称或描述..."
+                placeholder="搜索节目/模板名称..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
               />
             </div>
 
-            {/* 节目网格 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPrograms.map((program) => (
-                <Card key={program.id} className="group hover:shadow-lg transition-all duration-200 cursor-pointer">
-                  <div
-                    onClick={() => {
-                      setSelectedProgram(program)
-                      setIsProgramDetailOpen(true)
-                    }}
-                  >
-                    <div className="relative">
-                      <img
-                        src={program.thumbnail || "/placeholder.svg"}
-                        alt={program.name}
-                        className="w-full h-40 object-cover rounded-t-lg"
-                      />
-                      <div className="absolute top-2 left-2">{getStatusBadge(program.status)}</div>
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {program.duration}
-                        </Badge>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="template">模板</TabsTrigger>
+                <TabsTrigger value="draft">草稿</TabsTrigger>
+                <TabsTrigger value="program">节目</TabsTrigger>
+              </TabsList>
+
+              {/* 模板 Tab */}
+              <TabsContent value="template">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredTemplates.map((tpl) => (
+                    <Card key={tpl.programId} className="group hover:shadow-lg transition-all duration-200">
+                      <div className="relative">
+                        <img src={tpl.thumbnailUrl || "/placeholder.svg"} alt={tpl.name} className="w-full h-40 object-cover rounded-t-lg" />
                       </div>
-                      {program.status === "playing" && (
-                        <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center rounded-t-lg">
-                          <div className="bg-green-600 text-white p-2 rounded-full">
-                            <Play className="w-6 h-6 fill-current" />
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold mb-1">{tpl.name}</h3>
+                        <div className="flex items-center justify-between text-xs text-slate-500">
+                          <span>{new Date(tpl.updatedAt).toLocaleDateString('zh-CN')}</span>
+                        </div>
+                      </CardContent>
+                      <CardContent className="px-4 pb-4">
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" className="flex-1 gap-2" onClick={() => setInstantiateDialog({ open: true, templateId: tpl.programId, name: '' })}>
+                            基于模板创建
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {filteredTemplates.length === 0 && (
+                    <div className="col-span-full text-center text-muted-foreground">暂无模板</div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* 草稿 Tab */}
+              <TabsContent value="draft">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredDrafts.map((program) => (
+                    <Card key={program.programId} className="group hover:shadow-lg transition-all duration-200 cursor-pointer">
+                      <div className="relative">
+                        <img src={program.thumbnailUrl || "/placeholder.svg"} alt={program.name} className="w-full h-40 object-cover rounded-t-lg" />
+                        <div className="absolute top-2 left-2">{getStatusBadge(program.status)}</div>
+                        <div className="absolute top-2 right-2">
+                          <Badge variant="secondary" className="text-xs">{program.duration}</Badge>
+                        </div>
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">{program.name}</h3>
+                        <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+                          <span>{new Date(program.updatedAt).toLocaleDateString('zh-CN')}</span>
+                        </div>
+                      </CardContent>
+                      <CardContent className="px-4 pb-4">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/dashboard/program-editor/edit/${program.programId}`} className="flex-1">
+                            <Button size="sm" variant="outline" className="w-full gap-2 bg-transparent">
+                              <Edit className="w-3 h-3" />编辑
+                            </Button>
+                          </Link>
+                          <Button size="sm" className="flex-1 gap-2" onClick={() => handleSubmitReview(program.programId)}>
+                            提交审核
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {filteredDrafts.length === 0 && (
+                    <div className="col-span-full text-center text-muted-foreground">暂无草稿</div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* 节目 Tab */}
+              <TabsContent value="program">
+                {/* 状态筛选 */}
+                <div className="flex items-center justify-between mb-3">
+                  <div />
+                  <div className="flex items-center gap-2">
+                    <Select value={programStatusFilter} onValueChange={(v: any) => { setProgPage(1); setProgramStatusFilter(v) }}>
+                      <SelectTrigger className="w-[160px]"><SelectValue placeholder="全部状态" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">全部状态</SelectItem>
+                        <SelectItem value="pending">待审核</SelectItem>
+                        <SelectItem value="approved">可发布</SelectItem>
+                        <SelectItem value="published">已发布</SelectItem>
+                        <SelectItem value="rejected">被拒绝</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredPrograms.map((program) => (
+                    <Card key={program.programId} className="group hover:shadow-lg transition-all duration-200 cursor-pointer">
+                      <div
+                        onClick={() => {
+                          setSelectedProgram(program)
+                          setIsProgramDetailOpen(true)
+                        }}
+                      >
+                        <div className="relative">
+                          <img src={program.thumbnailUrl || "/placeholder.svg"} alt={program.name} className="w-full h-40 object-cover rounded-t-lg" />
+                          <div className="absolute top-2 left-2">{getStatusBadge(program.status)}</div>
+                          <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="text-xs">{program.duration}</Badge>
                           </div>
                         </div>
-                      )}
-                    </div>
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">{program.name}</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 line-clamp-2">
-                        {program.description}
-                      </p>
-                      <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3 h-3" />
-                          {program.creator}
-                        </span>
-                        <span>{new Date(program.updateTime).toLocaleDateString("zh-CN")}</span>
+                        <CardContent className="p-4">
+                          <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">{program.name}</h3>
+                          <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+                            <span>{new Date(program.updatedAt).toLocaleDateString("zh-CN")}</span>
+                          </div>
+                        </CardContent>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded">
-                          <div className="font-medium">{program.scenes}</div>
-                          <div className="text-slate-500">场景</div>
+                      <CardContent className="px-4 pb-4">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/dashboard/program-editor/edit/${program.programId}`} className="flex-1">
+                            <Button size="sm" variant="outline" className="w-full gap-2 bg-transparent">
+                              <Edit className="w-3 h-3" />编辑
+                            </Button>
+                          </Link>
+                          {canPublish(program.status) ? (
+                            <Link href={`/dashboard/program-management/publish?programId=${program.programId}`} className="flex-1">
+                              <Button size="sm" className="w-full gap-2">
+                                <Send className="w-3 h-3" />发布
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Button size="sm" className="flex-1 gap-2" disabled>
+                              <Send className="w-3 h-3" />发布
+                            </Button>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="ghost">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem className="gap-2">
+                                <Eye className="w-4 h-4" />预览
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2">
+                                <Copy className="w-4 h-4" />复制
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2">
+                                <Download className="w-4 h-4" />导出
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="gap-2 text-red-600">
+                                <Trash2 className="w-4 h-4" />删除
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                        <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded">
-                          <div className="font-medium">{program.devices}</div>
-                          <div className="text-slate-500">设备</div>
-                        </div>
-                        <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded">
-                          <div className="font-medium">{program.playCount}</div>
-                          <div className="text-slate-500">播放</div>
-                        </div>
-                      </div>
-                    </CardContent>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {filteredPrograms.length === 0 && (
+                    <div className="col-span-full text-center text-muted-foreground">暂无节目</div>
+                  )}
+                </div>
+                {/* 分页 */}
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-muted-foreground">共 {progTotal} 条</div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled={progPage <= 1} onClick={() => setProgPage((p) => Math.max(1, p - 1))}>上一页</Button>
+                    <div className="text-sm">第 {progPage} 页</div>
+                    <Button variant="outline" size="sm" disabled={progPage * progPageSize >= progTotal} onClick={() => setProgPage((p) => p + 1)}>下一页</Button>
                   </div>
-                  <CardContent className="px-4 pb-4">
-                    <div className="flex items-center gap-2">
-                      <Link href={`/dashboard/program-editor/edit/${program.id}`} className="flex-1">
-                        <Button size="sm" variant="outline" className="w-full gap-2 bg-transparent">
-                          <Edit className="w-3 h-3" />
-                          编辑
-                        </Button>
-                      </Link>
-                      <Button size="sm" className="flex-1 gap-2">
-                        <Send className="w-3 h-3" />
-                        发布
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="ghost">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem className="gap-2">
-                            <Eye className="w-4 h-4" />
-                            预览
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
-                            <Copy className="w-4 h-4" />
-                            复制
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
-                            <Download className="w-4 h-4" />
-                            导出
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="gap-2 text-red-600">
-                            <Trash2 className="w-4 h-4" />
-                            删除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+            {loading && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-56 w-full" />
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* 节目详情对话框 */}
         <Dialog open={isProgramDetailOpen} onOpenChange={setIsProgramDetailOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
+             <DialogHeader>
               <DialogTitle className="flex items-center gap-3">
                 <img
-                  src={selectedProgram?.thumbnail || "/placeholder.svg"}
+                  src={selectedProgram?.thumbnailUrl || "/placeholder.svg"}
                   alt={selectedProgram?.name}
                   className="w-16 h-12 rounded object-cover"
                 />
@@ -423,15 +575,15 @@ export default function ProgramManagement() {
                     <div className="text-sm text-slate-500">总时长</div>
                   </div>
                   <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{selectedProgram.scenes}</div>
+                    <div className="text-2xl font-bold text-green-600">{selectedProgram.scenes ?? '-'}</div>
                     <div className="text-sm text-slate-500">场景数</div>
                   </div>
                   <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">{selectedProgram.devices}</div>
+                    <div className="text-2xl font-bold text-purple-600">{selectedProgram.devices ?? '-'}</div>
                     <div className="text-sm text-slate-500">发布设备</div>
                   </div>
                   <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">{selectedProgram.playCount}</div>
+                    <div className="text-2xl font-bold text-orange-600">{selectedProgram.playCount ?? '-'}</div>
                     <div className="text-sm text-slate-500">播放次数</div>
                   </div>
                 </div>
@@ -442,7 +594,7 @@ export default function ProgramManagement() {
                     <div className="mt-3 space-y-3">
                       <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-400">创建者</span>
-                        <span className="font-medium">{selectedProgram.creator}</span>
+                        <span className="font-medium">{selectedProgram.creator ?? '-'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-400">状态</span>
@@ -451,13 +603,13 @@ export default function ProgramManagement() {
                       <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-400">创建时间</span>
                         <span className="font-medium">
-                          {new Date(selectedProgram.createTime).toLocaleString("zh-CN")}
+                          {selectedProgram.createdAt ? new Date(selectedProgram.createdAt).toLocaleString("zh-CN") : '-'}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-400">更新时间</span>
                         <span className="font-medium">
-                          {new Date(selectedProgram.updateTime).toLocaleString("zh-CN")}
+                          {selectedProgram.updatedAt ? new Date(selectedProgram.updatedAt).toLocaleString("zh-CN") : '-'}
                         </span>
                       </div>
                     </div>
@@ -481,16 +633,32 @@ export default function ProgramManagement() {
               <Button variant="outline" onClick={() => setIsProgramDetailOpen(false)}>
                 关闭
               </Button>
-              <Link href={`/dashboard/program-editor/edit/${selectedProgram?.id}`}>
+              <Link href={`/dashboard/program-editor/edit/${selectedProgram?.programId}`}>
                 <Button className="gap-2">
                   <Edit className="w-4 h-4" />
                   编辑节目
                 </Button>
               </Link>
-              <Button className="gap-2">
+              <Button className="gap-2" disabled={!canPublish(selectedProgram?.status)}>
                 <Send className="w-4 h-4" />
                 发布节目
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 基于模板创建 - 命名对话框 */}
+        <Dialog open={instantiateDialog.open} onOpenChange={(open) => setInstantiateDialog((s) => ({ ...s, open }))}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>基于模板创建节目</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input placeholder="请输入节目名称" value={instantiateDialog.name} onChange={(e) => setInstantiateDialog((s) => ({ ...s, name: e.target.value }))} />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setInstantiateDialog({ open: false, name: '' })}>取消</Button>
+              <Button onClick={doInstantiate}>创建</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

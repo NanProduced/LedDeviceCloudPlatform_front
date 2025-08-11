@@ -1,19 +1,26 @@
 import { fetchApi, CORE_API_PREFIX } from '../api'
 
-// 前端与后端状态值映射
-// 前端：draft | ready | published
-// 后端：DRAFT | PENDING | PUBLISHED
-export type ProgramStatusFrontend = 'draft' | 'ready' | 'published'
-export type ProgramStatusBackend = 'DRAFT' | 'PENDING' | 'PUBLISHED'
+// 前端与后端状态值映射（注意：接口文档将审批状态拆分为 approvalStatus）
+// Program.status（后端）：DRAFT | PENDING | PUBLISHED | TEMPLATE
+// Program.approvalStatus（后端）：PENDING | APPROVED | REJECTED
+// 前端：
+// - status: draft | pending | published | template
+// - approvalStatus: pending | approved | rejected
+export type ProgramStatusFrontend = 'draft' | 'pending' | 'published' | 'template'
+export type ProgramStatusBackend = 'DRAFT' | 'PENDING' | 'PUBLISHED' | 'TEMPLATE'
+export type ProgramApprovalStatusFrontend = 'pending' | 'approved' | 'rejected'
+export type ProgramApprovalStatusBackend = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 const mapStatusToBackend = (status: ProgramStatusFrontend): ProgramStatusBackend => {
   switch (status) {
     case 'draft':
       return 'DRAFT'
-    case 'ready':
-      return 'PENDING' // 与后端同事对齐：ready ↔ PENDING
+    case 'pending':
+      return 'PENDING'
     case 'published':
       return 'PUBLISHED'
+    case 'template':
+      return 'TEMPLATE'
     default:
       return 'DRAFT'
   }
@@ -24,11 +31,26 @@ const mapStatusToFrontend = (status: ProgramStatusBackend): ProgramStatusFronten
     case 'DRAFT':
       return 'draft'
     case 'PENDING':
-      return 'ready' // 与后端同事对齐：PENDING ↔ ready
+      return 'pending'
     case 'PUBLISHED':
       return 'published'
+    case 'TEMPLATE':
+      return 'template'
     default:
       return 'draft'
+  }
+}
+
+const mapApprovalToFrontend = (status?: ProgramApprovalStatusBackend): ProgramApprovalStatusFrontend | undefined => {
+  switch (status) {
+    case 'PENDING':
+      return 'pending'
+    case 'APPROVED':
+      return 'approved'
+    case 'REJECTED':
+      return 'rejected'
+    default:
+      return undefined
   }
 }
 
@@ -39,13 +61,14 @@ export interface CreateProgramRequest {
   width: number
   height: number
   duration: number
-  status: ProgramStatusFrontend
   thumbnailUrl?: string
   vsnData: string // 严格VSN JSON字符串
   contentData: string // EditorState JSON字符串
 }
 
-export interface UpdateProgramRequest extends Partial<CreateProgramRequest> {}
+export interface UpdateProgramRequest extends Partial<CreateProgramRequest> {
+  status?: ProgramStatusFrontend
+}
 
 // 后端返回的基础结构（DynamicResponse<T> 已由 fetchApi 适配）
 
@@ -58,10 +81,11 @@ interface ProgramDetailBackend {
   height: number
   duration: number
   status: ProgramStatusBackend
+  approvalStatus?: ProgramApprovalStatusBackend
   thumbnailUrl?: string
   latestVersionId?: string
-  createdAt: string
-  updatedAt: string
+  createdTime?: string
+  updatedTime?: string
 }
 
 export interface ProgramDetailFrontend {
@@ -72,6 +96,7 @@ export interface ProgramDetailFrontend {
   height: number
   duration: number
   status: ProgramStatusFrontend
+  approvalStatus?: ProgramApprovalStatusFrontend
   thumbnailUrl?: string
   latestVersionId?: string
   createdAt: string
@@ -107,8 +132,10 @@ interface ProgramSummaryBackend {
   height: number
   duration: number
   status: ProgramStatusBackend
+  approvalStatus?: ProgramApprovalStatusBackend
   thumbnailUrl?: string
-  updatedAt: string
+  updatedAt?: string
+  updatedTime?: string
 }
 
 export interface ProgramSummaryFrontend {
@@ -118,6 +145,7 @@ export interface ProgramSummaryFrontend {
   height: number
   duration: number
   status: ProgramStatusFrontend
+  approvalStatus?: ProgramApprovalStatusFrontend
   thumbnailUrl?: string
   updatedAt: string
 }
@@ -163,10 +191,11 @@ const mapDetail = (b: ProgramDetailBackend): ProgramDetailFrontend => ({
   height: b.height,
   duration: b.duration,
   status: mapStatusToFrontend(b.status),
+  approvalStatus: mapApprovalToFrontend(b.approvalStatus),
   thumbnailUrl: b.thumbnailUrl,
   latestVersionId: b.latestVersionId,
-  createdAt: b.createdAt,
-  updatedAt: b.updatedAt,
+  createdAt: (b as any).createdAt || b.createdTime || '',
+  updatedAt: (b as any).updatedAt || b.updatedTime || '',
 })
 
 const mapSummary = (b: ProgramSummaryBackend): ProgramSummaryFrontend => ({
@@ -176,8 +205,9 @@ const mapSummary = (b: ProgramSummaryBackend): ProgramSummaryFrontend => ({
   height: b.height,
   duration: b.duration,
   status: mapStatusToFrontend(b.status),
+  approvalStatus: mapApprovalToFrontend(b.approvalStatus),
   thumbnailUrl: b.thumbnailUrl,
-  updatedAt: b.updatedAt,
+  updatedAt: b.updatedAt || b.updatedTime || '',
 })
 
 const mapContent = (b: ProgramContentBackend): ProgramContentFrontend => ({
@@ -198,15 +228,11 @@ export class ProgramAPI {
   static base = `${CORE_API_PREFIX}/program`
 
   static async createProgram(req: CreateProgramRequest): Promise<{ programId: string; versionId?: string; status?: ProgramStatusFrontend }>{
-    const payload = {
-      ...req,
-      status: mapStatusToBackend(req.status),
-    }
-    // 后端返回 { id, versionId, status }
-    const data = await fetchApi(`${this.base}/create`, { method: 'POST', body: JSON.stringify(payload) }) as any
+    // 接口文档的 CreateProgramRequest 不包含 status 字段
+    const data = await fetchApi(`${this.base}/create`, { method: 'POST', body: JSON.stringify(req) }) as any
     return {
       programId: data.id ?? data.programId ?? data.programID,
-      versionId: data.versionId,
+      versionId: data.currentVersion ?? data.versionId,
       status: data.status ? mapStatusToFrontend(data.status) : undefined,
     }
   }
@@ -223,9 +249,25 @@ export class ProgramAPI {
     }
   }
 
-  static async saveDraft(programId: string, contentData: string, thumbnailUrl?: string): Promise<{ programId: string; draftVersionId: string }>{
-    const payload = { contentData, thumbnailUrl }
-    const data = await fetchApi(`${this.base}/${programId}/draft`, { method: 'POST', body: JSON.stringify(payload) }) as any
+  static async saveDraft(
+    programId: string,
+    draft: string | {
+      name?: string
+      description?: string
+      width?: number
+      height?: number
+      duration?: number
+      thumbnailUrl?: string
+      vsnData?: string
+      contentData?: string
+    },
+    thumbnailUrlIfStringArg?: string,
+  ): Promise<{ programId: string; draftVersionId: string }>{
+    // 支持字符串与完整对象两种传参，便于兼容旧用法
+    const body = typeof draft === 'string'
+      ? { contentData: draft, thumbnailUrl: thumbnailUrlIfStringArg }
+      : draft
+    const data = await fetchApi(`${this.base}/${programId}/draft`, { method: 'POST', body: JSON.stringify(body) }) as any
     return { programId: data.id ?? programId, draftVersionId: data.draftVersionId ?? data.versionId }
   }
 
@@ -247,19 +289,24 @@ export class ProgramAPI {
   }
 
   static async listPrograms(query: ProgramListQuery = {}): Promise<ProgramListResponse>{
-    const params = new URLSearchParams()
-    if (query.keyword) params.append('keyword', query.keyword)
-    if (query.status) params.append('status', mapStatusToBackend(query.status))
-    if (query.page) params.append('page', String(query.page))
-    if (query.pageSize) params.append('pageSize', String(query.pageSize))
-    if (query.sortBy) params.append('sortBy', query.sortBy)
-    if (query.sortOrder) params.append('sortOrder', query.sortOrder)
-    const data = await fetchApi(`${this.base}/list?${params.toString()}`) as { items: ProgramSummaryBackend[]; total: number; page: number; pageSize: number }
+    // 使用 body 传参（PageRequestDTOQueryProgramListRequest）
+    const sortField = query.sortBy === 'updatedAt' ? 'updatedTime' : query.sortBy
+    const pageRequest: any = {
+      pageNum: query.page || 1,
+      pageSize: query.pageSize || 20,
+      sortField,
+      sortOrder: query.sortOrder,
+      params: {
+        keyword: query.keyword,
+        status: query.status ? mapStatusToBackend(query.status) : undefined,
+      },
+    }
+    const data = await fetchApi(`${this.base}/list`, { method: 'POST', body: JSON.stringify(pageRequest) }) as { pageNum: number; pageSize: number; total: number; records: ProgramSummaryBackend[] }
     return {
-      items: (data.items || []).map(mapSummary),
-      total: data.total || 0,
-      page: data.page || 1,
-      pageSize: data.pageSize || (query.pageSize || 20),
+      items: (data as any).records ? (data as any).records.map(mapSummary) : [],
+      total: (data as any).total || 0,
+      page: (data as any).pageNum || (query.page || 1),
+      pageSize: (data as any).pageSize || (query.pageSize || 20),
     }
   }
 
@@ -290,6 +337,83 @@ export class ProgramAPI {
   static async revertVersion(programId: string, versionId: string): Promise<{ programId: string; newVersionId?: string }>{
     const data = await fetchApi(`${this.base}/${programId}/versions/${versionId}/revert`, { method: 'POST' }) as any
     return { programId: data.id ?? programId, newVersionId: data.versionId }
+  }
+
+  // ===== 模板相关 =====
+  static async createTemplate(req: Omit<CreateProgramRequest, 'status'>): Promise<{ templateId: string }>{
+    const payload = { ...req }
+    const data = await fetchApi(`${this.base}/template/create`, { method: 'POST', body: JSON.stringify(payload) }) as any
+    return { templateId: data.id ?? data.templateId ?? '' }
+  }
+
+  static async listTemplates(query: { keyword?: string; page?: number; pageSize?: number; sortBy?: string; sortOrder?: 'asc' | 'desc' } = {}): Promise<ProgramListResponse>{
+    const params = new URLSearchParams()
+    if (query.keyword) params.append('keyword', query.keyword)
+    if (query.page) params.append('page', String(query.page))
+    if (query.pageSize) params.append('pageSize', String(query.pageSize))
+    if (query.sortBy) params.append('sortBy', query.sortBy)
+    if (query.sortOrder) params.append('sortOrder', query.sortOrder)
+    const data = await fetchApi(`${this.base}/template/list?${params.toString()}`) as { items: ProgramSummaryBackend[]; total: number; page: number; pageSize: number }
+    return {
+      items: (data.items || []).map(mapSummary),
+      total: data.total || 0,
+      page: data.page || 1,
+      pageSize: data.pageSize || (query.pageSize || 20),
+    }
+  }
+
+  static async instantiateFromTemplate(templateId: string, payload: { name: string; description?: string }): Promise<{ programId: string }>{
+    const data = await fetchApi(`${this.base}/template/${templateId}/instantiate`, { method: 'POST', body: JSON.stringify(payload) }) as any
+    return { programId: data.id ?? data.programId ?? '' }
+  }
+
+  // ===== 审核相关 =====
+  static async submitReview(programId: string, payload?: Record<string, unknown>): Promise<{ requestId?: string }>{
+    const data = await fetchApi(`${this.base}/${programId}/submit-review`, { method: 'POST', body: payload ? JSON.stringify(payload) : undefined }) as any
+    return { requestId: data.requestId ?? data.reviewId }
+  }
+
+  static async listPendingReviews(query: { scope?: 'mine' | 'all'; page?: number; pageSize?: number } = {}): Promise<{ items: any[]; total: number; page: number; pageSize: number }>{
+    const params = new URLSearchParams()
+    if (query.scope) params.append('scope', query.scope)
+    if (query.page) params.append('page', String(query.page))
+    if (query.pageSize) params.append('pageSize', String(query.pageSize))
+    const data = await fetchApi(`${this.base}/review/pending?${params.toString()}`) as any
+    return {
+      items: data.items ?? [],
+      total: data.total ?? 0,
+      page: data.page ?? 1,
+      pageSize: data.pageSize ?? (query.pageSize || 20),
+    }
+  }
+
+  static async approveReview(requestId: string, payload: Record<string, unknown>): Promise<{ requestId: string; status?: ProgramStatusFrontend }>{
+    const data = await fetchApi(`${this.base}/review/${requestId}/approve`, { method: 'POST', body: JSON.stringify(payload) }) as any
+    return { requestId: data.requestId ?? requestId, status: data.status ? mapStatusToFrontend(data.status) : undefined }
+  }
+
+  static async rejectReview(requestId: string, payload: Record<string, unknown>): Promise<{ requestId: string; status?: ProgramStatusFrontend }>{
+    const data = await fetchApi(`${this.base}/review/${requestId}/reject`, { method: 'POST', body: JSON.stringify(payload) }) as any
+    return { requestId: data.requestId ?? requestId, status: data.status ? mapStatusToFrontend(data.status) : undefined }
+  }
+
+  static async getProgramReviews(programId: string): Promise<{ items: any[] }>{
+    const data = await fetchApi(`${this.base}/${programId}/reviews`) as any
+    return { items: data.items ?? data ?? [] }
+  }
+
+  // 我发起的审核请求列表（以接口文档为准，若路径不同请在此适配）
+  static async listSubmittedReviews(query: { page?: number; pageSize?: number } = {}): Promise<{ items: any[]; total: number; page: number; pageSize: number }>{
+    const params = new URLSearchParams()
+    if (query.page) params.append('page', String(query.page))
+    if (query.pageSize) params.append('pageSize', String(query.pageSize))
+    const data = await fetchApi(`${this.base}/review/submitted?${params.toString()}`) as any
+    return {
+      items: data.items ?? [],
+      total: data.total ?? 0,
+      page: data.page ?? 1,
+      pageSize: data.pageSize ?? (query.pageSize || 20),
+    }
   }
 }
 

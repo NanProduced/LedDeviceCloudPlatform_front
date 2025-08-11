@@ -179,6 +179,93 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
     }
   }, [programId, currentPageIndex, selectedItems, selectedRegions, isDirty, isPreviewMode, zoomLevel, markClean]);
 
+  // 创建节目（替代提交审核：后端自动进入审核流程）
+  const handleCreateProgram = useCallback(async () => {
+    try {
+      setIsSaving(true);
+      const { program: programInfo, pages } = useEditorStore.getState();
+      const editorState = {
+        program: programInfo,
+        pages,
+        currentPageIndex,
+        selectedItems,
+        selectedRegions,
+        clipboard: [],
+        history: [],
+        historyIndex: -1,
+        isDirty,
+        isPreviewMode,
+        zoomLevel,
+      };
+      const conversionResult = VSNConverter.convertToVSN(editorState);
+      if (!conversionResult.validation.isValid) {
+        throw new Error(`节目数据验证失败: ${conversionResult.validation.errors[0]?.message || '未知错误'}`);
+      }
+      const contentData = JSON.stringify(editorState);
+      const vsnData = JSON.stringify(conversionResult.vsnData);
+      const createRequest: CreateProgramRequest = {
+        name: programInfo.name || '未命名节目',
+        description: programInfo.description || '',
+        width: programInfo.width,
+        height: programInfo.height,
+        duration: pages.reduce((total, page) => total + (page.duration?.milliseconds || 0), 0),
+        vsnData,
+        contentData,
+      };
+      const result = await ProgramAPI.createProgram(createRequest);
+      if (result.programId) {
+        useEditorStore.getState().setProgram({ id: result.programId });
+      }
+      markClean();
+      console.log('节目创建成功，已进入审核流程');
+    } catch (error) {
+      console.error('创建节目失败:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [currentPageIndex, selectedItems, selectedRegions, isDirty, isPreviewMode, zoomLevel, markClean]);
+
+  // 另存为模板
+  const handleSaveAsTemplate = useCallback(async () => {
+    try {
+      const { program: programInfo, pages } = useEditorStore.getState();
+      // 构建当前编辑器数据，用于转换与保存
+      const editorState = {
+        program: programInfo,
+        pages,
+        currentPageIndex,
+        selectedItems,
+        selectedRegions,
+        clipboard: [],
+        history: [],
+        historyIndex: -1,
+        isDirty,
+        isPreviewMode,
+        zoomLevel,
+      };
+
+      const conversionResult = VSNConverter.convertToVSN(editorState);
+      if (!conversionResult.validation.isValid) {
+        throw new Error(`节目数据验证失败: ${conversionResult.validation.errors[0]?.message || '未知错误'}`);
+      }
+
+      const contentData = JSON.stringify(editorState);
+      const vsnData = JSON.stringify(conversionResult.vsnData);
+      await ProgramAPI.createTemplate({
+        name: programInfo.name || '未命名模板',
+        description: programInfo.description || '',
+        width: programInfo.width,
+        height: programInfo.height,
+        duration: pages.reduce((total, page) => total + (page.duration?.milliseconds || 0), 0),
+        vsnData,
+        contentData,
+      });
+      console.log('模板创建成功');
+    } catch (error) {
+      console.error('另存为模板失败:', error);
+    }
+  }, [currentPageIndex, selectedItems, selectedRegions, isDirty, isPreviewMode, zoomLevel]);
+
   // 预览：整节目跨页顺序播放
   useEffect(() => {
     if (!isPreviewMode) return;
@@ -364,6 +451,22 @@ export function ProgramEditor({ programId, className }: ProgramEditorProps) {
               >
                 <Save className="h-4 w-4 mr-1" />
                 {isSaving ? '保存中...' : '保存'}
+              </Button>
+
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleCreateProgram}
+              >
+                创建节目
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveAsTemplate}
+              >
+                另存为模板
               </Button>
             </div>
 
