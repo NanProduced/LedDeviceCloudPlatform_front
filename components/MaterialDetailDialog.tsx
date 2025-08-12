@@ -230,6 +230,19 @@ export default function MaterialDetailDialog({ mid, open, onOpenChange }: Materi
                   )}
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                {material?.materialType?.toLowerCase() === 'video' && (
+                  <Button
+                    variant="default"
+                    className="gap-2"
+                    onClick={() => {
+                      const event = new CustomEvent('open-transcode-dialog', { detail: { mid: material.mid } })
+                      window.dispatchEvent(event)
+                    }}
+                  >
+                    转码
+                  </Button>
+                )}
               {material?.fileId && (
                 <a href={getFileDownloadUrl(material.fileId, true)} target="_blank" rel="noreferrer">
                   <Button variant="outline" className="gap-2">
@@ -238,6 +251,7 @@ export default function MaterialDetailDialog({ mid, open, onOpenChange }: Materi
                   </Button>
                 </a>
               )}
+              </div>
             </div>
           </DialogHeader>
 

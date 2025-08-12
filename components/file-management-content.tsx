@@ -590,6 +590,16 @@ export default function FileManagementContent() {
                                 <Eye className="w-4 h-4" />
                                 查看详情
                               </DropdownMenuItem>
+                              {material.materialType.toLowerCase() === 'video' && (
+                                <DropdownMenuItem className="gap-2" onClick={() => {
+                                  // 触发转码对话框（后续添加组件后接入）
+                                  const event = new CustomEvent('open-transcode-dialog', { detail: { mid: material.mid } })
+                                  window.dispatchEvent(event)
+                                }}>
+                                  <Edit className="w-4 h-4" />
+                                  转码
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem className="gap-2">
                                 <Download className="w-4 h-4" />
                                 下载

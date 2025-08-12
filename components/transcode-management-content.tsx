@@ -1,10 +1,13 @@
 "use client"
 
+import React from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,54 +17,75 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { RotateCcw, CheckCircle, AlertCircle, Loader, Clock, Play, Pause, Trash2, MoreHorizontal } from "lucide-react"
+import TranscodeAPI, { TranscodingTaskInfo, TranscodingTaskQueryRequest } from '@/lib/api/transcode'
+import { useWebSocketContext } from '@/contexts/WebSocketContext'
+import { MessageType } from '@/lib/websocket/types'
 
-const transcodeJobs = [
-  {
-    id: 1,
-    fileName: "宣传视频_2024.mp4",
-    originalSize: "245.6 MB",
-    targetFormat: "H.264 MP4",
-    status: "completed",
-    progress: 100,
-    startTime: "2024-01-15T10:30:00",
-    endTime: "2024-01-15T10:45:00",
-  },
-  {
-    id: 2,
-    fileName: "产品演示.mov",
-    originalSize: "512.8 MB",
-    targetFormat: "H.264 MP4",
-    status: "processing",
-    progress: 65,
-    startTime: "2024-01-25T16:45:00",
-    estimatedTime: "还需15分钟",
-  },
-  {
-    id: 3,
-    fileName: "广告片段.avi",
-    originalSize: "89.3 MB",
-    targetFormat: "H.264 MP4",
-    status: "failed",
-    progress: 0,
-    startTime: "2024-01-24T11:20:00",
-    error: "源文件格式不支持",
-  },
-]
+function getStatusBadge(status?: string) {
+  const s = (status || '').toUpperCase()
+  if (s.includes('COMPLETED')) return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">已完成</Badge>
+  if (s.includes('FAILED')) return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">失败</Badge>
+  if (s.includes('RUN') || s.includes('PROCESS') || s.includes('PENDING')) return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">处理中</Badge>
+  return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400">未知</Badge>
+}
 
 export default function TranscodeManagementContent() {
-  const getTranscodeStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="w-5 h-5 text-green-600" />
-      case "processing":
-        return <Loader className="w-5 h-5 text-blue-600 animate-spin" />
-      case "failed":
-        return <AlertCircle className="w-5 h-5 text-red-600" />
-      case "pending":
-        return <Clock className="w-5 h-5 text-gray-500" />
-      default:
-        return <Clock className="w-5 h-5 text-gray-500" />
+  const [loading, setLoading] = React.useState(false)
+  const [tasks, setTasks] = React.useState<TranscodingTaskInfo[]>([])
+  const [total, setTotal] = React.useState(0)
+  const [page, setPage] = React.useState(1)
+  const [size] = React.useState(20)
+  const [status, setStatus] = React.useState<string | undefined>(undefined)
+  const [preset, setPreset] = React.useState<string | undefined>(undefined)
+  const [keyword, setKeyword] = React.useState('')
+  const { messages } = useWebSocketContext()
+
+  const load = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      const query: TranscodingTaskQueryRequest = { page, size }
+      if (status) query.status = status
+      if (preset) query.transcodePreset = preset
+      const res = await TranscodeAPI.queryTasks(query)
+      setTasks(res.tasks || [])
+      setTotal(res.total || 0)
+    } catch (e) {
+      setTasks([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
     }
+  }, [page, size, status, preset])
+
+  React.useEffect(() => { load() }, [load])
+
+  React.useEffect(() => {
+    if (!messages || messages.length === 0) return
+    const latest = messages[0]
+    if (latest.messageType !== MessageType.TRANSCODE_PROGRESS) return
+    const payload = latest.payload || {}
+    const taskId = payload?.taskId
+    const progress = payload?.progress
+    const statusStr = payload?.status
+    if (!taskId) return
+    setTasks(prev => prev.map(t => t.taskId === taskId ? { ...t, progress: typeof progress === 'number' ? progress : t.progress, status: statusStr || t.status } : t))
+  }, [messages])
+
+  const filteredTasks = React.useMemo(() => {
+    if (!keyword) return tasks
+    const k = keyword.toLowerCase()
+    return tasks.filter(t =>
+      t.taskId.toLowerCase().includes(k) ||
+      (t.sourceMaterial?.materialName || '').toLowerCase().includes(k)
+    )
+  }, [tasks, keyword])
+
+  const getTranscodeStatusIcon = (statusStr?: string) => {
+    const s = (statusStr || '').toUpperCase()
+    if (s.includes('COMPLETED')) return <CheckCircle className="w-5 h-5 text-green-600" />
+    if (s.includes('FAILED')) return <AlertCircle className="w-5 h-5 text-red-600" />
+    if (s.includes('RUN') || s.includes('PROCESS') || s.includes('PENDING')) return <Loader className="w-5 h-5 text-blue-600 animate-spin" />
+    return <Clock className="w-5 h-5 text-gray-500" />
   }
 
   return (
@@ -82,13 +106,42 @@ export default function TranscodeManagementContent() {
           <CardDescription>视频文件转码任务管理和监控</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* 过滤器 */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="w-56">
+              <Input placeholder="搜索任务ID/文件名" value={keyword} onChange={e => setKeyword(e.target.value)} />
+            </div>
+            <Select value={status || ''} onValueChange={(v) => setStatus(v || undefined)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="状态筛选" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">全部状态</SelectItem>
+                <SelectItem value="PENDING">排队中</SelectItem>
+                <SelectItem value="RUNNING">处理中</SelectItem>
+                <SelectItem value="COMPLETED">已完成</SelectItem>
+                <SelectItem value="FAILED">失败</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={preset || ''} onValueChange={(v) => setPreset(v || undefined)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="预设筛选" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">全部预设</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => { setPage(1); load() }} disabled={loading}>
+              {loading ? (<><Loader className="w-4 h-4 mr-2 animate-spin"/>刷新中...</>) : '应用筛选'}
+            </Button>
+          </div>
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 dark:bg-slate-800/50">
+                  <TableHead>任务ID</TableHead>
                   <TableHead>文件名</TableHead>
-                  <TableHead>原始大小</TableHead>
-                  <TableHead>目标格式</TableHead>
+                  <TableHead>预设</TableHead>
                   <TableHead>状态</TableHead>
                   <TableHead>进度</TableHead>
                   <TableHead>开始时间</TableHead>
@@ -96,71 +149,72 @@ export default function TranscodeManagementContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transcodeJobs.map((job) => (
-                  <TableRow key={job.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {getTranscodeStatusIcon(job.status)}
-                        <span className="font-medium">{job.fileName}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-slate-600 dark:text-slate-400">{job.originalSize}</TableCell>
-                    <TableCell>{job.targetFormat}</TableCell>
-                    <TableCell>
-                      {job.status === "completed" && (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
-                          已完成
-                        </Badge>
-                      )}
-                      {job.status === "processing" && (
-                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-                          处理中
-                        </Badge>
-                      )}
-                      {job.status === "failed" && (
-                        <Badge className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">失败</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Progress value={job.progress} className="w-20 h-2" />
-                        <span className="text-xs text-slate-500">{job.progress}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-slate-600 dark:text-slate-400">
-                      {new Date(job.startTime).toLocaleString("zh-CN")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>操作</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {job.status === "processing" && (
-                            <DropdownMenuItem className="gap-2">
-                              <Pause className="w-4 h-4" />
-                              暂停任务
-                            </DropdownMenuItem>
-                          )}
-                          {job.status === "failed" && (
-                            <DropdownMenuItem className="gap-2">
-                              <Play className="w-4 h-4" />
-                              重新转码
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem className="gap-2 text-red-600">
-                            <Trash2 className="w-4 h-4" />
-                            删除任务
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8"><div className="flex items-center justify-center gap-2"><Loader className="w-4 h-4 animate-spin"/><span className="text-sm text-slate-500">加载中...</span></div></TableCell>
                   </TableRow>
-                ))}
+                ) : filteredTasks.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-sm text-slate-500">暂无任务</TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTasks.map((task) => (
+                    <TableRow key={task.taskId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <TableCell className="font-mono text-xs">{task.taskId}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {getTranscodeStatusIcon(task.status)}
+                          <span className="font-medium">{task.sourceMaterial?.materialName || '-'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{task.transcodePreset || '-'}</TableCell>
+                      <TableCell>{getStatusBadge(task.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={task.progress ?? 0} className="w-20 h-2" />
+                          <span className="text-xs text-slate-500">{task.progress ?? 0}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-slate-600 dark:text-slate-400">
+                        {task.createTime ? new Date(task.createTime).toLocaleString('zh-CN') : '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>操作</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {((task.status || '').toUpperCase().includes('RUN') || (task.status || '').toUpperCase().includes('PENDING')) && (
+                              <DropdownMenuItem className="gap-2">
+                                <Pause className="w-4 h-4" />
+                                暂停任务（占位）
+                              </DropdownMenuItem>
+                            )}
+                            {((task.status || '').toUpperCase().includes('FAILED')) && (
+                              <DropdownMenuItem className="gap-2" onClick={() => {
+                                if (task.sourceMaterial?.materialId) {
+                                  const event = new CustomEvent('open-transcode-dialog', { detail: { mid: task.sourceMaterial.materialId } })
+                                  window.dispatchEvent(event)
+                                }
+                              }}>
+                                <Play className="w-4 h-4" />
+                                重新转码
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem className="gap-2 text-red-600">
+                              <Trash2 className="w-4 h-4" />
+                              删除任务（占位）
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
