@@ -21,6 +21,7 @@ import {
   useNotifications, 
   useSubscription 
 } from "@/hooks/useWebSocket"
+import { MessageType } from "@/lib/websocket/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -247,6 +248,13 @@ export default function StompDebugPage() {
     isSubscribed 
   } = useSubscription()
 
+  // ========== 本地增强状态 ==========
+  const [taskIdForQuick, setTaskIdForQuick] = useState("")
+  const [destinationForUnsubscribe, setDestinationForUnsubscribe] = useState("")
+  const [messageTypeFilter, setMessageTypeFilter] = useState<string>("")
+  const [brokerURL, setBrokerURL] = useState<string>("")
+  const [heartbeat, setHeartbeat] = useState<{incoming?: number; outgoing?: number}>({})
+
   // ========== 本地状态管理 ==========
   
   const [debugState, setDebugState] = useState<DebugPageState>({
@@ -278,6 +286,15 @@ export default function StompDebugPage() {
       totalMessagesReceived: messages.length
     }))
   }, [messages.length])
+
+  // 读取 Provider 暴露的调试配置
+  useEffect(() => {
+    const dbg = (typeof window !== 'undefined' ? (window as any).__WEBSOCKET_DEBUG__ : undefined)
+    if (dbg?.config) {
+      setBrokerURL(dbg.config.brokerURL || "")
+      setHeartbeat({ incoming: dbg.config.heartbeatIncoming, outgoing: dbg.config.heartbeatOutgoing })
+    }
+  }, [])
 
   // ========== 事件处理函数 ==========
   
@@ -375,6 +392,30 @@ export default function StompDebugPage() {
     alert(`已取消订阅: ${destination}`)
   }
 
+  // 快速通过任务ID订阅
+  const handleQuickSubscribeTask = async () => {
+    if (!taskIdForQuick) {
+      alert('请输入任务ID')
+      return
+    }
+    const dest = `/topic/task/${taskIdForQuick}`
+    try {
+      await subscribe(dest)
+      alert(`已订阅: ${dest}`)
+    } catch (e) {
+      alert('订阅失败')
+    }
+  }
+
+  // 通过目的地址退订
+  const handleUnsubscribeByDestination = () => {
+    if (!destinationForUnsubscribe) {
+      alert('请输入订阅目的地址')
+      return
+    }
+    unsubscribe(destinationForUnsubscribe)
+  }
+
   /**
    * 快速订阅预定义主题
    */
@@ -457,6 +498,11 @@ export default function StompDebugPage() {
           <p className="text-slate-600 dark:text-slate-400 mt-1">
             使用新的WebSocket组件系统进行连接测试、消息收发和功能调试
           </p>
+          {brokerURL && (
+            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
+              Broker: {brokerURL} {heartbeat?.incoming || heartbeat?.outgoing ? `（心跳 in:${heartbeat.incoming || 0}ms / out:${heartbeat.outgoing || 0}ms）` : ''}
+            </p>
+          )}
         </div>
         
         {/* 连接状态指示器 */}
@@ -527,6 +573,31 @@ export default function StompDebugPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 左侧：消息发送和订阅 */}
         <div className="space-y-6">
+          {/* 订阅增强：按任务ID/目的地址操作 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                订阅快捷操作
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 gap-2">
+                <Label className="text-sm">按任务ID订阅 /topic/task/{'{taskId}'}</Label>
+                <div className="flex gap-2">
+                  <Input placeholder="taskId" value={taskIdForQuick} onChange={(e) => setTaskIdForQuick(e.target.value)} />
+                  <Button size="sm" onClick={handleQuickSubscribeTask} disabled={!isConnected}>订阅</Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <Label className="text-sm">按目的地址退订</Label>
+                <div className="flex gap-2">
+                  <Input placeholder="/topic/xxx" value={destinationForUnsubscribe} onChange={(e) => setDestinationForUnsubscribe(e.target.value)} />
+                  <Button size="sm" variant="outline" onClick={handleUnsubscribeByDestination}>退订</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           {/* 消息模板 */}
           <Card>
             <CardHeader>
@@ -716,26 +787,40 @@ export default function StompDebugPage() {
                     <Badge variant="destructive">{unreadCount}</Badge>
                   )}
                 </CardTitle>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={clearMessages}
-                >
-                  <Trash2 className="mr-2 h-3 w-3" />
-                  清空
-                </Button>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900"
+                    value={messageTypeFilter}
+                    onChange={(e) => setMessageTypeFilter(e.target.value)}
+                  >
+                    <option value="">全部类型</option>
+                    {Object.values(MessageType).map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={clearMessages}
+                  >
+                    <Trash2 className="mr-2 h-3 w-3" />
+                    清空
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[600px]">
-                {messages.length === 0 ? (
+                {(messages.filter(m => !messageTypeFilter || m.messageType === messageTypeFilter).length) === 0 ? (
                   <div className="text-center py-8 text-slate-500">
                     <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>暂无消息</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {messages.map((message) => (
+                    {messages
+                      .filter(m => !messageTypeFilter || m.messageType === messageTypeFilter)
+                      .map((message) => (
                       <div key={message.messageId} className="border rounded p-3 bg-slate-50 dark:bg-slate-800">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
