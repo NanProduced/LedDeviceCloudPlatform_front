@@ -2,13 +2,14 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/contexts/UserContext'
 import { subscriptionManager } from '@/lib/websocket/subscription'
+import { useNotifications, useMessages } from '@/hooks/useWebSocket'
 import { FileUploadAPI, FileUploadUtils } from '@/lib/api/fileUpload'
 import { 
   FileUploadRequest,
   TaskInitResponse,
   SupportedFileTypesResponse
 } from '@/lib/types'
-import { UnifiedMessage, MessageType } from '@/lib/websocket/types'
+import { UnifiedMessage, MessageType, Level } from '@/lib/websocket/types'
 
 
 
@@ -87,10 +88,13 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
 
   // 引用管理
   const currentTaskId = useRef<string | null>(null)
+  const currentProgressDestination = useRef<string | null>(null)
   const router = useRouter()
   
   // 用户上下文
   const { user } = useUser()
+  const { showNotification } = useNotifications()
+  const { messages } = useMessages()
 
   /**
    * 初始化上传功能，获取支持的文件类型
@@ -146,6 +150,11 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
               thumbnailUrl: payload.thumbnailUrl,
               instantUpload: payload.instantUpload
             })
+            // 任务完成后，退订对应的进度topic
+            if (currentProgressDestination.current) {
+              subscriptionManager.unsubscribeByDestination(currentProgressDestination.current)
+              currentProgressDestination.current = null
+            }
             break
           case 'FAILED':
           case 'ERROR':
@@ -155,9 +164,18 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
               success: false,
               errorMessage: payload.errorMessage || '上传失败'
             })
+            // 出错也退订进度topic
+            if (currentProgressDestination.current) {
+              subscriptionManager.unsubscribeByDestination(currentProgressDestination.current)
+              currentProgressDestination.current = null
+            }
             break
           case 'CANCELLED':
             setStatus(UploadStatus.CANCELLED)
+            if (currentProgressDestination.current) {
+              subscriptionManager.unsubscribeByDestination(currentProgressDestination.current)
+              currentProgressDestination.current = null
+            }
             break
         }
       }
@@ -179,6 +197,7 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
       )
       
       console.log('✅ 进度订阅成功:', { subscriptionId, subscriptionUrl })
+      currentProgressDestination.current = subscriptionUrl
     } catch (err) {
       console.error('❌ 进度订阅失败:', err)
       setError(`订阅进度失败: ${err instanceof Error ? err.message : '未知错误'}`)
@@ -195,6 +214,26 @@ export function useFileUpload(pagePath: string = '/dashboard/file-management/upl
       subscriptionManager.unsubscribeForPage(pagePath)
     }
   }, [pagePath])
+
+  /**
+   * 监听用户队列中“上传完成”消息（可能进度很快完成）
+   * 命中当前 taskId 即退订对应的进度topic
+   */
+  useEffect(() => {
+    if (!currentTaskId.current || !currentProgressDestination.current) return
+    const latest = messages.slice(0, 30)
+    const hit = latest.find((m) => {
+      if (m.messageType !== MessageType.TASK_PROGRESS) return false
+      const event = (m.payload?.status || m.payload?.eventType || '').toString().toUpperCase()
+      const sameTask = m.payload?.taskId === currentTaskId.current
+      const completed = event.includes('SUCCESS') || event.includes('COMPLETED')
+      return sameTask && completed
+    })
+    if (hit) {
+      subscriptionManager.unsubscribeByDestination(currentProgressDestination.current)
+      currentProgressDestination.current = null
+    }
+  }, [messages])
 
   /**
    * 上传文件

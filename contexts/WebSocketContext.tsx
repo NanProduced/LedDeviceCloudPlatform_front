@@ -18,11 +18,12 @@ import {
   ConnectionState,
   ReceivedMessage,
   SubscriptionInfo,
-  NotificationItem
+  NotificationItem,
+  WebSocketConfig
 } from '../lib/websocket/types';
 import { WebSocketManager } from '../lib/websocket/manager';
 import { MessageProcessor } from '../lib/websocket/processor';
-import { subscriptionManager } from '../lib/websocket/subscription';
+import { subscriptionManager, SubscriptionManager } from '../lib/websocket/subscription';
 import { createLogger } from '../lib/websocket/utils';
 import { useUser } from './UserContext';
 
@@ -200,9 +201,11 @@ const WebSocketContext = createContext<WebSocketContextValue | null>(null);
 
 interface WebSocketProviderProps {
   children: React.ReactNode;
+  /** 可选的WebSocket配置，将传递给底层的WebSocketManager */
+  config?: Partial<WebSocketConfig>;
 }
 
-export function WebSocketProvider({ children }: WebSocketProviderProps) {
+export function WebSocketProvider({ children, config }: WebSocketProviderProps) {
   const [state, dispatch] = useReducer(webSocketReducer, initialState);
   const { user } = useUser();
   
@@ -218,8 +221,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   useEffect(() => {
     logger.info('Initializing WebSocket managers');
     
-    // 创建管理器实例
-    const manager = new WebSocketManager();
+    // 创建管理器实例（支持外部传入配置）
+    const manager = new WebSocketManager(config);
     const processor = new MessageProcessor();
     
     // 保存引用

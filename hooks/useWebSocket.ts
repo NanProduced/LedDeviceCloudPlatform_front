@@ -32,6 +32,7 @@ import {
   useSubscriptions,
   useNotifications as useContextNotifications
 } from '../contexts/WebSocketContext';
+import { subscriptionManager } from '../lib/websocket/subscription';
 import { createLogger } from '../lib/websocket/utils';
 
 // ========== 基础WebSocket Hook ==========
@@ -410,7 +411,6 @@ export function useNotifications(): UseNotificationsReturn {
 export function useSubscription(): UseSubscriptionReturn {
   const logger = createLogger('useSubscription');
   const { subscriptions } = useSubscriptions();
-  const { manager } = useWebSocketContext();
 
   /**
    * 订阅主题
@@ -423,28 +423,11 @@ export function useSubscription(): UseSubscriptionReturn {
     destination: string, 
     callback?: (message: UnifiedMessage) => void
   ): Promise<string> => {
-    if (!manager) {
-      const error = new Error('WebSocket manager not available');
-      logger.error('Subscribe failed:', error);
-      throw error;
-    }
-
-    if (!manager.isConnected()) {
-      const error = new Error('WebSocket not connected');
-      logger.error('Subscribe failed:', error);
-      throw error;
-    }
-
-    try {
-      logger.debug('Subscribing to:', destination);
-      const subscriptionId = manager.subscribe(destination, callback || (() => {}));
-      logger.info('Subscribed successfully:', { destination, subscriptionId });
-      return subscriptionId;
-    } catch (error) {
-      logger.error('Subscribe failed:', error);
-      throw error;
-    }
-  }, [manager]);
+    logger.debug('Subscribing to via SubscriptionManager:', destination);
+    const subscriptionId = await subscriptionManager.subscribe(destination, callback);
+    logger.info('Subscribed successfully:', { destination, subscriptionId });
+    return subscriptionId;
+  }, []);
 
   /**
    * 取消订阅
@@ -452,37 +435,24 @@ export function useSubscription(): UseSubscriptionReturn {
    * @param destination 要取消的订阅目标地址
    */
   const unsubscribe = useCallback((destination: string) => {
-    if (!manager) {
-      logger.error('WebSocket manager not available');
-      return;
-    }
-
-    // 查找对应的订阅ID
     const subscription = subscriptions.find(sub => sub.destination === destination);
     if (subscription) {
-      logger.debug('Unsubscribing from:', destination);
-      manager.unsubscribe(subscription.id);
+      logger.debug('Unsubscribing via SubscriptionManager from:', destination);
+      subscriptionManager.unsubscribe(subscription.id);
       logger.info('Unsubscribed successfully:', destination);
     } else {
       logger.warn('Subscription not found:', destination);
     }
-  }, [manager, subscriptions]);
+  }, [subscriptions]);
 
   /**
    * 取消所有订阅
    */
   const unsubscribeAll = useCallback(() => {
-    if (!manager) {
-      logger.error('WebSocket manager not available');
-      return;
-    }
-
-    logger.debug('Unsubscribing from all subscriptions');
-    subscriptions.forEach(subscription => {
-      manager.unsubscribe(subscription.id);
-    });
+    logger.debug('Clearing all subscriptions via SubscriptionManager');
+    subscriptionManager.clearAllSubscriptions();
     logger.info('All subscriptions unsubscribed');
-  }, [manager, subscriptions]);
+  }, []);
 
   /**
    * 检查是否已订阅指定主题
@@ -491,8 +461,8 @@ export function useSubscription(): UseSubscriptionReturn {
    * @returns 是否已订阅
    */
   const isSubscribed = useCallback((destination: string): boolean => {
-    return subscriptions.some(sub => sub.destination === destination);
-  }, [subscriptions]);
+    return subscriptionManager.isSubscribed(destination);
+  }, []);
 
   return {
     subscriptions,

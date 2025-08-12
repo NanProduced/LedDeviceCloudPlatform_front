@@ -5,6 +5,7 @@ import { UserProvider } from "@/contexts/UserContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { WebSocketProvider } from "@/components/websocket/WebSocketProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { ConnectionStatus } from "@/components/websocket/ConnectionStatus";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,6 +45,10 @@ export default function RootLayout({
               showConnectionStatus={true}
             >
               {children}
+              {/* 右下角最简状态图标 */}
+              <div style={{ position: 'fixed', right: 8, bottom: 8, zIndex: 50 }}>
+                <ConnectionStatus mode="icon" />
+              </div>
               <Toaster />
             </WebSocketProvider>
           </UserProvider>

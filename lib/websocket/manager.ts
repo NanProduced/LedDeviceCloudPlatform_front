@@ -46,6 +46,7 @@ export class WebSocketManager {
   // 订阅管理
   private subscriptions = new Map<string, StompSubscription>();
   private subscriptionCallbacks = new Map<string, (message: UnifiedMessage) => void>();
+  private subscriptionDestinations = new Map<string, string>();
   
   // 事件回调
   private onConnectionStateChange?: (state: ConnectionState) => void;
@@ -167,6 +168,7 @@ export class WebSocketManager {
       const subscriptionId = `${destination}_${Date.now()}`;
       this.subscriptions.set(subscriptionId, subscription);
       this.subscriptionCallbacks.set(subscriptionId, callback);
+      this.subscriptionDestinations.set(subscriptionId, destination);
       
       this.logger.debug('Subscribed to:', destination);
       return subscriptionId;
@@ -187,9 +189,16 @@ export class WebSocketManager {
     const subscription = this.subscriptions.get(subscriptionId);
     if (subscription) {
       try {
-        subscription.unsubscribe();
+        // 附带destination头取消订阅，STOMP库会自动填充id头
+        const destination = this.subscriptionDestinations.get(subscriptionId);
+        if (destination) {
+          (subscription as any).unsubscribe({ destination });
+        } else {
+          subscription.unsubscribe();
+        }
         this.subscriptions.delete(subscriptionId);
         this.subscriptionCallbacks.delete(subscriptionId);
+        this.subscriptionDestinations.delete(subscriptionId);
         this.logger.debug('Unsubscribed:', subscriptionId);
       } catch (error) {
         this.logger.warn('Error during unsubscribe:', error);
@@ -294,11 +303,12 @@ export class WebSocketManager {
     // 设置断开连接回调
     this.client.onDisconnect = () => {
       this.logger.info('STOMP disconnected');
+      const wasConnected = this.connectionState === ConnectionState.CONNECTED || this.connectionState === ConnectionState.RECONNECTING || this.connectionState === ConnectionState.CONNECTING;
       this.setConnectionState(ConnectionState.DISCONNECTED);
       this.clearSubscriptions();
       
-      // 如果不是主动断开，尝试重连
-      if (this.connectionState !== ConnectionState.DISCONNECTED) {
+      // 如果不是主动调用 disconnect() 触发的，并且之前处于连接态，则尝试重连
+      if (wasConnected) {
         this.scheduleReconnect();
       }
     };
@@ -415,7 +425,12 @@ export class WebSocketManager {
   private clearSubscriptions(): void {
     for (const [subscriptionId, subscription] of this.subscriptions) {
       try {
-        subscription.unsubscribe();
+        const destination = this.subscriptionDestinations.get(subscriptionId);
+        if (destination) {
+          (subscription as any).unsubscribe({ destination });
+        } else {
+          subscription.unsubscribe();
+        }
       } catch (error) {
         this.logger.warn('Error unsubscribing:', error);
       }
@@ -423,6 +438,7 @@ export class WebSocketManager {
     
     this.subscriptions.clear();
     this.subscriptionCallbacks.clear();
+    this.subscriptionDestinations.clear();
   }
 
   /**

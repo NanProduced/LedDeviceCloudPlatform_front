@@ -21,8 +21,8 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import { 
-  message, 
-  notification, 
+  message as antdMessage, 
+  notification as antdNotification, 
   Modal, 
   Button, 
   Space, 
@@ -61,6 +61,7 @@ import {
   formatTimeDiff 
 } from '../../lib/websocket/utils';
 import { useWebSocketContext } from '../../contexts/WebSocketContext';
+import { MessageType, Level, UnifiedMessage } from '../../lib/websocket/types';
 
 const { Text, Paragraph } = Typography;
 
@@ -108,7 +109,7 @@ export function NotificationManager({
 }: NotificationManagerProps) {
   const logger = createLogger('NotificationManager');
   const router = useRouter();
-  const { dispatch } = useWebSocketContext();
+  const { dispatch, messages } = useWebSocketContext();
   
   // ========== 内部状态管理 ==========
   
@@ -207,8 +208,17 @@ export function NotificationManager({
       expiresAt: uiConfig.duration > 0 ? new Date(Date.now() + uiConfig.duration) : undefined,
     };
 
-    // 根据level展示不同类型的通知
-    switch (message.level) {
+    // 针对上传完成的定制：任务进度+SUCCESS+payload.eventType=UPLOAD_COMPLETED 或 标题包含“上传完成” → 使用Modal
+    const isUploadCompleted = (
+      message.messageType === MessageType.TASK_PROGRESS &&
+      (message.title?.includes('上传完成') ||
+       (message.payload && typeof message.payload.eventType === 'string' &&
+        message.payload.eventType.toString().toUpperCase().includes('UPLOAD') &&
+        message.payload.eventType.toString().toUpperCase().includes('COMPLETED')))
+    );
+
+    // 根据level展示不同类型的通知（含上传完成覆盖为Modal）
+    switch (isUploadCompleted ? Level.ERROR /* 占位：强制走Modal分支 */ : message.level) {
       case Level.SUCCESS:
       case Level.INFO:
         await showToastNotification(message, notificationItem);
@@ -219,14 +229,8 @@ export function NotificationManager({
       case Level.ERROR:
         await showModalNotification(message, notificationItem);
         break;
-      case Level.IGNORE:
-        // 忽略级别的消息不显示UI，只记录日志
-        logger.debug('Message with IGNORE level received:', message.messageId, message.messageType);
-        // 直接返回，不添加到通知列表
-        return;
       default:
-        logger.warn('Unknown message level:', message.level);
-        await showToastNotification(message, notificationItem);
+        await showModalNotification(message, notificationItem);
     }
 
     // 添加到内部通知列表
@@ -249,7 +253,7 @@ export function NotificationManager({
     const config = LEVEL_UI_CONFIG[message.level];
     const icon = message.level === Level.SUCCESS ? <CheckCircleOutlined /> : <InfoCircleOutlined />;
     
-    const messageApi = message.level === Level.SUCCESS ? message.success : message.info;
+    const messageApi = message.level === Level.SUCCESS ? antdMessage.success : antdMessage.info;
     
     messageApi({
       content: (
@@ -289,7 +293,7 @@ export function NotificationManager({
    * 需要手动关闭，适用于重要警告信息
    */
   const showAlertNotification = async (message: UnifiedMessage, notificationItem: InternalNotification) => {
-    notification.warning({
+    antdNotification.warning({
       message: message.title || '警告',
       description: (
         <div>
@@ -310,7 +314,7 @@ export function NotificationManager({
                     icon={getActionIcon(action.actionType)}
                     onClick={() => {
                       handleActionClick(action, message);
-                      notification.destroy(notificationItem.id);
+                      antdNotification.destroy(notificationItem.id);
                     }}
                   >
                     {action.actionName}
@@ -333,11 +337,29 @@ export function NotificationManager({
    * 必须用户确认，适用于错误和重要提示
    */
   const showModalNotification = async (message: UnifiedMessage, notificationItem: InternalNotification) => {
-    const modal = Modal.error({
+    const modalFactory = (() => {
+      switch (message.level) {
+        case Level.SUCCESS:
+          return Modal.success;
+        case Level.INFO:
+          return Modal.info;
+        case Level.WARNING:
+          return Modal.warning;
+        case Level.ERROR:
+        default:
+          return Modal.error;
+      }
+    })();
+
+    const modal = modalFactory({
       title: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-          {message.title || '错误'}
+          {message.level === Level.ERROR ? (
+            <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+          ) : (
+            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+          )}
+          {message.title || (message.level === Level.ERROR ? '错误' : '通知')}
         </div>
       ),
       content: (
@@ -463,7 +485,7 @@ export function NotificationManager({
       link.click();
       document.body.removeChild(link);
       
-      message.success('下载已开始');
+      antdMessage.success('下载已开始');
     }
   };
 
@@ -497,14 +519,14 @@ export function NotificationManager({
       })
       .then(response => {
         if (response.ok) {
-          message.success('操作已确认');
+          antdMessage.success('操作已确认');
         } else {
-          message.error('操作失败');
+          antdMessage.error('操作失败');
         }
       })
       .catch(error => {
         logger.error('Confirm action failed:', error);
-        message.error('操作失败');
+        antdMessage.error('操作失败');
       });
     }
   };
@@ -523,14 +545,14 @@ export function NotificationManager({
       })
       .then(response => {
         if (response.ok) {
-          message.success('重试已开始');
+          antdMessage.success('重试已开始');
         } else {
-          message.error('重试失败');
+          antdMessage.error('重试失败');
         }
       })
       .catch(error => {
         logger.error('Retry action failed:', error);
-        message.error('重试失败');
+        antdMessage.error('重试失败');
       });
     }
   };
@@ -620,13 +642,17 @@ export function NotificationManager({
     return () => clearInterval(cleanup);
   }, []);
 
-  // ========== 导出显示通知的函数 ==========
-
-  // 使用useEffect监听消息变化并自动显示通知
-  // 这个逻辑通常会在WebSocketContext中调用
-  React.useImperativeHandle(React.forwardRef(() => null), () => ({
-    showNotification,
-  }));
+  // ========== 自动监听消息并显示通知 ==========
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+    // 遍历消息，展示未处理过的通知（忽略 IGNORE）
+    const latestBatch = messages.slice(0, 20); // 限制遍历数量，避免大列表性能问题
+    latestBatch.forEach((msg) => {
+      if (!processedMessageIds.current.has(msg.messageId) && msg.level !== Level.IGNORE) {
+        showNotification(msg);
+      }
+    });
+  }, [messages, showNotification]);
 
   // ========== 渲染 ==========
 

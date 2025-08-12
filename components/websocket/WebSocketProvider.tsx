@@ -23,6 +23,7 @@ import { message } from 'antd';
 import { 
   WebSocketProvider as BaseWebSocketProvider 
 } from '../../contexts/WebSocketContext';
+import { NotificationManager } from '../websocket/NotificationManager';
 import { 
   WebSocketConfig, 
   ConnectionState 
@@ -377,8 +378,10 @@ export function WebSocketProvider({
         使用基础的WebSocketProvider，它已经包含了所有核心逻辑
         这里主要是提供配置、错误处理和调试功能的封装
       */}
-      <BaseWebSocketProvider>
+      <BaseWebSocketProvider config={mergedConfig}>
         {children}
+        {/* 全局通知管理器 */}
+        <NotificationManager />
       </BaseWebSocketProvider>
       
       {/* 开发环境调试信息 */}

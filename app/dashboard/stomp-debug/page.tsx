@@ -31,7 +31,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ConnectionStatus } from "@/components/websocket/ConnectionStatus"
-import { NotificationManager } from "@/components/websocket/NotificationManager"
 import {
   MessageSquare,
   Send,
@@ -446,8 +445,7 @@ export default function StompDebugPage() {
 
   return (
     <div className="space-y-6">
-      {/* 通知管理器组件 */}
-      <NotificationManager />
+      {/* 通知管理器全局已挂载，此处无需重复 */}
       
       {/* Header */}
       <div className="flex items-start justify-between">
