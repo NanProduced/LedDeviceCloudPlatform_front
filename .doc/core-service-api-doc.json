@@ -20,6 +20,10 @@
     ],
     "tags": [
         {
+            "name": "Transcoding(转码任务查询)",
+            "description": "转码任务查询相关操作"
+        },
+        {
             "name": "UserGroup(用户组控制器)",
             "description": "用户组相关的操作"
         },
@@ -184,6 +188,50 @@
                         }
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProgramDTO"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/program/template/{templateId}": {
+            "put": {
+                "tags": [
+                    "模板管理",
+                    "Program(节目管理)"
+                ],
+                "summary": "更新模板",
+                "description": "更新模板内容和编辑状态",
+                "operationId": "updateTemplate",
+                "parameters": [
+                    {
+                        "name": "templateId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProgramRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -466,6 +514,38 @@
                 "responses": {
                     "200": {
                         "description": "OK"
+                    }
+                }
+            }
+        },
+        "/transcoding/tasks/query": {
+            "post": {
+                "tags": [
+                    "Transcoding(转码任务查询)"
+                ],
+                "summary": "查询用户转码任务列表",
+                "description": "查询当前用户的转码任务，支持状态、时间范围等条件过滤",
+                "operationId": "queryTranscodingTasks",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TranscodingTaskQueryRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TranscodingTaskResponse"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1224,32 +1304,20 @@
                 }
             }
         },
-        "/program/{programId}/draft": {
+        "/program/template/list": {
             "post": {
                 "tags": [
-                    "节目管理",
-                    "草稿管理",
+                    "模板管理",
                     "Program(节目管理)"
                 ],
-                "summary": "保存草稿",
-                "description": "保存节目编辑器状态为草稿，不进入审核流程",
-                "operationId": "saveDraft",
-                "parameters": [
-                    {
-                        "name": "programId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "format": "int64"
-                        }
-                    }
-                ],
+                "summary": "获取模板列表",
+                "description": "分页查询模板列表，支持继承（父级组可看到子组模板）",
+                "operationId": "listTemplates",
                 "requestBody": {
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/SaveDraftRequest"
+                                "$ref": "#/components/schemas/PageRequestDTOQueryProgramListRequest"
                             }
                         }
                     },
@@ -1261,7 +1329,40 @@
                         "content": {
                             "*/*": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/DraftDTO"
+                                    "$ref": "#/components/schemas/PageVOProgramDTO"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/program/template/create": {
+            "post": {
+                "tags": [
+                    "模板管理",
+                    "Program(节目管理)"
+                ],
+                "summary": "保存为模板",
+                "description": "将节目编辑状态保存为模板",
+                "operationId": "saveAsTemplate",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateProgramRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProgramDTO"
                                 }
                             }
                         }
@@ -1296,6 +1397,51 @@
                             "*/*": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PageVOProgramDTO"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/program/draft": {
+            "post": {
+                "tags": [
+                    "节目管理",
+                    "草稿管理",
+                    "Program(节目管理)"
+                ],
+                "summary": "保存草稿",
+                "description": "保存节目编辑器状态为草稿，不进入审核流程",
+                "operationId": "saveDraft",
+                "parameters": [
+                    {
+                        "name": "programId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveDraftRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DraftDTO"
                                 }
                             }
                         }
@@ -1543,7 +1689,42 @@
                 }
             }
         },
-        "/metadata/batch": {
+        "/material/{mid}/transcode": {
+            "post": {
+                "tags": [
+                    "素材管理",
+                    "素材转码",
+                    "material transcoding(素材转码)"
+                ],
+                "summary": "提交素材转码任务",
+                "description": "选择素材进行转码",
+                "operationId": "submitTranscode",
+                "parameters": [
+                    {
+                        "name": "mid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskInitResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/material/metadata/batch": {
             "post": {
                 "tags": [
                     "素材元数据",
@@ -1678,6 +1859,73 @@
                             "*/*": {
                                 "schema": {
                                     "$ref": "#/components/schemas/UserGroupTreeResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/transcoding/tasks/{taskId}": {
+            "get": {
+                "tags": [
+                    "Transcoding(转码任务查询)"
+                ],
+                "summary": "根据任务ID获取转码任务详情",
+                "description": "获取指定转码任务的详细信息，包括转码前后对比",
+                "operationId": "getTranscodingTaskDetail",
+                "parameters": [
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "description": "任务ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TranscodingTaskInfo"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/transcoding/tasks/by-source/{sourceMaterialId}": {
+            "get": {
+                "tags": [
+                    "Transcoding(转码任务查询)"
+                ],
+                "summary": "根据源素材ID查询转码任务",
+                "description": "查询指定源素材的所有转码任务",
+                "operationId": "getTranscodingTasksBySource",
+                "parameters": [
+                    {
+                        "name": "sourceMaterialId",
+                        "in": "path",
+                        "description": "源素材ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TranscodingTaskResponse"
                                 }
                             }
                         }
@@ -2248,7 +2496,30 @@
                 }
             }
         },
-        "/metadata/{materialId}": {
+        "/material/tree/init": {
+            "get": {
+                "tags": [
+                    "素材管理",
+                    "Material(素材资源控制器)"
+                ],
+                "summary": "素材文件结构树初始化",
+                "description": "初始化素材管理左侧树形结构",
+                "operationId": "initMaterialStructTree",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MaterialNodeTreeResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/material/metadata/{materialId}": {
             "get": {
                 "tags": [
                     "素材元数据",
@@ -2324,7 +2595,7 @@
                 }
             }
         },
-        "/metadata/{materialId}/exists": {
+        "/material/metadata/{materialId}/exists": {
             "get": {
                 "tags": [
                     "素材元数据",
@@ -2360,7 +2631,7 @@
                 }
             }
         },
-        "/metadata/performance-stats": {
+        "/material/metadata/performance-stats": {
             "get": {
                 "tags": [
                     "素材元数据",
@@ -2378,29 +2649,6 @@
                             "*/*": {
                                 "schema": {
                                     "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/material/tree/init": {
-            "get": {
-                "tags": [
-                    "素材管理",
-                    "Material(素材资源控制器)"
-                ],
-                "summary": "素材文件结构树初始化",
-                "description": "初始化素材管理左侧树形结构",
-                "operationId": "initMaterialStructTree",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "*/*": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/MaterialNodeTreeResponse"
                                 }
                             }
                         }
@@ -2574,6 +2822,37 @@
                                     "items": {
                                         "$ref": "#/components/schemas/ListMaterialResponse"
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/material/basic/{materialId}": {
+            "get": {
+                "tags": [
+                    "Material(素材资源控制器)"
+                ],
+                "operationId": "getBasicMaterialInfo",
+                "parameters": [
+                    {
+                        "name": "materialId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BasicMaterialInfoResponse"
                                 }
                             }
                         }
@@ -3140,6 +3419,220 @@
                     }
                 },
                 "description": "创建用户组请求DTO"
+            },
+            "TranscodingTaskQueryRequest": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "description": "转码状态过滤",
+                        "example": "COMPLETED"
+                    },
+                    "transcodePreset": {
+                        "type": "string",
+                        "description": "转码预设过滤"
+                    },
+                    "sourceMaterialId": {
+                        "type": "integer",
+                        "description": "源素材ID",
+                        "format": "int64"
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "description": "开始时间",
+                        "format": "date-time"
+                    },
+                    "endTime": {
+                        "type": "string",
+                        "description": "结束时间",
+                        "format": "date-time"
+                    },
+                    "page": {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "页码",
+                        "format": "int32",
+                        "example": 1
+                    },
+                    "size": {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "每页大小",
+                        "format": "int32",
+                        "example": 20
+                    },
+                    "sortBy": {
+                        "type": "string",
+                        "description": "排序字段",
+                        "example": "createTime"
+                    },
+                    "sortDirection": {
+                        "type": "string",
+                        "description": "排序方向",
+                        "example": "DESC"
+                    }
+                },
+                "description": "转码任务查询请求"
+            },
+            "MaterialInfo": {
+                "type": "object",
+                "properties": {
+                    "materialId": {
+                        "type": "integer",
+                        "description": "素材ID",
+                        "format": "int64"
+                    },
+                    "materialName": {
+                        "type": "string",
+                        "description": "素材名称"
+                    },
+                    "fileId": {
+                        "type": "string",
+                        "description": "文件ID"
+                    },
+                    "fileSize": {
+                        "type": "integer",
+                        "description": "文件大小(字节)",
+                        "format": "int64"
+                    },
+                    "mimeType": {
+                        "type": "string",
+                        "description": "文件类型"
+                    },
+                    "fileExtension": {
+                        "type": "string",
+                        "description": "文件扩展名"
+                    },
+                    "storagePath": {
+                        "type": "string",
+                        "description": "存储路径"
+                    },
+                    "thumbnailPath": {
+                        "type": "string",
+                        "description": "缩略图路径"
+                    },
+                    "md5Hash": {
+                        "type": "string",
+                        "description": "MD5哈希"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "素材信息"
+            },
+            "TranscodingDetailInfo": {
+                "type": "object",
+                "properties": {
+                    "transcodingDetailId": {
+                        "type": "string",
+                        "description": "转码详情ID"
+                    },
+                    "durationMs": {
+                        "type": "integer",
+                        "description": "转码耗时(毫秒)",
+                        "format": "int64"
+                    },
+                    "videoDurationSeconds": {
+                        "type": "number",
+                        "description": "视频时长(秒)",
+                        "format": "double"
+                    },
+                    "sourceResolution": {
+                        "type": "string",
+                        "description": "源视频分辨率"
+                    },
+                    "targetResolution": {
+                        "type": "string",
+                        "description": "目标视频分辨率"
+                    },
+                    "sourceVideoCodec": {
+                        "type": "string",
+                        "description": "源视频编码"
+                    },
+                    "targetVideoCodec": {
+                        "type": "string",
+                        "description": "目标视频编码"
+                    },
+                    "compressionRatio": {
+                        "type": "number",
+                        "description": "压缩比",
+                        "format": "double"
+                    },
+                    "qualityScore": {
+                        "type": "integer",
+                        "description": "质量评分",
+                        "format": "int32"
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "description": "错误信息"
+                    }
+                },
+                "description": "转码详情信息"
+            },
+            "TranscodingTaskInfo": {
+                "type": "object",
+                "properties": {
+                    "taskId": {
+                        "type": "string",
+                        "description": "任务ID"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "转码状态"
+                    },
+                    "progress": {
+                        "type": "integer",
+                        "description": "转码进度(0-100)",
+                        "format": "int32"
+                    },
+                    "transcodePreset": {
+                        "type": "string",
+                        "description": "转码预设"
+                    },
+                    "sourceMaterial": {
+                        "$ref": "#/components/schemas/MaterialInfo"
+                    },
+                    "targetMaterial": {
+                        "$ref": "#/components/schemas/MaterialInfo"
+                    },
+                    "transcodingDetail": {
+                        "$ref": "#/components/schemas/TranscodingDetailInfo"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    },
+                    "completeTime": {
+                        "type": "string",
+                        "description": "完成时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "转码任务信息"
+            },
+            "TranscodingTaskResponse": {
+                "type": "object",
+                "properties": {
+                    "tasks": {
+                        "type": "array",
+                        "description": "转码任务列表",
+                        "items": {
+                            "$ref": "#/components/schemas/TranscodingTaskInfo"
+                        }
+                    },
+                    "total": {
+                        "type": "integer",
+                        "description": "总数量",
+                        "format": "int32"
+                    }
+                },
+                "description": "转码任务查询响应"
             },
             "SingleCommandResult": {
                 "type": "object",
@@ -4181,90 +4674,6 @@
                     }
                 }
             },
-            "SaveDraftRequest": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "width": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "height": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "duration": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "thumbnailUrl": {
-                        "type": "string"
-                    },
-                    "vsnData": {
-                        "type": "string"
-                    },
-                    "contentData": {
-                        "type": "string"
-                    }
-                }
-            },
-            "DraftDTO": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "width": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "height": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "duration": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "thumbnailUrl": {
-                        "type": "string"
-                    },
-                    "createdTime": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "updatedTime": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdBy": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "createdByName": {
-                        "type": "string"
-                    },
-                    "updatedBy": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "updatedByName": {
-                        "type": "string"
-                    }
-                }
-            },
             "PageRequestDTOQueryProgramListRequest": {
                 "type": "object",
                 "properties": {
@@ -4362,6 +4771,90 @@
                         "type": "string"
                     },
                     "contentData": {
+                        "type": "string"
+                    }
+                }
+            },
+            "SaveDraftRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "width": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "height": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "duration": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "thumbnailUrl": {
+                        "type": "string"
+                    },
+                    "vsnData": {
+                        "type": "string"
+                    },
+                    "contentData": {
+                        "type": "string"
+                    }
+                }
+            },
+            "DraftDTO": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "width": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "height": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "duration": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "thumbnailUrl": {
+                        "type": "string"
+                    },
+                    "createdTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "createdByName": {
+                        "type": "string"
+                    },
+                    "updatedBy": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "updatedByName": {
                         "type": "string"
                     }
                 }
@@ -4496,6 +4989,37 @@
                     }
                 },
                 "description": "创建组织响应DTO"
+            },
+            "TaskInitResponse": {
+                "type": "object",
+                "properties": {
+                    "taskId": {
+                        "type": "string",
+                        "description": "任务ID"
+                    },
+                    "taskType": {
+                        "type": "string",
+                        "description": "任务类型"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "任务状态"
+                    },
+                    "progressSubscriptionUrl": {
+                        "type": "string",
+                        "description": "进度订阅地址"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "提示信息"
+                    },
+                    "createTime": {
+                        "type": "string",
+                        "description": "创建时间",
+                        "format": "date-time"
+                    }
+                },
+                "description": "任务初始化响应"
             },
             "BatchMaterialMetadataRequest": {
                 "required": [
@@ -4646,14 +5170,14 @@
                     "summary": {
                         "type": "string"
                     },
-                    "performanceSummary": {
-                        "type": "string"
-                    },
                     "allSuccessful": {
                         "type": "boolean"
                     },
                     "completelyFailed": {
                         "type": "boolean"
+                    },
+                    "performanceSummary": {
+                        "type": "string"
                     }
                 },
                 "description": "批量查询素材元数据响应"
@@ -6096,6 +6620,38 @@
                     }
                 },
                 "description": "查询素材列表响应 - 单个分享素材VO"
+            },
+            "BasicMaterialInfoResponse": {
+                "type": "object",
+                "properties": {
+                    "materialId": {
+                        "type": "integer",
+                        "description": "素材ID",
+                        "format": "int64"
+                    },
+                    "oid": {
+                        "type": "integer",
+                        "description": "组织ID",
+                        "format": "int64"
+                    },
+                    "fileId": {
+                        "type": "string",
+                        "description": "文件ID"
+                    },
+                    "storagePath": {
+                        "type": "string",
+                        "description": "存储路径"
+                    },
+                    "materialName": {
+                        "type": "string",
+                        "description": "素材名称"
+                    },
+                    "materialType": {
+                        "type": "string",
+                        "description": "素材类型"
+                    }
+                },
+                "description": "素材基础信息（含文件信息）"
             }
         }
     }

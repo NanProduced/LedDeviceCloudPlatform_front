@@ -163,6 +163,93 @@
                 }
             }
         },
+        "/file/transcode/presets": {
+            "get": {
+                "tags": [
+                    "转码操作",
+                    "Transcoding(转码)"
+                ],
+                "summary": "获取转码预设列表",
+                "description": "给前端返回转码预设列表",
+                "operationId": "getPresets",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TranscodingPresetResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/file/transcode/presets/{id}": {
+            "get": {
+                "tags": [
+                    "转码操作",
+                    "Transcoding(转码)"
+                ],
+                "summary": "按ID获取转码预设",
+                "operationId": "getPresetById",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PresetInfo"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/file/transcode/presets/{id}/parameters": {
+            "get": {
+                "tags": [
+                    "转码操作",
+                    "Transcoding(转码)"
+                ],
+                "summary": "将预设展开为可编辑参数模板",
+                "operationId": "getPresetParameters",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TranscodingParameters"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/file/preview/{fileId}": {
             "get": {
                 "tags": [
@@ -864,6 +951,337 @@
                 },
                 "description": "上传进度响应"
             },
+            "AudioConfig": {
+                "type": "object",
+                "properties": {
+                    "bitrate": {
+                        "type": "integer",
+                        "description": "音频码率",
+                        "format": "int32"
+                    },
+                    "sampleRate": {
+                        "type": "integer",
+                        "description": "采样率",
+                        "format": "int32"
+                    },
+                    "channels": {
+                        "type": "integer",
+                        "description": "声道数",
+                        "format": "int32"
+                    },
+                    "codec": {
+                        "type": "string",
+                        "description": "音频编码器",
+                        "example": "aac"
+                    }
+                },
+                "description": "音频配置"
+            },
+            "PresetInfo": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "预设名称",
+                        "example": "HD"
+                    },
+                    "displayName": {
+                        "type": "string",
+                        "description": "预设显示名称",
+                        "example": "高清(720p)"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "预设描述"
+                    },
+                    "videoConfig": {
+                        "$ref": "#/components/schemas/VideoConfig"
+                    },
+                    "audioConfig": {
+                        "$ref": "#/components/schemas/AudioConfig"
+                    },
+                    "isDefault": {
+                        "type": "boolean",
+                        "description": "是否默认预设"
+                    },
+                    "scene": {
+                        "type": "string",
+                        "description": "适用场景",
+                        "example": "WEB"
+                    },
+                    "estimatedSizeRatio": {
+                        "type": "number",
+                        "description": "预计文件大小比例",
+                        "format": "double"
+                    }
+                },
+                "description": "转码预设信息"
+            },
+            "TranscodingPresetResponse": {
+                "type": "object",
+                "properties": {
+                    "presets": {
+                        "type": "array",
+                        "description": "转码预设列表",
+                        "items": {
+                            "$ref": "#/components/schemas/PresetInfo"
+                        }
+                    },
+                    "supportedFormats": {
+                        "type": "array",
+                        "description": "支持的输出格式",
+                        "items": {
+                            "type": "string",
+                            "description": "支持的输出格式"
+                        }
+                    }
+                },
+                "description": "转码预设响应"
+            },
+            "VideoConfig": {
+                "type": "object",
+                "properties": {
+                    "resolution": {
+                        "type": "string",
+                        "description": "分辨率",
+                        "example": "1280x720"
+                    },
+                    "width": {
+                        "type": "integer",
+                        "description": "宽度(px)",
+                        "format": "int32"
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "高度(px)",
+                        "format": "int32"
+                    },
+                    "bitrate": {
+                        "type": "integer",
+                        "description": "码率",
+                        "format": "int32"
+                    },
+                    "frameRate": {
+                        "type": "integer",
+                        "description": "帧率",
+                        "format": "int32"
+                    },
+                    "codec": {
+                        "type": "string",
+                        "description": "编码器",
+                        "example": "h264"
+                    },
+                    "quality": {
+                        "type": "string",
+                        "description": "质量设置"
+                    },
+                    "crf": {
+                        "type": "integer",
+                        "description": "CRF 值（H.264/H.265 可用）",
+                        "format": "int32"
+                    },
+                    "speedPreset": {
+                        "type": "string",
+                        "description": "FFmpeg 速度预设（ultrafast..placebo）"
+                    },
+                    "container": {
+                        "type": "string",
+                        "description": "容器格式",
+                        "example": "mp4"
+                    }
+                },
+                "description": "视频配置"
+            },
+            "SubtitleSettings": {
+                "type": "object",
+                "properties": {
+                    "subtitleUrl": {
+                        "type": "string",
+                        "description": "字幕文件URL",
+                        "example": "https://example.com/subtitle.srt"
+                    },
+                    "language": {
+                        "type": "string",
+                        "description": "字幕语言",
+                        "example": "zh-CN"
+                    },
+                    "fontName": {
+                        "type": "string",
+                        "description": "字体名称",
+                        "example": "Arial"
+                    },
+                    "fontSize": {
+                        "type": "integer",
+                        "description": "字体大小",
+                        "format": "int32",
+                        "example": 16
+                    },
+                    "fontColor": {
+                        "type": "string",
+                        "description": "字体颜色",
+                        "example": "#FFFFFF"
+                    },
+                    "embed": {
+                        "type": "boolean",
+                        "description": "是否嵌入字幕",
+                        "example": true
+                    }
+                },
+                "description": "字幕设置"
+            },
+            "TranscodingParameters": {
+                "type": "object",
+                "properties": {
+                    "videoCodec": {
+                        "type": "string",
+                        "description": "视频编码器",
+                        "example": "libx264"
+                    },
+                    "audioCodec": {
+                        "type": "string",
+                        "description": "音频编码器",
+                        "example": "aac"
+                    },
+                    "videoBitrate": {
+                        "type": "integer",
+                        "description": "视频比特率",
+                        "format": "int32",
+                        "example": 3000
+                    },
+                    "audioBitrate": {
+                        "type": "integer",
+                        "description": "音频比特率",
+                        "format": "int32",
+                        "example": 128
+                    },
+                    "frameRate": {
+                        "type": "number",
+                        "description": "帧率",
+                        "format": "double",
+                        "example": 30
+                    },
+                    "width": {
+                        "type": "integer",
+                        "description": "分辨率宽度",
+                        "format": "int32",
+                        "example": 1920
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "分辨率高度",
+                        "format": "int32",
+                        "example": 1080
+                    },
+                    "aspectRatio": {
+                        "type": "string",
+                        "description": "纵横比",
+                        "example": "16:9"
+                    },
+                    "gopSize": {
+                        "type": "integer",
+                        "description": "GOP大小",
+                        "format": "int32",
+                        "example": 30
+                    },
+                    "preset": {
+                        "type": "string",
+                        "description": "编码预设",
+                        "example": "fast"
+                    },
+                    "crf": {
+                        "type": "integer",
+                        "description": "CRF质量参数",
+                        "format": "int32",
+                        "example": 23
+                    },
+                    "audioSampleRate": {
+                        "type": "integer",
+                        "description": "音频采样率",
+                        "format": "int32",
+                        "example": 44100
+                    },
+                    "audioChannels": {
+                        "type": "integer",
+                        "description": "音频通道数",
+                        "format": "int32",
+                        "example": 2
+                    },
+                    "startTime": {
+                        "type": "number",
+                        "description": "开始时间（秒）",
+                        "format": "double",
+                        "example": 10
+                    },
+                    "duration": {
+                        "type": "number",
+                        "description": "持续时间（秒）",
+                        "format": "double",
+                        "example": 60
+                    },
+                    "removeAudio": {
+                        "type": "boolean",
+                        "description": "是否移除音频",
+                        "example": false
+                    },
+                    "removeVideo": {
+                        "type": "boolean",
+                        "description": "是否移除视频",
+                        "example": false
+                    },
+                    "watermark": {
+                        "$ref": "#/components/schemas/WatermarkSettings"
+                    },
+                    "subtitle": {
+                        "$ref": "#/components/schemas/SubtitleSettings"
+                    },
+                    "bframes": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                },
+                "description": "转码参数"
+            },
+            "WatermarkSettings": {
+                "type": "object",
+                "properties": {
+                    "imageUrl": {
+                        "type": "string",
+                        "description": "水印图片URL",
+                        "example": "https://example.com/watermark.png"
+                    },
+                    "position": {
+                        "type": "string",
+                        "description": "水印位置",
+                        "example": "TOP_RIGHT",
+                        "enum": [
+                            "TOP_LEFT",
+                            "TOP_RIGHT",
+                            "BOTTOM_LEFT",
+                            "BOTTOM_RIGHT",
+                            "CENTER"
+                        ]
+                    },
+                    "opacity": {
+                        "type": "number",
+                        "description": "水印透明度",
+                        "format": "double",
+                        "example": 0.5
+                    },
+                    "marginX": {
+                        "type": "integer",
+                        "description": "边距X",
+                        "format": "int32",
+                        "example": 10
+                    },
+                    "marginY": {
+                        "type": "integer",
+                        "description": "边距Y",
+                        "format": "int32",
+                        "example": 10
+                    }
+                },
+                "description": "水印设置"
+            },
             "FileInfo": {
                 "type": "object",
                 "properties": {
@@ -917,13 +1335,13 @@
                     "metaDataId": {
                         "type": "string"
                     },
-                    "image": {
+                    "video": {
                         "type": "boolean"
                     },
                     "audio": {
                         "type": "boolean"
                     },
-                    "video": {
+                    "image": {
                         "type": "boolean"
                     }
                 }

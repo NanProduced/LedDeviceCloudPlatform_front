@@ -47,7 +47,8 @@ import {
   Priority, 
   ActionType, 
   Action,
-  NotificationItem 
+  NotificationItem,
+  MessageType
 } from '../../lib/websocket/types';
 import { 
   LEVEL_UI_CONFIG, 
@@ -61,7 +62,6 @@ import {
   formatTimeDiff 
 } from '../../lib/websocket/utils';
 import { useWebSocketContext } from '../../contexts/WebSocketContext';
-import { MessageType, Level, UnifiedMessage } from '../../lib/websocket/types';
 
 const { Text, Paragraph } = Typography;
 

@@ -178,21 +178,23 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
 
     // 同步到编辑器状态
     if (primarySelectedItem) {
+      const baseProps = (primarySelectedItem as any).properties ?? {};
       updateItemProperties(primarySelectedItem.id, {
-        ...primarySelectedItem.properties,
+        ...baseProps,
         [property]: value
       });
       saveHistoryDebounced('更新对象属性');
     }
-  }, [primarySelectedObject, primarySelectedItem, updateItemProperties, getCanvas]);
+  }, [primarySelectedObject, primarySelectedItem, updateItemProperties, getCanvas, saveHistoryDebounced]);
 
   // 更新编辑器对象属性
   const updateEditorProperty = useCallback((property: string, value: any) => {
     if (!primarySelectedItem) return;
 
     // 更新编辑器状态
+    const baseProps = (primarySelectedItem as any).properties ?? {};
     updateItemProperties(primarySelectedItem.id, {
-      ...primarySelectedItem.properties,
+      ...baseProps,
       [property]: value
     });
 
@@ -219,7 +221,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
       }
       saveHistoryDebounced('更新对象属性');
     }
-  }, [primarySelectedItem, primarySelectedObject, updateItemProperties, getCanvas]);
+  }, [primarySelectedItem, primarySelectedObject, updateItemProperties, getCanvas, saveHistoryDebounced]);
 
   // 简易节流/防抖调度器
   const timersRef = useRef<{ [key: string]: any }>({});
@@ -246,17 +248,17 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
     // 更新编辑器状态
     if (property === 'left' || property === 'top') {
       updateItemPosition(primarySelectedItem.id, {
-        x: property === 'left' ? value : primarySelectedItem.position.x,
-        y: property === 'top' ? value : primarySelectedItem.position.y
+        x: property === 'left' ? value : (itemPosition?.x ?? 0),
+        y: property === 'top' ? value : (itemPosition?.y ?? 0)
       });
     } else if (property === 'width' || property === 'height') {
       updateItemSize(primarySelectedItem.id, {
-        width: property === 'width' ? value : primarySelectedItem.size.width,
-        height: property === 'height' ? value : primarySelectedItem.size.height
+        width: property === 'width' ? value : (itemSize?.width ?? 0),
+        height: property === 'height' ? value : (itemSize?.height ?? 0)
       });
     }
     saveHistoryDebounced('更新位置/尺寸/旋转');
-  }, [primarySelectedObject, primarySelectedItem, updateItemPosition, updateItemSize, getCanvas]);
+  }, [primarySelectedObject, primarySelectedItem, itemPosition, itemSize, updateItemPosition, updateItemSize, getCanvas]);
 
   // 包装后的节流更新
   const updateTransformThrottled = useCallback((property: TransformProp, value: number) => {
@@ -310,6 +312,22 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
     }
     return currentPage.regions?.[0] || null;
   }, [currentPage, primarySelectedItem]);
+
+  // 兼容不同数据结构：区域(rect/bounds)、对象尺寸(size/dimensions)
+  const regionRect = useMemo(() => {
+    const r: any = currentRegion as any;
+    return r?.rect ?? r?.bounds ?? null;
+  }, [currentRegion]);
+
+  const itemPosition = useMemo(() => {
+    const it: any = primarySelectedItem as any;
+    return it?.position ?? null;
+  }, [primarySelectedItem]);
+
+  const itemSize = useMemo(() => {
+    const it: any = primarySelectedItem as any;
+    return it?.size ?? it?.dimensions ?? null;
+  }, [primarySelectedItem]);
 
   const TypeIcon = primarySelectedItem ? getTypeIcon(primarySelectedItem.type) : Settings;
 
@@ -423,17 +441,18 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="region-name">名称</Label>
-                      <Input id="region-name" value={currentRegion.name}
+                        <Input id="region-name" value={currentRegion?.name || ''}
                         onChange={(e)=>{ updateRegion(currentPage.id, currentRegion.id, { name: e.target.value }); saveHistoryDebounced('更新区域属性'); }} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label htmlFor="region-x">X</Label>
-                        <Input id="region-x" type="number" value={currentRegion.rect.x}
+                        <Input id="region-x" type="number" value={(regionRect?.x ?? 0)}
                           onChange={(e)=>{
                             const v = parseInt(e.target.value)||0;
-                            const rect = { ...currentRegion.rect, x: v };
-                            updateRegion(currentPage.id, currentRegion.id, { rect });
+                             const baseRect = regionRect || { x: 0, y: 0, width: 0, height: 0 };
+                             const rect = { ...baseRect, x: v } as any;
+                             updateRegion(currentPage.id, currentRegion.id, { rect });
                             const c = getCanvas();
                             const frame = c?.getObjects().find((o:any)=>o.isRegionFrame && o.regionId===currentRegion.id);
                             if (frame) { frame.set('left', v); c?.renderAll(); }
@@ -442,11 +461,12 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="region-y">Y</Label>
-                        <Input id="region-y" type="number" value={currentRegion.rect.y}
+                        <Input id="region-y" type="number" value={(regionRect?.y ?? 0)}
                           onChange={(e)=>{
                             const v = parseInt(e.target.value)||0;
-                            const rect = { ...currentRegion.rect, y: v };
-                            updateRegion(currentPage.id, currentRegion.id, { rect });
+                             const baseRect = regionRect || { x: 0, y: 0, width: 0, height: 0 };
+                             const rect = { ...baseRect, y: v } as any;
+                             updateRegion(currentPage.id, currentRegion.id, { rect });
                             const c = getCanvas();
                             const frame = c?.getObjects().find((o:any)=>o.isRegionFrame && o.regionId===currentRegion.id);
                             if (frame) { frame.set('top', v); c?.renderAll(); }
@@ -455,11 +475,12 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="region-w">宽度</Label>
-                        <Input id="region-w" type="number" value={currentRegion.rect.width}
+                        <Input id="region-w" type="number" value={(regionRect?.width ?? 0)}
                           onChange={(e)=>{
                             const v = parseInt(e.target.value)||0;
-                            const rect = { ...currentRegion.rect, width: v };
-                            updateRegion(currentPage.id, currentRegion.id, { rect });
+                             const baseRect = regionRect || { x: 0, y: 0, width: 0, height: 0 };
+                             const rect = { ...baseRect, width: v } as any;
+                             updateRegion(currentPage.id, currentRegion.id, { rect });
                             const c = getCanvas();
                             const frame = c?.getObjects().find((o:any)=>o.isRegionFrame && o.regionId===currentRegion.id);
                             if (frame) { frame.set('width', v); c?.renderAll(); }
@@ -468,11 +489,12 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="region-h">高度</Label>
-                        <Input id="region-h" type="number" value={currentRegion.rect.height}
+                        <Input id="region-h" type="number" value={(regionRect?.height ?? 0)}
                           onChange={(e)=>{
                             const v = parseInt(e.target.value)||0;
-                            const rect = { ...currentRegion.rect, height: v };
-                            updateRegion(currentPage.id, currentRegion.id, { rect });
+                             const baseRect = regionRect || { x: 0, y: 0, width: 0, height: 0 };
+                             const rect = { ...baseRect, height: v } as any;
+                             updateRegion(currentPage.id, currentRegion.id, { rect });
                             const c = getCanvas();
                             const frame = c?.getObjects().find((o:any)=>o.isRegionFrame && o.regionId===currentRegion.id);
                             if (frame) { frame.set('height', v); c?.renderAll(); }
@@ -520,7 +542,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Input
                         id="left"
                         type="number"
-                        value={primarySelectedObject?.left || primarySelectedItem?.position.x || 0}
+                        value={primarySelectedObject?.left ?? itemPosition?.x ?? 0}
                         onChange={(e) => updateTransformThrottled('left', parseInt(e.target.value) || 0)}
                       />
                     </div>
@@ -529,7 +551,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Input
                         id="top"
                         type="number"
-                        value={primarySelectedObject?.top || primarySelectedItem?.position.y || 0}
+                        value={primarySelectedObject?.top ?? itemPosition?.y ?? 0}
                         onChange={(e) => updateTransformThrottled('top', parseInt(e.target.value) || 0)}
                       />
                     </div>
@@ -541,7 +563,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Input
                         id="width"
                         type="number"
-                        value={primarySelectedObject?.width || primarySelectedItem?.size.width || 100}
+                        value={(primarySelectedObject?.width as any) ?? itemSize?.width ?? 100}
                         onChange={(e) => updateTransformThrottled('width', parseInt(e.target.value) || 100)}
                       />
                     </div>
@@ -550,7 +572,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Input
                         id="height"
                         type="number"
-                        value={primarySelectedObject?.height || primarySelectedItem?.size.height || 50}
+                        value={(primarySelectedObject?.height as any) ?? itemSize?.height ?? 50}
                         onChange={(e) => updateTransformThrottled('height', parseInt(e.target.value) || 50)}
                       />
                     </div>
@@ -657,7 +679,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
               </Card>
 
               {/* 颜色和样式 */}
-              {primarySelectedItem && (
+              {primarySelectedItem && (primarySelectedItem as any).properties && (
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
@@ -675,12 +697,12 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                           <Input
                             id="backgroundColor"
                             type="color"
-                            value={primarySelectedItem.properties.backColor || '#FFFFFF'}
+                             value={(primarySelectedItem as any).properties?.backColor || '#FFFFFF'}
                             onChange={(e) => updateEditorProperty('backColor', e.target.value)}
                             className="w-12 h-10 p-1"
                           />
                           <Input
-                            value={primarySelectedItem.properties.backColor || '#FFFFFF'}
+                             value={(primarySelectedItem as any).properties?.backColor || '#FFFFFF'}
                             onChange={(e) => updateEditorProperty('backColor', e.target.value)}
                             className="flex-1"
                           />
@@ -693,11 +715,11 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       primarySelectedItem.type === ItemType.VIDEO ||
                       primarySelectedItem.type === ItemType.GIF) && (
                       <div className="space-y-2">
-                        <Label htmlFor="alpha">
-                          Alpha值: {primarySelectedItem.properties.alpha ?? 1}
+                           <Label htmlFor="alpha">
+                           Alpha值: {(primarySelectedItem as any).properties?.alpha ?? 1}
                         </Label>
                         <Slider
-                          value={[primarySelectedItem.properties.alpha ?? 1]}
+                           value={[(primarySelectedItem as any).properties?.alpha ?? 1]}
                           onValueChange={([value]) => updateEditorPropertyThrottled('alpha', value)}
                           max={1}
                           min={0}
@@ -713,7 +735,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
             {/* 内容属性 */}
             <TabsContent value="content" className="space-y-4">
               {/* 文本属性 */}
-              {primarySelectedItem && [ItemType.SINGLE_LINE_TEXT, ItemType.MULTI_LINE_TEXT, ItemType.SINGLE_COLUMN_TEXT].includes(primarySelectedItem.type) && (
+              {primarySelectedItem && [ItemType.SINGLE_LINE_TEXT, ItemType.MULTI_LINE_TEXT, ItemType.SINGLE_COLUMN_TEXT].includes(primarySelectedItem.type) && (primarySelectedItem as any).properties && (
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
@@ -727,7 +749,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       {primarySelectedItem.type === ItemType.MULTI_LINE_TEXT ? (
                         <Textarea
                           id="text"
-                          value={primarySelectedItem.properties.text || ''}
+                           value={(primarySelectedItem as any).properties?.text || ''}
                           onChange={(e) => updateEditorPropertyThrottled('text', e.target.value)}
                           placeholder="输入文本内容..."
                           rows={3}
@@ -735,7 +757,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       ) : (
                         <Input
                           id="text"
-                          value={primarySelectedItem.properties.text || ''}
+                           value={(primarySelectedItem as any).properties?.text || ''}
                           onChange={(e) => updateEditorPropertyThrottled('text', e.target.value)}
                           placeholder="输入文本内容..."
                         />
@@ -750,9 +772,9 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                           type="number"
                           min="8"
                           max="200"
-                          value={primarySelectedItem.properties.font?.size || 24}
+                           value={(primarySelectedItem as any).properties?.font?.size || 24}
                           onChange={(e) => updateEditorProperty('font', {
-                            ...primarySelectedItem.properties.font,
+                             ...(primarySelectedItem as any).properties?.font,
                             size: parseInt(e.target.value) || 24
                           })}
                         />
@@ -760,9 +782,9 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <div className="space-y-2">
                         <Label htmlFor="fontWeight">字体粗细</Label>
                         <Select
-                          value={primarySelectedItem.properties.font?.weight || 'normal'}
+                           value={(primarySelectedItem as any).properties?.font?.weight || 'normal'}
                           onValueChange={(value) => updateEditorProperty('font', {
-                            ...primarySelectedItem.properties.font,
+                             ...(primarySelectedItem as any).properties?.font,
                             weight: value
                           })}
                         >
@@ -783,9 +805,9 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                     <div className="space-y-2">
                       <Label htmlFor="fontFamily">字体</Label>
                       <Select
-                        value={primarySelectedItem.properties.font?.family || 'Arial'}
+                         value={(primarySelectedItem as any).properties?.font?.family || 'Arial'}
                         onValueChange={(value) => updateEditorProperty('font', {
-                          ...primarySelectedItem.properties.font,
+                           ...(primarySelectedItem as any).properties?.font,
                           family: value
                         })}
                       >
@@ -808,12 +830,12 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         <Input
                           id="textColor"
                           type="color"
-                          value={primarySelectedItem.properties.textColor || '#000000'}
+                           value={(primarySelectedItem as any).properties?.textColor || '#000000'}
                           onChange={(e) => updateEditorProperty('textColor', e.target.value)}
                           className="w-12 h-10 p-1"
                         />
                         <Input
-                          value={primarySelectedItem.properties.textColor || '#000000'}
+                           value={(primarySelectedItem as any).properties?.textColor || '#000000'}
                           onChange={(e) => updateEditorProperty('textColor', e.target.value)}
                           className="flex-1"
                         />
@@ -824,7 +846,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <div className="space-y-2">
                         <Label htmlFor="textAlign">对齐方式</Label>
                         <Select
-                          value={(primarySelectedItem.properties.textAlign || 0).toString()}
+                           value={(((primarySelectedItem as any).properties?.textAlign || 0)).toString()}
                           onValueChange={(value) => updateEditorProperty('textAlign', parseInt(value))}
                         >
                           <SelectTrigger>
@@ -845,7 +867,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                           id="letterSpacing"
                           type="number"
                           step="0.1"
-                          value={primarySelectedItem.properties.letterSpacing || 0}
+                           value={(primarySelectedItem as any).properties?.letterSpacing || 0}
                           onChange={(e) => updateEditorProperty('letterSpacing', parseFloat(e.target.value) || 0)}
                         />
                       </div>
@@ -855,9 +877,9 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Label htmlFor="italic">斜体</Label>
                       <Switch
                         id="italic"
-                        checked={primarySelectedItem.properties.font?.italic || false}
+                         checked={(primarySelectedItem as any).properties?.font?.italic || false}
                         onCheckedChange={(checked) => updateEditorProperty('font', {
-                          ...primarySelectedItem.properties.font,
+                           ...(primarySelectedItem as any).properties?.font,
                           italic: checked
                         })}
                       />
@@ -867,9 +889,9 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Label htmlFor="underline">下划线</Label>
                       <Switch
                         id="underline"
-                        checked={primarySelectedItem.properties.font?.underline || false}
+                         checked={(primarySelectedItem as any).properties?.font?.underline || false}
                         onCheckedChange={(checked) => updateEditorProperty('font', {
-                          ...primarySelectedItem.properties.font,
+                           ...(primarySelectedItem as any).properties?.font,
                           underline: checked
                         })}
                       />
@@ -882,12 +904,12 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                         <Label htmlFor="isScroll">启用滚动</Label>
                         <Switch
                           id="isScroll"
-                          checked={primarySelectedItem.properties.isScroll || false}
+                           checked={(primarySelectedItem as any).properties?.isScroll || false}
                           onCheckedChange={(checked) => updateEditorProperty('isScroll', checked)}
                         />
                       </div>
 
-                      {primarySelectedItem.properties.isScroll && (
+                      {(primarySelectedItem as any).properties?.isScroll && (
                         <>
                           <div className="space-y-2">
                             <Label htmlFor="scrollSpeed">滚动速度</Label>
@@ -896,7 +918,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                               type="number"
                               min="1"
                               max="100"
-                              value={primarySelectedItem.properties.scrollSpeed || 5}
+                               value={(primarySelectedItem as any).properties?.scrollSpeed || 5}
                               onChange={(e) => updateEditorProperty('scrollSpeed', parseInt(e.target.value) || 5)}
                             />
                           </div>
@@ -905,7 +927,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                             <Label htmlFor="isHeadConnectTail">首尾相接</Label>
                             <Switch
                               id="isHeadConnectTail"
-                              checked={primarySelectedItem.properties.isHeadConnectTail || false}
+                               checked={(primarySelectedItem as any).properties?.isHeadConnectTail || false}
                               onCheckedChange={(checked) => updateEditorProperty('isHeadConnectTail', checked)}
                             />
                           </div>
@@ -916,7 +938,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                               id="repeatCount"
                               type="number"
                               min="1"
-                              value={primarySelectedItem.properties.repeatCount || 1}
+                               value={(primarySelectedItem as any).properties?.repeatCount || 1}
                               onChange={(e) => updateEditorProperty('repeatCount', parseInt(e.target.value) || 1)}
                             />
                           </div>
@@ -934,7 +956,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
             </Tabs>
 
             {/* 网页/流媒体属性 */}
-              {primarySelectedItem && primarySelectedItem.type === ItemType.WEB_STREAM && (
+              {primarySelectedItem && primarySelectedItem.type === ItemType.WEB_STREAM && (primarySelectedItem as any).properties && (
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
@@ -948,7 +970,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Input
                         id="url"
                         type="url"
-                        value={primarySelectedItem.properties.url || ''}
+                        value={(primarySelectedItem as any).properties?.url || ''}
                         onChange={(e) => updateEditorPropertyThrottled('url', e.target.value)}
                         placeholder="https://example.com"
                       />
@@ -958,7 +980,7 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                       <Label htmlFor="isLocal">本地文件</Label>
                       <Switch
                         id="isLocal"
-                        checked={primarySelectedItem.properties.isLocal || false}
+                       checked={(primarySelectedItem as any).properties?.isLocal || false}
                         onCheckedChange={(checked) => updateEditorProperty('isLocal', checked)}
                       />
                     </div>
@@ -987,26 +1009,26 @@ export function PropertyPanel({ className, selectedObjects = [] }: PropertyPanel
                   </div>
 
                   {/* 视频特有属性 */}
-                  {primarySelectedItem && [ItemType.VIDEO, ItemType.GIF].includes(primarySelectedItem.type) && (
+                      {primarySelectedItem && [ItemType.VIDEO, ItemType.GIF].includes(primarySelectedItem.type) && (primarySelectedItem as any).properties && (
                     <div className="flex items-center justify-between">
                       <Label htmlFor="reserveAS">保留纵横比</Label>
                       <Switch
                         id="reserveAS"
-                        checked={primarySelectedItem.properties.reserveAS || false}
+                       checked={(primarySelectedItem as any).properties?.reserveAS || false}
                         onCheckedChange={(checked) => updateEditorProperty('reserveAS', checked)}
                       />
                     </div>
                   )}
 
                   {/* GIF特有属性 */}
-                  {primarySelectedItem && primarySelectedItem.type === ItemType.GIF && (
+                  {primarySelectedItem && primarySelectedItem.type === ItemType.GIF && (primarySelectedItem as any).properties && (
                     <div className="space-y-2">
                       <Label htmlFor="playTimes">播放次数</Label>
                       <Input
                         id="playTimes"
                         type="number"
                         min="1"
-                        value={primarySelectedItem.properties.playTimes || 1}
+                       value={(primarySelectedItem as any).properties?.playTimes || 1}
                         onChange={(e) => updateEditorProperty('playTimes', parseInt(e.target.value) || 1)}
                       />
                     </div>

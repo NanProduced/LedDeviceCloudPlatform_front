@@ -73,7 +73,48 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
           // 兼容：确保program.id为当前id
           parsed.program = parsed.program || {};
           parsed.program.id = params.id;
-          loadProgram(parsed);
+
+          // 兼容旧/新数据结构：bounds -> rect, dimensions -> size, duration对象 -> 数字
+          const normalizeForManager = (data: any) => {
+            const programWidth = data?.program?.width ?? 1920;
+            const programHeight = data?.program?.height ?? 1080;
+            const cloned = { ...data };
+            if (Array.isArray(cloned.pages)) {
+              cloned.pages = cloned.pages.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                duration: typeof p.duration === 'number' ? p.duration : (p.duration?.milliseconds ?? 5000),
+                loopType: p.autoLoop ? 1 : (typeof p.loopType === 'number' ? p.loopType : 0),
+                bgColor: p.backgroundColor?.value ?? p.bgColor ?? '#000000',
+                regions: (p.regions || []).map((r: any) => ({
+                  id: r.id,
+                  name: r.name,
+                  rect: {
+                    x: r.rect?.x ?? r.bounds?.x ?? 0,
+                    y: r.rect?.y ?? r.bounds?.y ?? 0,
+                    width: r.rect?.width ?? r.bounds?.width ?? programWidth,
+                    height: r.rect?.height ?? r.bounds?.height ?? programHeight,
+                    borderWidth: r.rect?.borderWidth ?? r.borderWidth ?? 0,
+                  },
+                  items: (r.items || []).map((it: any) => ({
+                    id: it.id,
+                    type: it.type,
+                    name: it.name,
+                    position: it.position ?? { x: 0, y: 0 },
+                    size: it.size ?? it.dimensions ?? { width: 100, height: 100 },
+                    properties: it.properties ?? {},
+                    materialRef: it.materialRef,
+                    fabricData: it.fabricData,
+                  })),
+                  isScheduleRegion: r.isScheduleRegion ?? false,
+                  layer: r.layer,
+                })),
+              }));
+            }
+            return cloned;
+          };
+
+          loadProgram(normalizeForManager(parsed));
         } else if (content?.vsnData) {
           const parsed = JSON.parse(content.vsnData);
           const single = Array.isArray(parsed) ? (parsed[0] || parsed) : parsed;
@@ -278,7 +319,45 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
                   const parsed = JSON.parse(data.contentData)
                   parsed.program = parsed.program || {}
                   parsed.program.id = params.id
-                  loadProgram(parsed)
+                  const programWidth = parsed?.program?.width ?? 1920;
+                  const programHeight = parsed?.program?.height ?? 1080;
+                  const normalizeForManager = (src: any) => {
+                    const cloned = { ...src };
+                    if (Array.isArray(cloned.pages)) {
+                      cloned.pages = cloned.pages.map((p: any) => ({
+                        id: p.id,
+                        name: p.name,
+                        duration: typeof p.duration === 'number' ? p.duration : (p.duration?.milliseconds ?? 5000),
+                        loopType: p.autoLoop ? 1 : (typeof p.loopType === 'number' ? p.loopType : 0),
+                        bgColor: p.backgroundColor?.value ?? p.bgColor ?? '#000000',
+                        regions: (p.regions || []).map((r: any) => ({
+                          id: r.id,
+                          name: r.name,
+                          rect: {
+                            x: r.rect?.x ?? r.bounds?.x ?? 0,
+                            y: r.rect?.y ?? r.bounds?.y ?? 0,
+                            width: r.rect?.width ?? r.bounds?.width ?? programWidth,
+                            height: r.rect?.height ?? r.bounds?.height ?? programHeight,
+                            borderWidth: r.rect?.borderWidth ?? r.borderWidth ?? 0,
+                          },
+                          items: (r.items || []).map((it: any) => ({
+                            id: it.id,
+                            type: it.type,
+                            name: it.name,
+                            position: it.position ?? { x: 0, y: 0 },
+                            size: it.size ?? it.dimensions ?? { width: 100, height: 100 },
+                            properties: it.properties ?? {},
+                            materialRef: it.materialRef,
+                            fabricData: it.fabricData,
+                          })),
+                          isScheduleRegion: r.isScheduleRegion ?? false,
+                          layer: r.layer,
+                        })),
+                      }));
+                    }
+                    return cloned;
+                  };
+                  loadProgram(normalizeForManager(parsed))
                 } else if (data?.vsnData) {
                   const parsed = JSON.parse(data.vsnData)
                   const single = Array.isArray(parsed) ? (parsed[0] || parsed) : parsed
