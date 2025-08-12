@@ -155,12 +155,12 @@ export default function TranscodeManagement() {
               <div className="w-56">
                 <Input placeholder="搜索任务ID/文件名" value={keyword} onChange={e => setKeyword(e.target.value)} />
               </div>
-              <Select value={status || ''} onValueChange={(v) => setStatus(v || undefined)}>
+              <Select value={status ?? 'ALL'} onValueChange={(v) => setStatus(v === 'ALL' ? undefined : v)}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="状态筛选" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部状态</SelectItem>
+                  <SelectItem value="ALL">全部状态</SelectItem>
                   <SelectItem value="PENDING">排队中</SelectItem>
                   <SelectItem value="RUNNING">处理中</SelectItem>
                   <SelectItem value="COMPLETED">已完成</SelectItem>
@@ -168,12 +168,12 @@ export default function TranscodeManagement() {
                 </SelectContent>
               </Select>
               {/* 预设筛选占位：后续可动态获取预设列表填充 */}
-              <Select value={preset || ''} onValueChange={(v) => setPreset(v || undefined)}>
+              <Select value={preset ?? 'ALL'} onValueChange={(v) => setPreset(v === 'ALL' ? undefined : v)}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="预设筛选" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部预设</SelectItem>
+                  <SelectItem value="ALL">全部预设</SelectItem>
                   {/* 可在首屏加载时注入真实预设 */}
                 </SelectContent>
               </Select>

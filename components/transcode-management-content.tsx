@@ -111,24 +111,24 @@ export default function TranscodeManagementContent() {
             <div className="w-56">
               <Input placeholder="搜索任务ID/文件名" value={keyword} onChange={e => setKeyword(e.target.value)} />
             </div>
-            <Select value={status || ''} onValueChange={(v) => setStatus(v || undefined)}>
+            <Select value={status ?? 'ALL'} onValueChange={(v) => setStatus(v === 'ALL' ? undefined : v)}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="状态筛选" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部状态</SelectItem>
+                <SelectItem value="ALL">全部状态</SelectItem>
                 <SelectItem value="PENDING">排队中</SelectItem>
                 <SelectItem value="RUNNING">处理中</SelectItem>
                 <SelectItem value="COMPLETED">已完成</SelectItem>
                 <SelectItem value="FAILED">失败</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={preset || ''} onValueChange={(v) => setPreset(v || undefined)}>
+            <Select value={preset ?? 'ALL'} onValueChange={(v) => setPreset(v === 'ALL' ? undefined : v)}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="预设筛选" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部预设</SelectItem>
+                <SelectItem value="ALL">全部预设</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={() => { setPage(1); load() }} disabled={loading}>

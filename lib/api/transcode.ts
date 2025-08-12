@@ -1,4 +1,4 @@
-import { fetchApi } from './api'
+import { fetchApi } from '../api'
 
 // ========== 类型定义 ==========
 

@@ -115,11 +115,13 @@ export default function TranscodeDialog({ open, mid, onOpenChange }: TranscodeDi
             </CardHeader>
             <CardContent className="space-y-3">
               <Label>预设</Label>
-              <Select value={selectedPreset} onValueChange={setSelectedPreset}>
+              <Select value={selectedPreset || 'DEFAULT_SENTINEL'} onValueChange={(v) => setSelectedPreset(v === 'DEFAULT_SENTINEL' ? '' : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder={loadingPresets ? '加载中...' : '请选择预设'} />
                 </SelectTrigger>
                 <SelectContent>
+                  {/* 防止空字符串报错的占位选项，不可选择为最终值 */}
+                  <SelectItem value="DEFAULT_SENTINEL" disabled>请选择预设</SelectItem>
                   {presets.map(p => (
                     <SelectItem key={p.name} value={p.name}>
                       {p.displayName || p.name}{p.isDefault ? '（默认）' : ''}
