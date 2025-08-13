@@ -1570,6 +1570,105 @@
                 }
             }
         },
+        "/program/approval/pending-for-me": {
+            "post": {
+                "tags": [
+                    "Program(节目管理)",
+                    "节目审核"
+                ],
+                "summary": "查询待我审核的节目列表",
+                "description": "查询节目ugid属于当前用户组层级且状态为PENDING的审核记录",
+                "operationId": "getPendingApprovalsForMe",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PageRequestDTOPendingApprovalForMeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageVOProgramApprovalDTO"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/program/approval/initiated-by-me": {
+            "post": {
+                "tags": [
+                    "Program(节目管理)",
+                    "节目审核"
+                ],
+                "summary": "查询我发起的审核申请列表",
+                "description": "查询创建者为当前用户的所有审核记录",
+                "operationId": "getInitiatedApprovalsByMe",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PageRequestDTOInitiatedApprovalsByMeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageVOProgramApprovalDTO"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/program/approval/all": {
+            "post": {
+                "tags": [
+                    "Program(节目管理)",
+                    "节目审核"
+                ],
+                "summary": "查询全部审核记录",
+                "description": "查询ugid属于当前用户组层级的所有审核记录",
+                "operationId": "getAllApprovals",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PageRequestDTOAllApprovalsRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageVOProgramApprovalDTO"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/permission-deny/remove": {
             "post": {
                 "tags": [
@@ -2135,6 +2234,134 @@
                 }
             }
         },
+        "/quota/trend/{orgId}": {
+            "get": {
+                "tags": [
+                    "组织管理",
+                    "Quota(组织配额)"
+                ],
+                "summary": "获取配额使用趋势",
+                "description": "获取组织配额使用趋势数据，支持不同时间周期的统计",
+                "operationId": "getQuotaTrend",
+                "parameters": [
+                    {
+                        "name": "orgId",
+                        "in": "path",
+                        "description": "组织ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "description": "统计周期: day, week, month",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "day"
+                        },
+                        "example": "day"
+                    },
+                    {
+                        "name": "days",
+                        "in": "query",
+                        "description": "统计天数",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 30
+                        },
+                        "example": 30
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/QuotaTrendResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/quota/detail/{orgId}": {
+            "get": {
+                "tags": [
+                    "组织管理",
+                    "Quota(组织配额)"
+                ],
+                "summary": "获取组织配额详情",
+                "description": "获取组织的配额详细信息，包括存储使用情况、告警信息和预测数据",
+                "operationId": "getQuotaDetail",
+                "parameters": [
+                    {
+                        "name": "orgId",
+                        "in": "path",
+                        "description": "组织ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrgQuotaDetailResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/quota/breakdown/{orgId}": {
+            "get": {
+                "tags": [
+                    "组织管理",
+                    "Quota(组织配额)"
+                ],
+                "summary": "获取配额使用分解",
+                "description": "获取组织配额使用的详细分类统计，包括按文件类型、用户组、操作类型分解",
+                "operationId": "getQuotaBreakdown",
+                "parameters": [
+                    {
+                        "name": "orgId",
+                        "in": "path",
+                        "description": "组织ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/QuotaBreakdownResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/program/{programId}/versions": {
             "get": {
                 "tags": [
@@ -2370,7 +2597,7 @@
                     "节目审核"
                 ],
                 "summary": "查询组织待审核列表",
-                "description": "分页查询当前组织下的待审核节目列表",
+                "description": "分页查询当前组织下的待审核节目列表 (已废弃 - 使用新的三维度接口)",
                 "operationId": "getPendingApprovals",
                 "parameters": [
                     {
@@ -2405,7 +2632,8 @@
                             }
                         }
                     }
-                }
+                },
+                "deprecated": true
             }
         },
         "/permission-deny/check": {
@@ -3122,6 +3350,10 @@
                         "format": "int64"
                     },
                     "updatedBy": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "ugid": {
                         "type": "integer",
                         "format": "int64"
                     }
@@ -4617,9 +4849,18 @@
                     "programName": {
                         "type": "string"
                     },
+                    "programDescription": {
+                        "type": "string"
+                    },
                     "programVersion": {
                         "type": "integer",
                         "format": "int32"
+                    },
+                    "programStatus": {
+                        "type": "string"
+                    },
+                    "programStatusName": {
+                        "type": "string"
                     },
                     "status": {
                         "type": "string",
@@ -4671,6 +4912,10 @@
                     },
                     "applicantName": {
                         "type": "string"
+                    },
+                    "ugid": {
+                        "type": "integer",
+                        "format": "int64"
                     }
                 }
             },
@@ -4867,6 +5112,182 @@
                     },
                     "rejectionReason": {
                         "type": "string"
+                    }
+                }
+            },
+            "PageRequestDTOPendingApprovalForMeRequest": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "sortField": {
+                        "type": "string"
+                    },
+                    "sortOrder": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "$ref": "#/components/schemas/PendingApprovalForMeRequest"
+                    }
+                }
+            },
+            "PendingApprovalForMeRequest": {
+                "type": "object",
+                "properties": {
+                    "keyword": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED"
+                        ]
+                    },
+                    "programStatus": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PageVOProgramApprovalDTO": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "records": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProgramApprovalDTO"
+                        }
+                    },
+                    "hasNext": {
+                        "type": "boolean"
+                    },
+                    "hasPrevious": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "InitiatedApprovalsByMeRequest": {
+                "type": "object",
+                "properties": {
+                    "keyword": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED"
+                        ]
+                    },
+                    "programStatus": {
+                        "type": "string"
+                    },
+                    "startTime": {
+                        "type": "string"
+                    },
+                    "endTime": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PageRequestDTOInitiatedApprovalsByMeRequest": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "sortField": {
+                        "type": "string"
+                    },
+                    "sortOrder": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "$ref": "#/components/schemas/InitiatedApprovalsByMeRequest"
+                    }
+                }
+            },
+            "AllApprovalsRequest": {
+                "type": "object",
+                "properties": {
+                    "keyword": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED"
+                        ]
+                    },
+                    "programStatus": {
+                        "type": "string"
+                    },
+                    "reviewerId": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "createdBy": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "startTime": {
+                        "type": "string"
+                    },
+                    "endTime": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PageRequestDTOAllApprovalsRequest": {
+                "type": "object",
+                "properties": {
+                    "pageNum": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "sortField": {
+                        "type": "string"
+                    },
+                    "sortOrder": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "$ref": "#/components/schemas/AllApprovalsRequest"
                     }
                 }
             },
@@ -5170,10 +5591,10 @@
                     "summary": {
                         "type": "string"
                     },
-                    "allSuccessful": {
+                    "completelyFailed": {
                         "type": "boolean"
                     },
-                    "completelyFailed": {
+                    "allSuccessful": {
                         "type": "boolean"
                     },
                     "performanceSummary": {
@@ -6101,6 +6522,345 @@
                 },
                 "description": "角色详情响应"
             },
+            "QuotaTrendResponse": {
+                "type": "object",
+                "properties": {
+                    "orgId": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "period": {
+                        "type": "string"
+                    },
+                    "storageUsageTrend": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TrendDataPoint"
+                        }
+                    },
+                    "fileCountTrend": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TrendDataPoint"
+                        }
+                    },
+                    "summary": {
+                        "$ref": "#/components/schemas/TrendSummary"
+                    },
+                    "generatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "TrendDataPoint": {
+                "type": "object",
+                "properties": {
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "value": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "deltaValue": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "deltaPercentage": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                }
+            },
+            "TrendSummary": {
+                "type": "object",
+                "properties": {
+                    "overallTrend": {
+                        "type": "string"
+                    },
+                    "averageDailyGrowth": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "maxDailyGrowth": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "growthRate": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "peakTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "peakValue": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "FileQuotaInfo": {
+                "type": "object",
+                "properties": {
+                    "maxCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "usedCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "remainingCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "usagePercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                }
+            },
+            "OrgQuotaDetailResponse": {
+                "type": "object",
+                "properties": {
+                    "orgId": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "storageInfo": {
+                        "$ref": "#/components/schemas/StorageQuotaInfo"
+                    },
+                    "fileInfo": {
+                        "$ref": "#/components/schemas/FileQuotaInfo"
+                    },
+                    "warningInfo": {
+                        "$ref": "#/components/schemas/WarningInfo"
+                    },
+                    "predictionInfo": {
+                        "$ref": "#/components/schemas/PredictionInfo"
+                    },
+                    "updatedTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "PredictionInfo": {
+                "type": "object",
+                "properties": {
+                    "estimatedDaysRemaining": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "growthTrend": {
+                        "type": "string"
+                    },
+                    "dailyGrowthBytes": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "StorageQuotaInfo": {
+                "type": "object",
+                "properties": {
+                    "maxSize": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "usedSize": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "remainingSize": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "usagePercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                }
+            },
+            "WarningInfo": {
+                "type": "object",
+                "properties": {
+                    "thresholdPercent": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "isWarning": {
+                        "type": "boolean"
+                    },
+                    "warningMessage": {
+                        "type": "string"
+                    }
+                }
+            },
+            "BreakdownSummary": {
+                "type": "object",
+                "properties": {
+                    "totalUsedBytes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalFileCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "topFileTypeByStorage": {
+                        "type": "string"
+                    },
+                    "topUserGroupByCount": {
+                        "type": "string"
+                    },
+                    "mostActiveOperationType": {
+                        "type": "string"
+                    },
+                    "statisticTimeRange": {
+                        "type": "string"
+                    },
+                    "extras": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "FileTypeBreakdown": {
+                "type": "object",
+                "properties": {
+                    "fileType": {
+                        "type": "string"
+                    },
+                    "fileTypeDisplayName": {
+                        "type": "string"
+                    },
+                    "usedBytes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "fileCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "storagePercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "countPercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "averageFileSize": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "OperationTypeBreakdown": {
+                "type": "object",
+                "properties": {
+                    "operationType": {
+                        "type": "string"
+                    },
+                    "operationDisplayName": {
+                        "type": "string"
+                    },
+                    "operationCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalBytes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "operationPercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lastOperationTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "QuotaBreakdownResponse": {
+                "type": "object",
+                "properties": {
+                    "orgId": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "fileTypeBreakdown": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/FileTypeBreakdown"
+                        }
+                    },
+                    "userGroupBreakdown": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserGroupBreakdown"
+                        }
+                    },
+                    "operationTypeBreakdown": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OperationTypeBreakdown"
+                        }
+                    },
+                    "summary": {
+                        "$ref": "#/components/schemas/BreakdownSummary"
+                    },
+                    "generatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "UserGroupBreakdown": {
+                "type": "object",
+                "properties": {
+                    "userGroupId": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "userGroupName": {
+                        "type": "string"
+                    },
+                    "usedBytes": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "fileCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "storagePercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "countPercentage": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "activeUserCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
             "ProgramVersionDTO": {
                 "type": "object",
                 "properties": {
@@ -6249,39 +7009,6 @@
                     },
                     "thumbnailUrl": {
                         "type": "string"
-                    }
-                }
-            },
-            "PageVOProgramApprovalDTO": {
-                "type": "object",
-                "properties": {
-                    "pageNum": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "pageSize": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "total": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "records": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/ProgramApprovalDTO"
-                        }
-                    },
-                    "hasNext": {
-                        "type": "boolean"
-                    },
-                    "hasPrevious": {
-                        "type": "boolean"
                     }
                 }
             },
