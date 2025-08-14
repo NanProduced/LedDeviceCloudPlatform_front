@@ -526,6 +526,8 @@ export default function FileManagementContent() {
                     <TableHead>文件名</TableHead>
                     <TableHead>类型</TableHead>
                     <TableHead>大小</TableHead>
+                    <TableHead>上传者</TableHead>
+                    <TableHead>使用次数</TableHead>
                     <TableHead>上传时间</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead className="text-right">操作</TableHead>
@@ -534,7 +536,7 @@ export default function FileManagementContent() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
+                      <TableCell colSpan={8} className="text-center py-8">
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span className="text-sm text-gray-500">加载中...</span>
@@ -543,7 +545,7 @@ export default function FileManagementContent() {
                     </TableRow>
                   ) : filteredMaterials.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
+                      <TableCell colSpan={8} className="text-center py-8">
                         <p className="text-sm text-gray-500">
                           {searchQuery ? "没有找到匹配的文件" : "此文件夹为空"}
                         </p>
@@ -559,7 +561,6 @@ export default function FileManagementContent() {
                             </div>
                             <div>
                               <p className="font-medium">{material.materialName}</p>
-                              <p className="text-xs text-slate-500">ID: {material.mid}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -569,9 +570,9 @@ export default function FileManagementContent() {
                             <span className="capitalize">{material.materialType.toLowerCase()}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-400">
-                          {material.fileSizeFormatted}
-                        </TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-400">{material.fileSizeFormatted}</TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-400">{material.uploaderName}</TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-400">{material.usageCount}</TableCell>
                         <TableCell className="text-slate-600 dark:text-slate-400">
                           {new Date(material.uploadTime).toLocaleString("zh-CN")}
                         </TableCell>
@@ -586,6 +587,11 @@ export default function FileManagementContent() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>操作</DropdownMenuLabel>
                               <DropdownMenuSeparator />
+                                <DropdownMenuItem className="gap-2" onClick={() => {
+                                  navigator.clipboard?.writeText(String(material.mid)).catch(()=>{})
+                                }}>
+                                  复制素材编号
+                                </DropdownMenuItem>
                               <DropdownMenuItem className="gap-2" onClick={() => { setDetailMid(material.mid); setDetailOpen(true) }}>
                                 <Eye className="w-4 h-4" />
                                 查看详情

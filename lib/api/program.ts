@@ -387,18 +387,31 @@ export class ProgramAPI {
     return { success: data === true || data?.success === true, approvalId: data?.approvalId }
   }
 
-  static async listPendingReviews(query: { scope?: 'mine' | 'all'; page?: number; pageSize?: number } = {}): Promise<{ items: any[]; total: number; page: number; pageSize: number }>{
-    const page = query.page || 1
-    const size = query.pageSize || 20
-    const params = new URLSearchParams()
-    params.append('page', String(page))
-    params.append('size', String(size))
-    const data = await fetchApi(`${CORE_API_PREFIX}/program/approval/pending?${params.toString()}`) as any
+  static async listPendingReviews(query: { scope?: 'mine' | 'all'; page?: number; pageSize?: number; keyword?: string; status?: ProgramApprovalStatusFrontend } = {}): Promise<{ items: any[]; total: number; page: number; pageSize: number }>{
+    const pageNum = query.page || 1
+    const pageSize = query.pageSize || 20
+    const scope = query.scope === 'all' ? 'all' : 'mine'
+
+    // 新文档使用 POST + PageRequestDTO 包装
+    const body: any = {
+      pageNum,
+      pageSize,
+      params: {
+        keyword: query.keyword,
+        status: query.status ? (query.status.toUpperCase()) : undefined,
+      },
+    }
+
+    const path = scope === 'all'
+      ? `${CORE_API_PREFIX}/program/approval/all`
+      : `${CORE_API_PREFIX}/program/approval/pending-for-me`
+
+    const data = await fetchApi(path, { method: 'POST', body: JSON.stringify(body) }) as any
     return {
-      items: (data.items ?? data.records ?? data.list ?? data.data ?? []),
+      items: (data.records ?? data.items ?? data.list ?? data.data ?? []),
       total: data.total ?? data.totalCount ?? 0,
-      page: data.page ?? data.pageNum ?? page,
-      pageSize: data.pageSize ?? data.size ?? size,
+      page: data.pageNum ?? data.page ?? pageNum,
+      pageSize: data.pageSize ?? data.size ?? pageSize,
     }
   }
 
@@ -418,18 +431,25 @@ export class ProgramAPI {
   }
 
   // 我发起的审核请求列表（以接口文档为准，若路径不同请在此适配）
-  static async listSubmittedReviews(query: { page?: number; pageSize?: number } = {}): Promise<{ items: any[]; total: number; page: number; pageSize: number }>{
-    const page = query.page || 1
-    const size = query.pageSize || 20
-    const params = new URLSearchParams()
-    params.append('page', String(page))
-    params.append('size', String(size))
-    const data = await fetchApi(`${CORE_API_PREFIX}/program/approval/pending?${params.toString()}`) as any
+  static async listSubmittedReviews(query: { page?: number; pageSize?: number; keyword?: string; status?: ProgramApprovalStatusFrontend; startTime?: string; endTime?: string } = {}): Promise<{ items: any[]; total: number; page: number; pageSize: number }>{
+    const pageNum = query.page || 1
+    const pageSize = query.pageSize || 20
+    const body: any = {
+      pageNum,
+      pageSize,
+      params: {
+        keyword: query.keyword,
+        status: query.status ? (query.status.toUpperCase()) : undefined,
+        startTime: query.startTime,
+        endTime: query.endTime,
+      },
+    }
+    const data = await fetchApi(`${CORE_API_PREFIX}/program/approval/initiated-by-me`, { method: 'POST', body: JSON.stringify(body) }) as any
     return {
-      items: (data.items ?? data.records ?? data.list ?? data.data ?? []),
+      items: (data.records ?? data.items ?? data.list ?? data.data ?? []),
       total: data.total ?? data.totalCount ?? 0,
-      page: data.page ?? data.pageNum ?? page,
-      pageSize: data.pageSize ?? data.size ?? size,
+      page: data.pageNum ?? data.page ?? pageNum,
+      pageSize: data.pageSize ?? data.size ?? pageSize,
     }
   }
 }

@@ -307,9 +307,9 @@ export function UploadProgress({
                   ? "文件已存在，秒传完成！" 
                   : "文件上传成功！"
                 }
-                {result.fileId && (
+                {result.fileUrl && (
                   <div className="mt-1 text-xs opacity-75">
-                    文件ID: {result.fileId}
+                    <a className="underline" href={result.fileUrl} target="_blank" rel="noreferrer">查看文件</a>
                   </div>
                 )}
               </div>

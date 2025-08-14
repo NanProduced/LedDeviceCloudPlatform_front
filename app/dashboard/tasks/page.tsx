@@ -656,10 +656,6 @@ export default function TasksPage() {
               
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="font-medium">任务ID:</span>
-                  <p className="text-muted-foreground">{detailDialog.task.id}</p>
-                </div>
-                <div>
                   <span className="font-medium">创建时间:</span>
                   <p className="text-muted-foreground">{detailDialog.task.createTime}</p>
                 </div>

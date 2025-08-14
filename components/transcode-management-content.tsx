@@ -109,7 +109,7 @@ export default function TranscodeManagementContent() {
           {/* 过滤器 */}
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <div className="w-56">
-              <Input placeholder="搜索任务ID/文件名" value={keyword} onChange={e => setKeyword(e.target.value)} />
+              <Input placeholder="搜索任务/文件名" value={keyword} onChange={e => setKeyword(e.target.value)} />
             </div>
             <Select value={status ?? 'ALL'} onValueChange={(v) => setStatus(v === 'ALL' ? undefined : v)}>
               <SelectTrigger className="w-40">
@@ -139,7 +139,6 @@ export default function TranscodeManagementContent() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                  <TableHead>任务ID</TableHead>
                   <TableHead>文件名</TableHead>
                   <TableHead>预设</TableHead>
                   <TableHead>状态</TableHead>
@@ -151,16 +150,15 @@ export default function TranscodeManagementContent() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8"><div className="flex items-center justify-center gap-2"><Loader className="w-4 h-4 animate-spin"/><span className="text-sm text-slate-500">加载中...</span></div></TableCell>
+                    <TableCell colSpan={6} className="text-center py-8"><div className="flex items-center justify-center gap-2"><Loader className="w-4 h-4 animate-spin"/><span className="text-sm text-slate-500">加载中...</span></div></TableCell>
                   </TableRow>
                 ) : filteredTasks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-sm text-slate-500">暂无任务</TableCell>
+                    <TableCell colSpan={6} className="text-center py-8 text-sm text-slate-500">暂无任务</TableCell>
                   </TableRow>
                 ) : (
                   filteredTasks.map((task) => (
                     <TableRow key={task.taskId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <TableCell className="font-mono text-xs">{task.taskId}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           {getTranscodeStatusIcon(task.status)}
@@ -188,6 +186,11 @@ export default function TranscodeManagementContent() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>操作</DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem className="gap-2" onClick={() => {
+                              navigator.clipboard?.writeText(task.taskId).catch(()=>{})
+                            }}>
+                              复制任务编号
+                            </DropdownMenuItem>
                             {((task.status || '').toUpperCase().includes('RUN') || (task.status || '').toUpperCase().includes('PENDING')) && (
                               <DropdownMenuItem className="gap-2">
                                 <Pause className="w-4 h-4" />
